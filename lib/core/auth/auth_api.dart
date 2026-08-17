@@ -48,8 +48,11 @@ class AuthApi {
 
   Future<void> logout(String? refreshToken) async {
     try {
-      await _post('/auth/logout', {if (refreshToken != null) 'refresh_token': refreshToken});
-    } on DioException {
+      // Doesn't go through [_post]: the endpoint responds 204 No Content
+      // (empty body) by design, which [_post]'s `Map<String, dynamic>` cast
+      // would reject.
+      await _dio.post('/auth/logout', data: {if (refreshToken != null) 'refresh_token': refreshToken});
+    } catch (_) {
       // Best-effort — logging out locally still proceeds regardless.
     }
   }
