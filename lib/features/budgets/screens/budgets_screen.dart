@@ -1,0 +1,195 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../../core/api/api_error.dart';
+import '../../../core/format/money.dart';
+import '../../../shared/widgets/progress_card.dart';
+import '../models/budget.dart';
+import '../providers/budgets_provider.dart';
+
+const _monthNames = [
+  'January', 'February', 'March', 'April', 'May', 'June', //
+  'July', 'August', 'September', 'October', 'November', 'December',
+];
+
+/// Body content for the Budgets sub-view of the Budgets tab. Grouped-list
+/// per DESIGN.md § Budgets: one group per top-level category, sub-categories
+/// rendered as indented rows within their parent's group, over-budget rows
+/// in the danger colour.
+class BudgetsBody extends ConsumerWidget {
+  const BudgetsBody({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final month = ref.watch(selectedBudgetMonthProvider);
+    final progressAsync = ref.watch(budgetProgressProvider);
+
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              IconButton(
+                icon: const Icon(Icons.chevron_left),
+                onPressed: () => ref.read(selectedBudgetMonthProvider.notifier).previous(),
+              ),
+              Text('${_monthNames[month.month - 1]} ${month.year}', style: Theme.of(context).textTheme.titleMedium),
+              IconButton(
+                icon: const Icon(Icons.chevron_right),
+                onPressed: () => ref.read(selectedBudgetMonthProvider.notifier).next(),
+              ),
+            ],
+          ),
+        ),
+        Expanded(
+          child: RefreshIndicator(
+            onRefresh: () => ref.refresh(budgetProgressProvider.future),
+            child: progressAsync.when(
+              loading: () => const Center(child: CircularProgressIndicator()),
+              error: (err, _) => Center(child: Text(err is ApiError ? err.message : 'Failed to load budgets')),
+              data: (budgets) {
+                if (budgets.isEmpty) {
+                  return ListView(
+                    padding: const EdgeInsets.all(16),
+                    children: const [Center(child: Padding(padding: EdgeInsets.only(top: 48), child: Text('No budgets for this month.')))],
+                  );
+                }
+                return ListView(
+                  padding: const EdgeInsets.all(16),
+                  children: [
+                    for (final budget in budgets) ...[
+                      _BudgetProgressRow(progress: budget),
+                      for (final child in budget.children) _BudgetProgressRow(progress: child, indented: true),
+                    ],
+                  ],
+                );
+              },
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _BudgetProgressRow extends StatelessWidget {
+  const _BudgetProgressRow({required this.progress, this.indented = false});
+  final BudgetProgress progress;
+  final bool indented;
+
+  @override
+  Widget build(BuildContext context) {
+    final pct = progress.pctUsed / 100;
+    return ProgressCard(
+      title: progress.category ?? 'Total',
+      pct: pct,
+      overBudget: progress.overBudget,
+      indented: indented,
+      footnote: progress.overBudget
+          ? '${formatZAR(progress.remaining.abs())} over budget'
+          : '${formatZAR(progress.spent)} / ${formatZAR(progress.budgetAmount)}',
+    );
+  }
+}
+
+Future<void> showAddBudgetSheet(BuildContext context) {
+  return showModalBottomSheet(context: context, isScrollControlled: true, builder: (_) => const _BudgetSheet());
+}
+
+class _BudgetSheet extends ConsumerStatefulWidget {
+  const _BudgetSheet();
+
+  @override
+  ConsumerState<_BudgetSheet> createState() => _BudgetSheetState();
+}
+
+class _BudgetSheetState extends ConsumerState<_BudgetSheet> {
+  final _categoryController = TextEditingController();
+  final _amountController = TextEditingController();
+  String? _parentBudgetId;
+  bool _submitting = false;
+  String? _error;
+
+  @override
+  void dispose() {
+    _categoryController.dispose();
+    _amountController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    setState(() {
+      _submitting = true;
+      _error = null;
+    });
+    try {
+      final month = ref.read(selectedBudgetMonthProvider);
+      await ref.read(budgetsApiProvider).create(
+            month: month,
+            totalBudget: _amountController.text.trim(),
+            category: _categoryController.text.trim().isEmpty ? null : _categoryController.text.trim(),
+            parentBudgetId: _parentBudgetId,
+          );
+      ref.invalidate(budgetProgressProvider);
+      ref.invalidate(budgetsForMonthProvider);
+      if (mounted) Navigator.of(context).pop();
+    } on ApiError catch (e) {
+      setState(() => _error = e.message);
+    } finally {
+      if (mounted) setState(() => _submitting = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final topLevelBudgetsAsync = ref.watch(budgetsForMonthProvider);
+
+    return Padding(
+      padding: EdgeInsets.only(left: 24, right: 24, top: 24, bottom: MediaQuery.of(context).viewInsets.bottom + 24),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text('Add budget', style: Theme.of(context).textTheme.titleLarge),
+          const SizedBox(height: 16),
+          TextField(
+            controller: _amountController,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            decoration: const InputDecoration(labelText: 'Amount (ZAR)'),
+          ),
+          const SizedBox(height: 16),
+          TextField(controller: _categoryController, decoration: const InputDecoration(labelText: 'Category (optional — leave blank for the overall total)')),
+          const SizedBox(height: 16),
+          topLevelBudgetsAsync.when(
+            loading: () => const SizedBox.shrink(),
+            error: (_, _) => const SizedBox.shrink(),
+            data: (budgets) {
+              final topLevel = budgets.where((b) => b.parentBudgetId == null).toList();
+              if (topLevel.isEmpty) return const SizedBox.shrink();
+              return DropdownButtonFormField<String?>(
+                initialValue: _parentBudgetId,
+                decoration: const InputDecoration(labelText: 'Parent budget (optional, for a sub-category)'),
+                items: [
+                  const DropdownMenuItem(value: null, child: Text('None — top-level budget')),
+                  for (final b in topLevel) DropdownMenuItem(value: b.id, child: Text(b.category ?? 'Total')),
+                ],
+                onChanged: (value) => setState(() => _parentBudgetId = value),
+              );
+            },
+          ),
+          if (_error != null) ...[
+            const SizedBox(height: 12),
+            Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
+          ],
+          const SizedBox(height: 24),
+          ElevatedButton(
+            onPressed: _submitting ? null : _submit,
+            child: _submitting ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2)) : const Text('Save'),
+          ),
+        ],
+      ),
+    );
+  }
+}
