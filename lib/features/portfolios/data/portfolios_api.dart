@@ -6,12 +6,15 @@ import '../models/holding.dart';
 import '../models/investment_overview.dart';
 import '../models/portfolio.dart';
 import '../models/portfolio_value.dart';
+import '../models/ticker_history.dart';
+import '../models/ticker_lookup.dart';
+import '../models/ticker_search_result.dart';
 import '../models/trade.dart';
 
-/// Covers `backend/app/portfolios/router.py`'s CRUD + aggregation surface.
-/// Ticker lookup/search/history and the market-data-batch/provider-health
-/// endpoints (used by the Add/Edit Holding autocomplete and sparkline
-/// popover) are deliberately not here yet — added when those screens land.
+/// Covers `backend/app/portfolios/router.py`'s CRUD + aggregation surface,
+/// plus ticker lookup/search/history for the Add/Edit Holding autocomplete
+/// and sparkline/price-history charts. Market-data-batch/provider-health
+/// aren't needed by any planned screen and remain unimplemented.
 class PortfoliosApi {
   PortfoliosApi(this._client);
   final ApiClient _client;
@@ -266,4 +269,40 @@ class PortfoliosApi {
 
   String _dateOnly(DateTime date) =>
       '${date.year.toString().padLeft(4, '0')}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+
+  // ---- ticker lookup/search/history ------------------------------------
+
+  /// Returns `null` on a 404 (ticker not found) rather than throwing —
+  /// callers treat "no match" as a normal, expected autocomplete outcome.
+  Future<TickerLookup?> tickerLookup(String q) async {
+    try {
+      final response = await _client.dio.get('/portfolios/ticker-lookup', queryParameters: {'q': q});
+      return TickerLookup.fromJson(response.data as Map<String, dynamic>);
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 404) return null;
+      throw ApiClient.errorFrom(e);
+    }
+  }
+
+  /// Always 200 server-side (empty `items` on failure) — safe to call on
+  /// every keystroke for an autocomplete dropdown.
+  Future<List<TickerSearchResult>> tickerSearch(String q) async {
+    try {
+      final response = await _client.dio.get('/portfolios/ticker-search', queryParameters: {'q': q});
+      final data = response.data as Map<String, dynamic>;
+      return (data['items'] as List).map((e) => TickerSearchResult.fromJson(e as Map<String, dynamic>)).toList();
+    } on DioException catch (e) {
+      throw ApiClient.errorFrom(e);
+    }
+  }
+
+  Future<TickerHistory> tickerHistory(String ticker, {String period = '3mo'}) async {
+    try {
+      final response = await _client.dio
+          .get('/portfolios/ticker-history', queryParameters: {'ticker': ticker, 'period': period});
+      return TickerHistory.fromJson(response.data as Map<String, dynamic>);
+    } on DioException catch (e) {
+      throw ApiClient.errorFrom(e);
+    }
+  }
 }
