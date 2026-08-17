@@ -7,6 +7,7 @@ import '../../features/auth/screens/login_screen.dart';
 import '../../features/auth/screens/register_screen.dart';
 import '../../features/budgets/screens/budgets_home_screen.dart';
 import '../../features/dashboard/screens/dashboard_screen.dart';
+import '../../features/portfolios/screens/invest_screen.dart';
 import '../auth/auth_controller.dart';
 import '../auth/auth_state.dart';
 import 'app_shell.dart';
@@ -36,7 +37,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state, navigationShell) => AppShell(navigationShell: navigationShell),
         branches: [
           StatefulShellBranch(routes: [GoRoute(path: '/', builder: (context, state) => const DashboardScreen())]),
-          StatefulShellBranch(routes: [GoRoute(path: '/invest', builder: (context, state) => const PlaceholderScreen(title: 'Invest'))]),
+          StatefulShellBranch(routes: [GoRoute(path: '/invest', builder: (context, state) => const InvestScreen())]),
           StatefulShellBranch(routes: [GoRoute(path: '/budgets', builder: (context, state) => const BudgetsHomeScreen())]),
           StatefulShellBranch(routes: [GoRoute(path: '/insights', builder: (context, state) => const PlaceholderScreen(title: 'Insights'))]),
           StatefulShellBranch(routes: [GoRoute(path: '/settings', builder: (context, state) => const SettingsScreen())]),
