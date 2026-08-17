@@ -26,9 +26,11 @@ Phase 0 deliverable for the Flutter migration (see the approved migration plan a
 > - **Dark mode is inferred, not shown.** All 9 mockups are light-mode only. The dark
 >   palette below keeps the same hue relationships (brightened accent, dark surface) as
 >   the superseded spec did, but has not been confirmed against any delivered mockup.
-> - **The notification bell (with unread dot) has no backing feature.** No
->   `notifications` domain exists anywhere in the backend or the migration's parity
->   matrix. Rendered as a static, non-interactive icon until product scopes it.
+> - **The avatar photo and notification bell (with unread dot) have no backing feature,
+>   and that's now a settled decision, not an open question.** No avatar-upload endpoint
+>   or `notifications` domain exists anywhere in the backend or the migration's parity
+>   matrix, and per `docs/ui-ux-mockup-brief.md` §13 item 10 (2026-08-17), both stay
+>   non-functional placeholders for now rather than getting built.
 > - Only Login, Create account, Home/Dashboard, Accounts, Transactions, Budgets, Goals,
 >   Invest, and Settings were mocked. Lock/biometric, Assets, Liabilities, Calculators,
 >   and Expenses Summary inherit the new component language below by extension, not by a
@@ -246,3 +248,9 @@ JPEG fidelity, not a full design-tool source file), a formal design-token handof
 exact confirmed hex values (this doc's palette is eyeballed from the JPEGs), and mockups
 for the screens listed as "not directly mocked" in the revision header above. Real mascot
 and avatar image assets are also outstanding — see the revision header's asset note.
+
+The consent-acceptance screen is confirmed in scope (`docs/ui-ux-mockup-brief.md` §13 item
+5, 2026-08-17) but has no mockup and no design direction here yet — build it in the app's
+existing plain-screen style, matching the unmocked Portfolio Detail precedent, when it's
+picked up. The CSV import wizard (Configure → Upload → Review, per §13 item 3) and the
+password-reset scope-out (§13 item 8) are similarly resolved-but-undesigned.
