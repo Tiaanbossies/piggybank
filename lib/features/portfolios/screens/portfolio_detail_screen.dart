@@ -1,4 +1,5 @@
 import 'package:decimal/decimal.dart';
+import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -8,11 +9,13 @@ import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/allocation_bar.dart';
 import '../../../shared/widgets/group_card.dart';
 import '../../../shared/widgets/hero_metric_card.dart';
+import '../../tfsa/screens/tfsa_ledger_screen.dart';
 import '../asset_class_style.dart';
 import '../models/holding.dart';
 import '../models/investment_overview.dart';
 import '../models/portfolio.dart';
 import '../providers/portfolios_provider.dart';
+import '../providers/ticker_provider.dart';
 import 'add_edit_holding_sheet.dart';
 import 'holding_detail_sheet.dart';
 import 'portfolio_sheet.dart';
@@ -39,6 +42,14 @@ class PortfolioDetailScreen extends ConsumerWidget {
       appBar: AppBar(
         title: Text(portfolio.name),
         actions: [
+          if (portfolio.portfolioType == PortfolioType.tfsa)
+            IconButton(
+              icon: const Icon(Icons.receipt_long_outlined),
+              tooltip: 'TFSA contribution ledger',
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const TfsaLedgerScreen()),
+              ),
+            ),
           IconButton(
             icon: const Icon(Icons.edit_outlined),
             onPressed: () => showPortfolioSheet(context, existing: portfolio),
@@ -182,19 +193,75 @@ class _HoldingRow extends StatelessWidget {
                 decoration: BoxDecoration(color: semantic?.accentChipBg, borderRadius: BorderRadius.circular(999)),
                 child: const Text('Closed', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 12)),
               )
-            : Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
+            : Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(formatZAR(holding.marketValue), style: moneyTextStyle(context, fontSize: 14)),
-                  Text(
-                    formatZAR(holding.unrealizedPl),
-                    style: TextStyle(fontSize: 12, color: plUp ? semantic?.success : semantic?.danger),
+                  _Sparkline(ticker: holding.ticker),
+                  const SizedBox(width: 8),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(formatZAR(holding.marketValue), style: moneyTextStyle(context, fontSize: 14)),
+                      Text(
+                        formatZAR(holding.unrealizedPl),
+                        style: TextStyle(fontSize: 12, color: plUp ? semantic?.success : semantic?.danger),
+                      ),
+                    ],
                   ),
                 ],
               ),
         onTap: () => showHoldingDetailSheet(context, holding: holding),
       ),
+    );
+  }
+}
+
+/// Small inline price-trend indicator per holding row, per DESIGN.md §9's
+/// "small inline sparkline" note. Reuses the same [tickerHistoryProvider]
+/// the Holding Detail sheet's full price chart uses, just with a shorter
+/// period — purely decorative, so loading/error states render nothing
+/// rather than a spinner or error text, never blocking the row.
+class _Sparkline extends ConsumerWidget {
+  const _Sparkline({required this.ticker});
+  final String ticker;
+
+  static const _size = Size(60, 24);
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final historyAsync = ref.watch(tickerHistoryProvider((ticker: ticker, period: '1mo')));
+    final accent = Theme.of(context).colorScheme.primary;
+
+    return historyAsync.when(
+      loading: () => SizedBox.fromSize(size: _size),
+      error: (_, _) => SizedBox.fromSize(size: _size),
+      data: (history) {
+        if (history.data.length < 2) return SizedBox.fromSize(size: _size);
+        final spots = [
+          for (var i = 0; i < history.data.length; i++) FlSpot(i.toDouble(), history.data[i].close.toDouble()),
+        ];
+        return SizedBox.fromSize(
+          size: _size,
+          child: LineChart(
+            LineChartData(
+              gridData: const FlGridData(show: false),
+              titlesData: const FlTitlesData(show: false),
+              borderData: FlBorderData(show: false),
+              lineTouchData: const LineTouchData(enabled: false),
+              lineBarsData: [
+                LineChartBarData(
+                  spots: spots,
+                  isCurved: true,
+                  color: accent,
+                  barWidth: 1.5,
+                  dotData: const FlDotData(show: false),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 }

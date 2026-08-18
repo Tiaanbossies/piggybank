@@ -7,6 +7,7 @@ import '../../../core/format/money.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/group_card.dart';
 import '../../../shared/widgets/hero_metric_card.dart';
+import '../../../shared/widgets/paywall_dialog.dart';
 import '../../transactions/screens/transactions_screen.dart';
 import '../models/account.dart';
 import '../providers/accounts_provider.dart';
@@ -131,7 +132,14 @@ class _AddAccountSheetState extends ConsumerState<_AddAccountSheet> {
       ref.invalidate(accountsProvider);
       if (mounted) Navigator.of(context).pop();
     } on ApiError catch (e) {
-      setState(() => _error = e.message);
+      if (e.isPaywall) {
+        if (mounted) {
+          Navigator.of(context).pop();
+          showPaywallPrompt(context, message: e.message);
+        }
+      } else {
+        setState(() => _error = e.message);
+      }
     } finally {
       if (mounted) setState(() => _submitting = false);
     }

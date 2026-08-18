@@ -101,5 +101,19 @@ void main() {
       });
       expect(history.data, isEmpty);
     });
+
+    test('skips a trailing not-yet-closed point (close: null) instead of throwing', () {
+      final history = TickerHistory.fromJson({
+        'ticker': 'AAPL',
+        'name': 'Apple Inc.',
+        'currency': 'USD',
+        'data': [
+          {'price_date': '2024-01-02', 'close': 185.64},
+          {'price_date': '2024-01-03', 'close': null},
+        ],
+      });
+      expect(history.data, hasLength(1));
+      expect(history.data[0].close, Decimal.parse('185.64'));
+    });
   });
 }

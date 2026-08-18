@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/api/api_error.dart';
 import '../../../shared/widgets/confirm_dialog.dart';
+import '../../../shared/widgets/paywall_dialog.dart';
 import '../models/portfolio.dart';
 import '../providers/portfolios_provider.dart';
 
@@ -70,7 +71,14 @@ class _PortfolioSheetState extends ConsumerState<_PortfolioSheet> {
       ref.invalidate(investmentOverviewProvider);
       if (mounted) Navigator.of(context).pop();
     } on ApiError catch (e) {
-      setState(() => _error = e.message);
+      if (e.isPaywall) {
+        if (mounted) {
+          Navigator.of(context).pop();
+          showPaywallPrompt(context, message: e.message);
+        }
+      } else {
+        setState(() => _error = e.message);
+      }
     } finally {
       if (mounted) setState(() => _submitting = false);
     }
@@ -93,7 +101,16 @@ class _PortfolioSheetState extends ConsumerState<_PortfolioSheet> {
       await ref.read(portfoliosApiProvider).deletePortfolio(existing.id);
       ref.invalidate(portfoliosProvider);
       ref.invalidate(investmentOverviewProvider);
-      if (mounted) Navigator.of(context).pop();
+      if (mounted) {
+        // This sheet is only ever reachable via Portfolio Detail's edit
+        // action, so the deleted portfolio's detail screen is always the
+        // route directly beneath this one — pop both, back to the Invest
+        // tab, rather than leaving a stale detail screen for a portfolio
+        // that no longer exists.
+        Navigator.of(context)
+          ..pop()
+          ..pop();
+      }
     } on ApiError catch (e) {
       setState(() => _error = e.message);
     } finally {

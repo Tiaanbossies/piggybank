@@ -31,6 +31,13 @@ class TickerHistory {
         ticker: json['ticker'] as String,
         name: json['name'] as String,
         currency: json['currency'] as String,
-        data: (json['data'] as List).map((e) => PricePoint.fromJson(e as Map<String, dynamic>)).toList(),
+        // The trading day still in progress has no close yet, so the backend
+        // sends it with close: null — skip it rather than let Decimal.parse
+        // throw on "null".
+        data: (json['data'] as List)
+            .cast<Map<String, dynamic>>()
+            .where((e) => e['close'] != null)
+            .map(PricePoint.fromJson)
+            .toList(),
       );
 }
