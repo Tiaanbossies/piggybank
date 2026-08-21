@@ -53,14 +53,34 @@ final transactionFiltersProvider = StateNotifierProvider<TransactionFiltersNotif
   (ref) => TransactionFiltersNotifier(),
 );
 
+/// Pagination state: tracks current offset for "Load more" functionality.
+class TransactionPaginationNotifier extends StateNotifier<int> {
+  TransactionPaginationNotifier() : super(0);
+
+  void reset() => state = 0;
+  void loadMore() => state += 50;
+}
+
+final transactionPaginationProvider = StateNotifierProvider<TransactionPaginationNotifier, int>(
+  (ref) => TransactionPaginationNotifier(),
+);
+
 final transactionsProvider = FutureProvider.autoDispose<TransactionsPage>((ref) {
   final filters = ref.watch(transactionFiltersProvider);
+  final offset = ref.watch(transactionPaginationProvider);
+
+  // Reset pagination when filters change (since filter results may be smaller)
+  ref.listen(transactionFiltersProvider, (_, _) {
+    ref.read(transactionPaginationProvider.notifier).reset();
+  });
+
   return ref.watch(transactionsApiProvider).list(
         accountId: filters.accountId,
         transactionType: filters.transactionType,
         dateFrom: filters.dateFrom,
         dateTo: filters.dateTo,
         category: filters.category,
+        offset: offset,
       );
 });
 
@@ -69,4 +89,44 @@ final transactionsProvider = FutureProvider.autoDispose<TransactionsPage>((ref) 
 /// never reflects filters set on the full Transactions screen.
 final recentTransactionsProvider = FutureProvider.autoDispose<TransactionsPage>((ref) {
   return ref.watch(transactionsApiProvider).list(limit: 5);
+});
+
+/// Accumulated transactions: holds all transactions loaded so far across pages.
+/// This is a StateNotifier that accumulates items as the user loads more.
+class AccumulatedTransactionsNotifier extends StateNotifier<List<Transaction>> {
+  AccumulatedTransactionsNotifier() : super([]);
+
+  /// Replace accumulated items (called on filter change to reset).
+  void reset(List<Transaction> initialItems) => state = initialItems;
+
+  /// Append new items from next page.
+  void loadMore(List<Transaction> newItems) => state = [...state, ...newItems];
+
+  /// Get total items accumulated so far.
+  int get count => state.length;
+}
+
+final accumulatedTransactionsProvider = StateNotifierProvider.autoDispose<AccumulatedTransactionsNotifier, List<Transaction>>(
+  (ref) => AccumulatedTransactionsNotifier(),
+);
+
+/// Side effect: when transactionsProvider updates, sync to accumulated list.
+final transactionAccumulatorEffect = FutureProvider.autoDispose<void>((ref) {
+  final currentPage = ref.watch(transactionsProvider);
+  final offset = ref.watch(transactionPaginationProvider);
+  
+  currentPage.when(
+    loading: () {},
+    error: (_, _) {},
+    data: (page) {
+      final accumulated = ref.read(accumulatedTransactionsProvider.notifier);
+      if (offset == 0) {
+        // First page: reset accumulated to these items
+        accumulated.reset(page.items);
+      } else {
+        // Subsequent page: append to accumulated
+        accumulated.loadMore(page.items);
+      }
+    },
+  );
 });

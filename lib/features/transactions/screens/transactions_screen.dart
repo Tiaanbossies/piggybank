@@ -18,8 +18,11 @@ class TransactionsScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final transactionsAsync = ref.watch(transactionsProvider);
+    final currentPage = ref.watch(transactionsProvider);
     final selectedType = ref.watch(transactionFiltersProvider).transactionType;
+
+    // Trigger accumulator side effect to sync transactions
+    ref.watch(transactionAccumulatorEffect);
 
     return Scaffold(
       appBar: AppBar(
@@ -67,18 +70,26 @@ class TransactionsScreen extends ConsumerWidget {
             ),
             Expanded(
               child: RefreshIndicator(
-                onRefresh: () => ref.refresh(transactionsProvider.future),
-                child: transactionsAsync.when(
+                onRefresh: () {
+                  ref.read(transactionPaginationProvider.notifier).reset();
+                  return ref.refresh(transactionsProvider.future);
+                },
+                child: currentPage.when(
                   loading: () => const Center(child: CircularProgressIndicator()),
                   error: (err, _) => Center(child: Text(err is ApiError ? err.message : 'Failed to load transactions')),
                   data: (page) {
-                    if (page.items.isEmpty) {
+                    final accumulated = ref.watch(accumulatedTransactionsProvider);
+                    
+                    if (accumulated.isEmpty) {
                       return ListView(
                         padding: const EdgeInsets.all(16),
                         children: const [Center(child: Padding(padding: EdgeInsets.only(top: 48), child: Text('No transactions match this filter.')))],
                       );
                     }
-                    final groups = _groupByDate(page.items);
+                    
+                    final groups = _groupByDate(accumulated);
+                    final hasMore = accumulated.length < page.total;
+                    
                     return ListView(
                       padding: const EdgeInsets.all(16),
                       children: [
@@ -88,6 +99,17 @@ class TransactionsScreen extends ConsumerWidget {
                             child: Text(_formatGroupDate(entry.key), style: Theme.of(context).textTheme.labelMedium),
                           ),
                           GroupCard(children: [for (final transaction in entry.value) _TransactionRow(transaction: transaction)]),
+                        ],
+                        if (hasMore) ...[
+                          const SizedBox(height: 24),
+                          Center(
+                            child: ElevatedButton.icon(
+                              icon: const Icon(Icons.add),
+                              label: Text('Load more (${accumulated.length} of ${page.total})'),
+                              onPressed: () => ref.read(transactionPaginationProvider.notifier).loadMore(),
+                            ),
+                          ),
+                          const SizedBox(height: 16),
                         ],
                       ],
                     );
