@@ -1,3 +1,4 @@
+import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -49,7 +50,18 @@ class ExpensesSummaryScreen extends ConsumerWidget {
                 Text('Total', style: Theme.of(context).textTheme.labelMedium),
                 Text(formatZAR(summary.total), style: moneyTextStyle(context, fontSize: 28)),
                 const SizedBox(height: 24),
-                const SizedBox(height: 8),
+                SizedBox(
+                  height: 300,
+                  child: PieChart(
+                    PieChartData(
+                      sections: _buildPieChartSections(summary.byCategory),
+                      centerSpaceRadius: 50,
+                      sectionsSpace: 2,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 24),
+                const SizedBox(height: 12),
                 Text('By category', style: Theme.of(context).textTheme.labelMedium),
                 const SizedBox(height: 12),
                 GroupCard(
@@ -86,5 +98,39 @@ class ExpensesSummaryScreen extends ConsumerWidget {
         ..setDateFrom(picked.start)
         ..setDateTo(picked.end);
     }
+  }
+
+  List<PieChartSectionData> _buildPieChartSections(List<dynamic> categories) {
+    if (categories.isEmpty) return [];
+
+    // Define a palette of distinct colors for pie slices
+    const colors = [
+      Color(0xFF2196F3), // Blue
+      Color(0xFFF44336), // Red
+      Color(0xFF4CAF50), // Green
+      Color(0xFFFF9800), // Orange
+      Color(0xFF9C27B0), // Purple
+      Color(0xFF00BCD4), // Cyan
+      Color(0xFFFFEB3B), // Yellow
+      Color(0xFF795548), // Brown
+    ];
+
+    return List.generate(categories.length, (index) {
+      final bucket = categories[index];
+      final color = colors[index % colors.length];
+      final value = bucket.total.toDouble();
+
+      return PieChartSectionData(
+        value: value,
+        title: bucket.category.isEmpty ? 'Uncategorised' : bucket.category,
+        color: color,
+        radius: 80,
+        titleStyle: const TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.bold,
+          color: Colors.white,
+        ),
+      );
+    });
   }
 }
