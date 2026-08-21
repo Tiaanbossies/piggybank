@@ -13,7 +13,7 @@ import '../../../shared/widgets/paywall_dialog.dart';
 import '../../transactions/screens/transactions_screen.dart';
 import '../models/account.dart';
 import '../providers/accounts_provider.dart';
-import 'accounts_context_menu.dart';
+import 'account_edit_screen.dart';
 
 /// Grouped-card pattern per DESIGN.md § Accounts: a "Total balance" hero card
 /// (client-side sum of active balances, no new API call), then active
@@ -94,20 +94,15 @@ class _AccountRow extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return GestureDetector(
-      onSecondaryTapDown: (_) => _showContextMenu(context, ref),
+      onTap: () => Navigator.of(context).push(
+        MaterialPageRoute(builder: (_) => AccountEditScreen(account: account)),
+      ),
       child: GroupRow(
         leadingIcon: Icons.account_balance_outlined,
         title: account.name,
         subtitle: account.institutionName,
         trailing: Text(formatZAR(account.balance), style: moneyTextStyle(context, fontSize: 15)),
       ),
-    );
-  }
-
-  void _showContextMenu(BuildContext context, WidgetRef ref) {
-    showModalBottomSheet(
-      context: context,
-      builder: (_) => AccountContextMenu(account: account),
     );
   }
 }

@@ -47,4 +47,21 @@ class AccountsApi {
       throw ApiClient.errorFrom(e);
     }
   }
+
+  /// Update account details (name, institution).
+  Future<Account> update(
+    String accountId, {
+    String? name,
+    String? institutionName,
+  }) async {
+    try {
+      final response = await _client.dio.patch('/accounts/$accountId', data: {
+        if (name case String n) 'name': n,
+        if (institutionName case String i) 'institution_name': i,
+      });
+      return Account.fromJson(response.data as Map<String, dynamic>);
+    } on DioException catch (e) {
+      throw ApiClient.errorFrom(e);
+    }
+  }
 }
