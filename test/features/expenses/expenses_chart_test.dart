@@ -1,17 +1,9 @@
 import 'package:decimal/decimal.dart';
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:piggybank/features/expenses/models/expenses_summary.dart';
-import 'package:piggybank/features/expenses/screens/expenses_summary_screen.dart';
 
 void main() {
   group('Expenses Chart Tests', () {
-    late ExpensesSummaryScreen screen;
-
-    setUp(() {
-      screen = const ExpensesSummaryScreen();
-    });
-
     test('CategoryBucket parses from JSON correctly', () {
       final json = {
         'category': 'Food',

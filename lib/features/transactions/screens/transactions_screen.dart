@@ -320,7 +320,19 @@ class _TransactionSheetState extends ConsumerState<_TransactionSheet> {
               decoration: const InputDecoration(labelText: 'Amount (ZAR)'),
             ),
             const SizedBox(height: 16),
-            TextField(controller: _categoryController, decoration: const InputDecoration(labelText: 'Category')),
+            DropdownButtonFormField<String>(
+              initialValue: _categoryController.text.isEmpty ? null : _categoryController.text,
+              decoration: const InputDecoration(labelText: 'Category'),
+              items: ref.watch(transactionCategoriesProvider).map((category) {
+                return DropdownMenuItem(value: category, child: Text(category));
+              }).toList(),
+              onChanged: (value) {
+                if (value != null) {
+                  setState(() => _categoryController.text = value);
+                }
+              },
+              isExpanded: true,
+            ),
             const SizedBox(height: 16),
             TextField(controller: _merchantController, decoration: const InputDecoration(labelText: 'Merchant (optional)')),
             const SizedBox(height: 16),

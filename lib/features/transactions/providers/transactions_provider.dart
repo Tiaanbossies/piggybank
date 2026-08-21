@@ -130,3 +130,41 @@ final transactionAccumulatorEffect = FutureProvider.autoDispose<void>((ref) {
     },
   );
 });
+
+/// Common transaction categories (defaults for picker), sorted alphabetically.
+const commonCategories = [
+  'Dining',
+  'Entertainment',
+  'Food',
+  'Gas',
+  'Groceries',
+  'Gym',
+  'Healthcare',
+  'Insurance',
+  'Rent',
+  'Shopping',
+  'Transport',
+  'Utilities',
+];
+
+/// Extract unique categories from all accumulated transactions.
+/// Falls back to common categories if no transactions yet.
+final transactionCategoriesProvider = Provider<List<String>>((ref) {
+  final accumulated = ref.watch(accumulatedTransactionsProvider);
+  
+  if (accumulated.isEmpty) {
+    return commonCategories;
+  }
+  
+  // Extract unique non-empty categories from accumulated transactions
+  final categories = accumulated
+      .map((t) => t.category)
+      .where((c) => c.isNotEmpty)
+      .toSet()
+      .toList()
+    ..sort();
+  
+  // Merge with common categories, removing duplicates
+  final merged = <String>{...categories, ...commonCategories}.toList()..sort();
+  return merged;
+});
