@@ -121,6 +121,6 @@ final apiClientProvider = Provider<ApiClient>((ref) {
     baseUrl: ApiConfig.baseUrl,
     getAccessToken: () => ref.read(authControllerProvider).accessToken,
     refreshAccessToken: controller.refreshAccessToken,
-    onSessionExpired: () => controller.handleSessionExpired(),
+    onSessionExpired: controller.handleSessionExpired,
   );
 });

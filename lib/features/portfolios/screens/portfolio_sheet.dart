@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -74,7 +76,7 @@ class _PortfolioSheetState extends ConsumerState<_PortfolioSheet> {
       if (e.isPaywall) {
         if (mounted) {
           Navigator.of(context).pop();
-          showPaywallPrompt(context, message: e.message);
+          unawaited(showPaywallPrompt(context, message: e.message));
         }
       } else {
         setState(() => _error = e.message);

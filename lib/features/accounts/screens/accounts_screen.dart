@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:decimal/decimal.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -146,7 +148,7 @@ class _AddAccountSheetState extends ConsumerState<_AddAccountSheet> {
       if (e.isPaywall) {
         if (mounted) {
           Navigator.of(context).pop();
-          showPaywallPrompt(context, message: e.message);
+          unawaited(showPaywallPrompt(context, message: e.message));
         }
       } else {
         setState(() => _error = e.message);
