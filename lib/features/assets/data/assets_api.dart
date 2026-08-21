@@ -30,9 +30,9 @@ class AssetsApi {
         'asset_type': assetTypeToJson(assetType),
         'name': name,
         'current_value': currentValue,
-        if (valuationDate != null) 'valuation_date': _dateOnly(valuationDate),
-        if (institutionName != null) 'institution_name': institutionName,
-        if (notes != null) 'notes': notes,
+        if (valuationDate case DateTime date) 'valuation_date': _dateOnly(date),
+        if (institutionName case String inst) 'institution_name': inst,
+        if (notes case String note) 'notes': note,
       });
       return Asset.fromJson(response.data as Map<String, dynamic>);
     } on DioException catch (e) {
@@ -51,12 +51,12 @@ class AssetsApi {
   }) async {
     try {
       final response = await _client.dio.patch('/assets/$assetId', data: {
-        if (assetType != null) 'asset_type': assetTypeToJson(assetType),
-        if (name != null) 'name': name,
-        if (currentValue != null) 'current_value': currentValue,
-        if (valuationDate != null) 'valuation_date': _dateOnly(valuationDate),
-        if (institutionName != null) 'institution_name': institutionName,
-        if (notes != null) 'notes': notes,
+        if (assetType case AssetType type) 'asset_type': assetTypeToJson(type),
+        if (name case String n) 'name': n,
+        if (currentValue case String val) 'current_value': val,
+        if (valuationDate case DateTime date) 'valuation_date': _dateOnly(date),
+        if (institutionName case String inst) 'institution_name': inst,
+        if (notes case String note) 'notes': note,
       });
       return Asset.fromJson(response.data as Map<String, dynamic>);
     } on DioException catch (e) {

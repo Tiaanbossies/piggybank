@@ -29,8 +29,8 @@ class AccountsApi {
         'name': name,
         'account_type': accountType,
         'currency': currency,
-        if (institutionName != null) 'institution_name': institutionName,
-        if (openingBalance != null) 'opening_balance': openingBalance,
+        if (institutionName case String name) 'institution_name': name,
+        if (openingBalance case String balance) 'opening_balance': balance,
       });
       return Account.fromJson(response.data as Map<String, dynamic>);
     } on DioException catch (e) {

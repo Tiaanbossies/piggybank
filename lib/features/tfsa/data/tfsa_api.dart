@@ -31,9 +31,9 @@ class TfsaApi {
       final response = await _client.dio.post('/tfsa/contributions', data: {
         'tax_year': taxYear,
         'amount': amount,
-        if (contributionDate != null) 'contribution_date': _dateOnly(contributionDate),
-        if (notes != null) 'notes': notes,
-        if (ticker != null) 'ticker': ticker,
+        if (contributionDate case DateTime cd) 'contribution_date': _dateOnly(cd),
+        if (notes case String n) 'notes': n,
+        if (ticker case String t) 'ticker': t,
       });
       return TfsaContribution.fromJson(response.data as Map<String, dynamic>);
     } on DioException catch (e) {

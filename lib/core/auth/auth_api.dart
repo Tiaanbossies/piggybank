@@ -25,7 +25,7 @@ class AuthApi {
     await _post('/auth/register', {
       'email': email,
       'password': password,
-      if (fullName != null) 'full_name': fullName,
+      if (fullName case String name) 'full_name': name,
     });
     return login(email: email, password: password);
   }
@@ -51,7 +51,7 @@ class AuthApi {
       // Doesn't go through [_post]: the endpoint responds 204 No Content
       // (empty body) by design, which [_post]'s `Map<String, dynamic>` cast
       // would reject.
-      await _dio.post('/auth/logout', data: {if (refreshToken != null) 'refresh_token': refreshToken});
+      await _dio.post('/auth/logout', data: {if (refreshToken case String token) 'refresh_token': token});
     } catch (_) {
       // Best-effort — logging out locally still proceeds regardless.
     }

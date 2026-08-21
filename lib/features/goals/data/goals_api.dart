@@ -29,10 +29,10 @@ class GoalsApi {
       final response = await _client.dio.post('/goals/', data: {
         'name': name,
         'target_amount': targetAmount,
-        if (currentAmount != null) 'current_amount': currentAmount,
-        if (targetDate != null) 'target_date': _dateOnly(targetDate),
-        if (category != null) 'category': category,
-        if (notes != null) 'notes': notes,
+        if (currentAmount case String ca) 'current_amount': ca,
+        if (targetDate case DateTime td) 'target_date': _dateOnly(td),
+        if (category case String cat) 'category': cat,
+        if (notes case String note) 'notes': note,
       });
       return Goal.fromJson(response.data as Map<String, dynamic>);
     } on DioException catch (e) {
@@ -52,13 +52,13 @@ class GoalsApi {
   }) async {
     try {
       final response = await _client.dio.patch('/goals/$goalId', data: {
-        if (name != null) 'name': name,
-        if (targetAmount != null) 'target_amount': targetAmount,
-        if (currentAmount != null) 'current_amount': currentAmount,
-        if (targetDate != null) 'target_date': _dateOnly(targetDate),
-        if (category != null) 'category': category,
-        if (status != null) 'status': status.name,
-        if (notes != null) 'notes': notes,
+        if (name case String n) 'name': n,
+        if (targetAmount case String ta) 'target_amount': ta,
+        if (currentAmount case String ca) 'current_amount': ca,
+        if (targetDate case DateTime td) 'target_date': _dateOnly(td),
+        if (category case String cat) 'category': cat,
+        if (status case GoalStatus st) 'status': st.name,
+        if (notes case String note) 'notes': note,
       });
       return Goal.fromJson(response.data as Map<String, dynamic>);
     } on DioException catch (e) {

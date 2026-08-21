@@ -12,14 +12,11 @@ import 'api_error.dart';
 class ApiClient {
   ApiClient({
     required String baseUrl,
-    required String? Function() getAccessToken,
-    required Future<bool> Function() refreshAccessToken,
-    required void Function() onSessionExpired,
+    required this._getAccessToken,
+    required this._refreshAccessToken,
+    required this._onSessionExpired,
     Dio? dio,
-  })  : _getAccessToken = getAccessToken,
-        _refreshAccessToken = refreshAccessToken,
-        _onSessionExpired = onSessionExpired,
-        dio = dio ?? Dio(BaseOptions(baseUrl: baseUrl)) {
+  }) : dio = dio ?? Dio(BaseOptions(baseUrl: baseUrl)) {
     this.dio.interceptors.add(InterceptorsWrapper(onRequest: _onRequest, onError: _onError));
   }
 

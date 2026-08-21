@@ -29,10 +29,10 @@ class TransactionsApi {
   }) async {
     try {
       final response = await _client.dio.get('/transactions/', queryParameters: {
-        if (accountId != null) 'account_id': accountId,
-        if (transactionType != null) 'transaction_type': transactionType.name,
-        if (dateFrom != null) 'date_from': _dateOnly(dateFrom),
-        if (dateTo != null) 'date_to': _dateOnly(dateTo),
+        if (accountId case String aid) 'account_id': aid,
+        if (transactionType case TransactionType tt) 'transaction_type': tt.name,
+        if (dateFrom case DateTime df) 'date_from': _dateOnly(df),
+        if (dateTo case DateTime dt) 'date_to': _dateOnly(dt),
         if (category != null && category.isNotEmpty) 'category': category,
         'limit': limit,
         'offset': offset,
@@ -57,14 +57,14 @@ class TransactionsApi {
   }) async {
     try {
       final response = await _client.dio.post('/transactions/', data: {
-        if (accountId != null) 'account_id': accountId,
+        if (accountId case String aid) 'account_id': aid,
         'transaction_type': transactionType.name,
         'category': category,
-        if (description != null) 'description': description,
+        if (description case String d) 'description': d,
         'amount': amount,
         'transaction_date': _dateOnly(transactionDate),
-        if (merchantName != null) 'merchant_name': merchantName,
-        if (notes != null) 'notes': notes,
+        if (merchantName case String m) 'merchant_name': m,
+        if (notes case String n) 'notes': n,
       });
       return Transaction.fromJson(response.data as Map<String, dynamic>);
     } on DioException catch (e) {
@@ -85,14 +85,14 @@ class TransactionsApi {
   }) async {
     try {
       final response = await _client.dio.patch('/transactions/$transactionId', data: {
-        if (accountId != null) 'account_id': accountId,
-        if (transactionType != null) 'transaction_type': transactionType.name,
-        if (category != null) 'category': category,
-        if (description != null) 'description': description,
-        if (amount != null) 'amount': amount,
-        if (transactionDate != null) 'transaction_date': _dateOnly(transactionDate),
-        if (merchantName != null) 'merchant_name': merchantName,
-        if (notes != null) 'notes': notes,
+        if (accountId case String aid) 'account_id': aid,
+        if (transactionType case TransactionType tt) 'transaction_type': tt.name,
+        if (category case String c) 'category': c,
+        if (description case String d) 'description': d,
+        if (amount case String a) 'amount': a,
+        if (transactionDate case DateTime td) 'transaction_date': _dateOnly(td),
+        if (merchantName case String m) 'merchant_name': m,
+        if (notes case String n) 'notes': n,
       });
       return Transaction.fromJson(response.data as Map<String, dynamic>);
     } on DioException catch (e) {

@@ -8,11 +8,8 @@ import 'auth_state.dart';
 import 'secure_storage.dart';
 
 class AuthController extends StateNotifier<AuthState> {
-  AuthController({required AuthApi authApi, required SecureStorage secureStorage, required LocalAuthentication localAuth})
-      : _authApi = authApi,
-        _secureStorage = secureStorage,
-        _localAuth = localAuth,
-        super(AuthState.initial) {
+  AuthController({required this._authApi, required this._secureStorage, required this._localAuth})
+      : super(AuthState.initial) {
     restoreSession();
   }
 

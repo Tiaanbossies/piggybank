@@ -40,7 +40,7 @@ class PortfoliosApi {
     try {
       final response = await _client.dio.post('/portfolios/', data: {
         'name': name,
-        if (description != null) 'description': description,
+        if (description case String desc) 'description': desc,
         'currency': currency,
         'portfolio_type': portfolioTypeToJson(portfolioType),
       });
@@ -53,8 +53,8 @@ class PortfoliosApi {
   Future<Portfolio> updatePortfolio(String portfolioId, {String? name, String? description}) async {
     try {
       final response = await _client.dio.patch('/portfolios/$portfolioId', data: {
-        if (name != null) 'name': name,
-        if (description != null) 'description': description,
+        if (name case String n) 'name': n,
+        if (description case String desc) 'description': desc,
       });
       return Portfolio.fromJson(response.data as Map<String, dynamic>);
     } on DioException catch (e) {
@@ -126,9 +126,9 @@ class PortfoliosApi {
         'name': name,
         'quantity': quantity,
         'cost_basis': costBasis,
-        if (currentPrice != null) 'current_price': currentPrice,
+        if (currentPrice case String cp) 'current_price': cp,
         'asset_class': assetClassToJson(assetClass),
-        if (contributionYear != null) 'contribution_year': contributionYear,
+        if (contributionYear case int cy) 'contribution_year': cy,
       });
       return Holding.fromJson(response.data as Map<String, dynamic>);
     } on DioException catch (e) {
@@ -148,13 +148,13 @@ class PortfoliosApi {
   }) async {
     try {
       final response = await _client.dio.patch('/holdings/$holdingId', data: {
-        if (ticker != null) 'ticker': ticker,
-        if (name != null) 'name': name,
-        if (quantity != null) 'quantity': quantity,
-        if (costBasis != null) 'cost_basis': costBasis,
-        if (currentPrice != null) 'current_price': currentPrice,
-        if (assetClass != null) 'asset_class': assetClassToJson(assetClass),
-        if (dividendYield != null) 'dividend_yield': dividendYield,
+        if (ticker case String t) 'ticker': t,
+        if (name case String n) 'name': n,
+        if (quantity case String q) 'quantity': q,
+        if (costBasis case String cb) 'cost_basis': cb,
+        if (currentPrice case String cp) 'current_price': cp,
+        if (assetClass case AssetClass ac) 'asset_class': assetClassToJson(ac),
+        if (dividendYield case String dy) 'dividend_yield': dy,
       });
       return Holding.fromJson(response.data as Map<String, dynamic>);
     } on DioException catch (e) {
@@ -195,7 +195,7 @@ class PortfoliosApi {
         'amount': amount,
         'currency': currency,
         'tax_withheld': taxWithheld,
-        if (note != null) 'note': note,
+        if (note case String n) 'note': n,
       });
       return Dividend.fromJson(response.data as Map<String, dynamic>);
     } on DioException catch (e) {
@@ -240,7 +240,7 @@ class PortfoliosApi {
         'price_per_unit': pricePerUnit,
         'trade_date': _dateOnly(tradeDate),
         'fee': fee,
-        if (note != null) 'note': note,
+        if (note case String n) 'note': n,
       });
       return Trade.fromJson(response.data as Map<String, dynamic>);
     } on DioException catch (e) {

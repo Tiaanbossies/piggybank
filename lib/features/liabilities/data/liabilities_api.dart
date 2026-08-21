@@ -34,12 +34,12 @@ class LiabilitiesApi {
       final response = await _client.dio.post('/liabilities/', data: {
         'liability_type': liabilityTypeToJson(liabilityType),
         'name': name,
-        if (outstandingAmount != null) 'outstanding_amount': outstandingAmount,
-        if (originalBalance != null) 'original_balance': originalBalance,
-        if (interestRate != null) 'interest_rate': interestRate,
-        if (termMonths != null) 'term_months': termMonths,
-        if (monthlyAmount != null) 'monthly_amount': monthlyAmount,
-        if (startDate != null) 'start_date': _dateOnly(startDate),
+        if (outstandingAmount case String oa) 'outstanding_amount': oa,
+        if (originalBalance case String ob) 'original_balance': ob,
+        if (interestRate case String ir) 'interest_rate': ir,
+        if (termMonths case int tm) 'term_months': tm,
+        if (monthlyAmount case String ma) 'monthly_amount': ma,
+        if (startDate case DateTime sd) 'start_date': _dateOnly(sd),
       });
       return Liability.fromJson(response.data as Map<String, dynamic>);
     } on DioException catch (e) {
@@ -55,9 +55,9 @@ class LiabilitiesApi {
   }) async {
     try {
       final response = await _client.dio.patch('/liabilities/$liabilityId', data: {
-        if (liabilityType != null) 'liability_type': liabilityTypeToJson(liabilityType),
-        if (name != null) 'name': name,
-        if (outstandingAmount != null) 'outstanding_amount': outstandingAmount,
+        if (liabilityType case LiabilityType lt) 'liability_type': liabilityTypeToJson(lt),
+        if (name case String n) 'name': n,
+        if (outstandingAmount case String oa) 'outstanding_amount': oa,
       });
       return Liability.fromJson(response.data as Map<String, dynamic>);
     } on DioException catch (e) {

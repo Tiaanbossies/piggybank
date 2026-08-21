@@ -36,8 +36,8 @@ class BudgetsApi {
       final response = await _client.dio.post('/budgets/', data: {
         'month': _dateOnly(month),
         'total_budget': totalBudget,
-        if (category != null) 'category': category,
-        if (parentBudgetId != null) 'parent_budget_id': parentBudgetId,
+        if (category case String cat) 'category': cat,
+        if (parentBudgetId case String id) 'parent_budget_id': id,
       });
       return Budget.fromJson(response.data as Map<String, dynamic>);
     } on DioException catch (e) {
@@ -48,9 +48,9 @@ class BudgetsApi {
   Future<Budget> update(String budgetId, {DateTime? month, String? totalBudget, String? category}) async {
     try {
       final response = await _client.dio.patch('/budgets/$budgetId', data: {
-        if (month != null) 'month': _dateOnly(month),
-        if (totalBudget != null) 'total_budget': totalBudget,
-        if (category != null) 'category': category,
+        if (month case DateTime m) 'month': _dateOnly(m),
+        if (totalBudget case String tb) 'total_budget': tb,
+        if (category case String cat) 'category': cat,
       });
       return Budget.fromJson(response.data as Map<String, dynamic>);
     } on DioException catch (e) {
