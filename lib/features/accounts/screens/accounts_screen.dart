@@ -10,7 +10,9 @@ import '../../../shared/widgets/hero_metric_card.dart';
 import '../../../shared/widgets/paywall_dialog.dart';
 import '../../transactions/screens/transactions_screen.dart';
 import '../models/account.dart';
+import '../providers/accounts_mutation_provider.dart';
 import '../providers/accounts_provider.dart';
+import 'accounts_context_menu.dart';
 
 /// Grouped-card pattern per DESIGN.md § Accounts: a "Total balance" hero card
 /// (client-side sum of active balances, no new API call), then active
@@ -84,17 +86,27 @@ class AccountsScreen extends ConsumerWidget {
   }
 }
 
-class _AccountRow extends StatelessWidget {
+class _AccountRow extends ConsumerWidget {
   const _AccountRow({required this.account});
   final Account account;
 
   @override
-  Widget build(BuildContext context) {
-    return GroupRow(
-      leadingIcon: Icons.account_balance_outlined,
-      title: account.name,
-      subtitle: account.institutionName,
-      trailing: Text(formatZAR(account.balance), style: moneyTextStyle(context, fontSize: 15)),
+  Widget build(BuildContext context, WidgetRef ref) {
+    return GestureDetector(
+      onSecondaryTapDown: (_) => _showContextMenu(context, ref),
+      child: GroupRow(
+        leadingIcon: Icons.account_balance_outlined,
+        title: account.name,
+        subtitle: account.institutionName,
+        trailing: Text(formatZAR(account.balance), style: moneyTextStyle(context, fontSize: 15)),
+      ),
+    );
+  }
+
+  void _showContextMenu(BuildContext context, WidgetRef ref) {
+    showModalBottomSheet(
+      context: context,
+      builder: (_) => AccountContextMenu(account: account),
     );
   }
 }
