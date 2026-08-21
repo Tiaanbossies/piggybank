@@ -45,6 +45,7 @@ class TransactionFiltersNotifier extends StateNotifier<TransactionFilters> {
   void setTransactionType(TransactionType? value) => state = state.copyWith(transactionType: () => value);
   void setDateFrom(DateTime? value) => state = state.copyWith(dateFrom: () => value);
   void setDateTo(DateTime? value) => state = state.copyWith(dateTo: () => value);
+  void setCategory(String? value) => state = state.copyWith(category: () => value);
   void clear() => state = const TransactionFilters();
 }
 

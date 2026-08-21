@@ -26,6 +26,11 @@ class TransactionsScreen extends ConsumerWidget {
         title: const Text('Transactions'),
         actions: [
           IconButton(
+            icon: const Icon(Icons.filter_list),
+            tooltip: 'Filter transactions',
+            onPressed: () => _showFilterSheet(context, ref),
+          ),
+          IconButton(
             icon: const Icon(Icons.pie_chart_outline),
             tooltip: 'Expenses summary',
             onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ExpensesSummaryScreen())),
@@ -102,6 +107,14 @@ class TransactionsScreen extends ConsumerWidget {
         label: const Text('Add transaction'),
         icon: const Icon(Icons.add),
       ),
+    );
+  }
+
+  void _showFilterSheet(BuildContext context, WidgetRef ref) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => const _TransactionFilterSheet(),
     );
   }
 
@@ -327,6 +340,119 @@ class _TransactionSheetState extends ConsumerState<_TransactionSheet> {
                 child: Text('Delete', style: TextStyle(color: Theme.of(context).colorScheme.error)),
               ),
             ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Filter sheet for transactions — allows filtering by account, date range, and category.
+class _TransactionFilterSheet extends ConsumerWidget {
+  const _TransactionFilterSheet();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final filters = ref.watch(transactionFiltersProvider);
+    final accountsAsync = ref.watch(accountsProvider);
+
+    return Padding(
+      padding: EdgeInsets.only(
+        left: 24,
+        right: 24,
+        top: 24,
+        bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+      ),
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text('Filter transactions', style: Theme.of(context).textTheme.titleLarge),
+            const SizedBox(height: 24),
+            accountsAsync.when(
+              loading: () => const SizedBox.shrink(),
+              error: (_, _) => const SizedBox.shrink(),
+              data: (accounts) => DropdownButtonFormField<String?>(
+                initialValue: filters.accountId,
+                decoration: const InputDecoration(labelText: 'Account'),
+                items: [
+                  const DropdownMenuItem(value: null, child: Text('All accounts')),
+                  for (final a in accounts.where((a) => a.isActive)) DropdownMenuItem(value: a.id, child: Text(a.name)),
+                ],
+                onChanged: (value) => ref.read(transactionFiltersProvider.notifier).setAccountId(value),
+              ),
+            ),
+            const SizedBox(height: 16),
+            DropdownButtonFormField<TransactionType?>(
+              initialValue: filters.transactionType,
+              decoration: const InputDecoration(labelText: 'Type'),
+              items: const [
+                DropdownMenuItem(value: null, child: Text('All types')),
+                DropdownMenuItem(value: TransactionType.income, child: Text('Income')),
+                DropdownMenuItem(value: TransactionType.expense, child: Text('Expense')),
+                DropdownMenuItem(value: TransactionType.transfer, child: Text('Transfer')),
+              ],
+              onChanged: (value) => ref.read(transactionFiltersProvider.notifier).setTransactionType(value),
+            ),
+            const SizedBox(height: 16),
+            TextFormField(
+              initialValue: filters.category ?? '',
+              decoration: const InputDecoration(labelText: 'Category'),
+              onChanged: (value) => ref.read(transactionFiltersProvider.notifier).setCategory(value.isEmpty ? null : value),
+            ),
+            const SizedBox(height: 16),
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              title: const Text('From date'),
+              subtitle: filters.dateFrom != null
+                  ? Text('${filters.dateFrom!.year}-${filters.dateFrom!.month.toString().padLeft(2, '0')}-${filters.dateFrom!.day.toString().padLeft(2, '0')}')
+                  : const Text('Not set'),
+              trailing: const Icon(Icons.calendar_today),
+              onTap: () async {
+                final picked = await showDatePicker(
+                  context: context,
+                  initialDate: filters.dateFrom ?? DateTime.now(),
+                  firstDate: DateTime(2000),
+                  lastDate: DateTime.now(),
+                );
+                if (picked != null) {
+                  ref.read(transactionFiltersProvider.notifier).setDateFrom(picked);
+                }
+              },
+            ),
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              title: const Text('To date'),
+              subtitle: filters.dateTo != null
+                  ? Text('${filters.dateTo!.year}-${filters.dateTo!.month.toString().padLeft(2, '0')}-${filters.dateTo!.day.toString().padLeft(2, '0')}')
+                  : const Text('Not set'),
+              trailing: const Icon(Icons.calendar_today),
+              onTap: () async {
+                final picked = await showDatePicker(
+                  context: context,
+                  initialDate: filters.dateTo ?? DateTime.now(),
+                  firstDate: DateTime(2000),
+                  lastDate: DateTime.now(),
+                );
+                if (picked != null) {
+                  ref.read(transactionFiltersProvider.notifier).setDateTo(picked);
+                }
+              },
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton(
+              onPressed: () {
+                ref.read(transactionFiltersProvider.notifier).clear();
+                Navigator.of(context).pop();
+              },
+              child: const Text('Clear all filters'),
+            ),
+            const SizedBox(height: 12),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Done'),
+            ),
           ],
         ),
       ),
