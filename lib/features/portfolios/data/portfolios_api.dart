@@ -116,8 +116,8 @@ class PortfoliosApi {
     required String name,
     required String quantity,
     required String costBasis,
-    String? currentPrice,
     required AssetClass assetClass,
+    String? currentPrice,
     int? contributionYear,
   }) async {
     try {

@@ -1,7 +1,7 @@
 import 'package:dio/dio.dart';
 
-import '../api/api_config.dart';
 import '../api/api_client.dart';
+import '../api/api_config.dart';
 import 'user.dart';
 
 /// Result of a successful login/refresh — mirrors

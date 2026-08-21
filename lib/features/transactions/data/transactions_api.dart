@@ -46,12 +46,12 @@ class TransactionsApi {
   }
 
   Future<Transaction> create({
-    String? accountId,
     required TransactionType transactionType,
     required String category,
-    String? description,
     required String amount,
     required DateTime transactionDate,
+    String? accountId,
+    String? description,
     String? merchantName,
     String? notes,
   }) async {
@@ -74,12 +74,12 @@ class TransactionsApi {
 
   Future<Transaction> update(
     String transactionId, {
-    String? accountId,
     TransactionType? transactionType,
     String? category,
-    String? description,
     String? amount,
     DateTime? transactionDate,
+    String? accountId,
+    String? description,
     String? merchantName,
     String? notes,
   }) async {

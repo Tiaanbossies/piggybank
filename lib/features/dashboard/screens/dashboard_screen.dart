@@ -14,9 +14,9 @@ import '../../budgets/providers/budgets_provider.dart';
 import '../../calculators/screens/calculators_screen.dart';
 import '../../goals/providers/goals_provider.dart';
 import '../../liabilities/screens/liabilities_screen.dart';
+import '../../summaries/providers/summaries_provider.dart';
 import '../../transactions/providers/transactions_provider.dart';
 import '../../transactions/screens/transactions_screen.dart';
-import '../../summaries/providers/summaries_provider.dart';
 
 /// Fixed v1 layout per DESIGN.md § Dashboard/Home: hero net-worth card,
 /// compact stat strip, one progress card, recent-transactions preview.
