@@ -10,7 +10,6 @@ import '../../../shared/widgets/hero_metric_card.dart';
 import '../../../shared/widgets/paywall_dialog.dart';
 import '../../transactions/screens/transactions_screen.dart';
 import '../models/account.dart';
-import '../providers/accounts_mutation_provider.dart';
 import '../providers/accounts_provider.dart';
 import 'accounts_context_menu.dart';
 

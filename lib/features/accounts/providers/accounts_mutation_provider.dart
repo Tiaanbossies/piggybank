@@ -1,7 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/api/api_error.dart';
-import '../data/accounts_api.dart';
 import 'accounts_provider.dart';
 
 /// Mutation provider for account deactivation.
