@@ -1,0 +1,491 @@
+import 'package:fl_chart/fl_chart.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../../core/calc/chart_utils.dart';
+import '../../../core/calc/risk_metrics.dart' as risk;
+import '../../../core/theme/app_theme.dart';
+import '../models/comparison_entry.dart';
+import '../providers/comparison_provider.dart';
+
+/// Power-user chart tool comparing up to 5 instruments by price, return,
+/// volatility, drawdown, Sharpe ratio and pairwise correlation. Per the
+/// migration-status doc this screen has no delivered mockup — built in the
+/// app's plain-screen style (same precedent as the Imports screen), reached
+/// via an icon button on Invest's app bar.
+///
+/// CPI/STeFI benchmark overlays, CSV export, and shareable URL state are
+/// intentionally not ported — the web app itself frames benchmarks as
+/// "coming soon", and the other two have no equivalent in a router-less,
+/// multi-page-less Flutter app.
+class InstrumentComparisonScreen extends ConsumerStatefulWidget {
+  const InstrumentComparisonScreen({super.key});
+
+  @override
+  ConsumerState<InstrumentComparisonScreen> createState() => _InstrumentComparisonScreenState();
+}
+
+class _InstrumentComparisonScreenState extends ConsumerState<InstrumentComparisonScreen> {
+  final _tickerController = TextEditingController();
+
+  @override
+  void dispose() {
+    _tickerController.dispose();
+    super.dispose();
+  }
+
+  void _submitTicker() {
+    final value = _tickerController.text;
+    if (value.trim().isEmpty) return;
+    ref.read(comparisonControllerProvider.notifier).addTicker(value);
+    _tickerController.clear();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final comparison = ref.watch(comparisonControllerProvider);
+    final controller = ref.read(comparisonControllerProvider.notifier);
+    final semantic = Theme.of(context).extension<AppSemanticColors>();
+
+    return DefaultTabController(
+      length: 4,
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('Compare instruments'),
+          bottom: const TabBar(
+            isScrollable: true,
+            tabs: [
+              Tab(text: 'Summary'),
+              Tab(text: 'Risk metrics'),
+              Tab(text: 'Correlation'),
+              Tab(text: 'Factsheet'),
+            ],
+          ),
+        ),
+        body: SafeArea(
+          child: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: _tickerController,
+                        textCapitalization: TextCapitalization.characters,
+                        decoration: const InputDecoration(
+                          hintText: 'Add a ticker, e.g. STX40',
+                          isDense: true,
+                          border: OutlineInputBorder(),
+                        ),
+                        onSubmitted: (_) => _submitTicker(),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    FilledButton(
+                      onPressed: comparison.entries.length >= maxComparisonEntries ? null : _submitTicker,
+                      child: const Text('Add'),
+                    ),
+                  ],
+                ),
+              ),
+              if (comparison.entries.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                  child: Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      for (final entry in comparison.entries)
+                        InputChip(
+                          avatar: CircleAvatar(backgroundColor: entry.color, radius: 6),
+                          label: Text(
+                            entry.loading ? '${entry.ticker} …' : (entry.error != null ? '${entry.ticker} ⚠' : entry.ticker),
+                          ),
+                          onDeleted: () => controller.removeTicker(entry.id),
+                        ),
+                    ],
+                  ),
+                ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: DropdownButtonFormField<ComparisonPeriod>(
+                        initialValue: comparison.period,
+                        isDense: true,
+                        decoration: const InputDecoration(isDense: true, border: OutlineInputBorder()),
+                        items: [
+                          for (final p in ComparisonPeriod.values)
+                            DropdownMenuItem(value: p, child: Text(p.apiValue)),
+                        ],
+                        onChanged: (p) {
+                          if (p != null) controller.setPeriod(p);
+                        },
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    const Text('%'),
+                    Switch(
+                      value: comparison.percentMode,
+                      onChanged: controller.setPercentMode,
+                    ),
+                    const Text('Abs'),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 8),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: SizedBox(
+                  height: 220,
+                  child: comparison.entries.isEmpty
+                      ? Center(
+                          child: Text(
+                            'Add up to $maxComparisonEntries tickers to compare',
+                            style: TextStyle(color: semantic?.textMuted),
+                          ),
+                        )
+                      : _ComparisonLineChart(entries: comparison.entries, percentMode: comparison.percentMode),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Expanded(
+                child: TabBarView(
+                  children: [
+                    _SummaryTab(entries: comparison.entries, periodYears: comparison.period.years),
+                    _RiskMetricsTab(entries: comparison.entries, periodYears: comparison.period.years),
+                    _CorrelationTab(entries: comparison.entries),
+                    _FactsheetTab(entries: comparison.entries),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _EntryStats {
+  _EntryStats(ComparisonEntry entry, double nominalYears)
+      : ticker = entry.ticker,
+        color = entry.color,
+        currency = entry.currency,
+        dividendYield = entry.lookup?.dividendYield?.toDouble() {
+    final prices = entry.data.map((p) => p.close.toDouble()).toList();
+    final dates = entry.data.map((p) => p.date.toIso8601String().substring(0, 10)).toList();
+    final years = risk.actualYearsSpan(dates) > 0 ? risk.actualYearsSpan(dates) : nominalYears;
+    annualisedReturn = risk.calcAnnualisedReturn(prices, years);
+    volatility = risk.calcVolatility(prices);
+    maxDrawdown = risk.calcMaxDrawdown(prices);
+    sharpeRatio = risk.calcSharpeRatio(annualisedReturn, volatility);
+    totalReturn = risk.calcTotalReturn(prices);
+    dailyReturns = risk.calcDailyReturns(prices);
+  }
+
+  final String ticker;
+  final Color color;
+  final String currency;
+  final double? dividendYield;
+  late final double annualisedReturn;
+  late final double volatility;
+  late final double maxDrawdown;
+  late final double sharpeRatio;
+  late final double totalReturn;
+  late final List<double> dailyReturns;
+}
+
+String _pct(double v, {int decimals = 1}) => '${(v * 100).toStringAsFixed(decimals)}%';
+
+class _ComparisonLineChart extends StatelessWidget {
+  const _ComparisonLineChart({required this.entries, required this.percentMode});
+  final List<ComparisonEntry> entries;
+  final bool percentMode;
+
+  @override
+  Widget build(BuildContext context) {
+    final ready = entries.where((e) => e.data.isNotEmpty).toList();
+    if (ready.isEmpty) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    final series = [
+      for (final e in ready)
+        ChartSeries(
+          key: e.ticker,
+          dates: e.data.map((p) => p.date.toIso8601String().substring(0, 10)).toList(),
+          prices: e.data.map((p) => p.close.toDouble()).toList(),
+        ),
+    ];
+    final rows = buildChartData(series, percent: percentMode);
+    if (rows.isEmpty) return const SizedBox.shrink();
+
+    return LineChart(
+      LineChartData(
+        titlesData: const FlTitlesData(
+          topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          bottomTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+        ),
+        lineTouchData: const LineTouchData(enabled: true),
+        lineBarsData: [
+          for (final e in ready)
+            LineChartBarData(
+              isCurved: false,
+              color: e.color,
+              barWidth: 2,
+              dotData: const FlDotData(show: false),
+              spots: [
+                for (var i = 0; i < rows.length; i++)
+                  if (rows[i][e.ticker] != null) FlSpot(i.toDouble(), rows[i][e.ticker] as double),
+              ],
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SummaryTab extends StatelessWidget {
+  const _SummaryTab({required this.entries, required this.periodYears});
+  final List<ComparisonEntry> entries;
+  final double periodYears;
+
+  @override
+  Widget build(BuildContext context) {
+    final ready = entries.where((e) => e.data.length >= 2).toList();
+    if (ready.isEmpty) {
+      return const Center(child: Text('Add at least one ticker with price history'));
+    }
+    final stats = [for (final e in ready) _EntryStats(e, periodYears)];
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      scrollDirection: Axis.horizontal,
+      child: DataTable(
+        columns: const [
+          DataColumn(label: Text('Ticker')),
+          DataColumn(label: Text('Total return')),
+          DataColumn(label: Text('Annualised')),
+          DataColumn(label: Text('Volatility')),
+          DataColumn(label: Text('Max drawdown')),
+          DataColumn(label: Text('Sharpe')),
+          DataColumn(label: Text('Div yield')),
+        ],
+        rows: [
+          for (final s in stats)
+            DataRow(cells: [
+              DataCell(Text(s.ticker)),
+              DataCell(Text(_pct(s.totalReturn))),
+              DataCell(Text(_pct(s.annualisedReturn))),
+              DataCell(Text(_pct(s.volatility))),
+              DataCell(Text(_pct(s.maxDrawdown))),
+              DataCell(Text(s.sharpeRatio.toStringAsFixed(2))),
+              DataCell(Text(s.dividendYield != null ? _pct(s.dividendYield! / 100) : '—')),
+            ]),
+        ],
+      ),
+    );
+  }
+}
+
+class _RiskMetricsTab extends StatelessWidget {
+  const _RiskMetricsTab({required this.entries, required this.periodYears});
+  final List<ComparisonEntry> entries;
+  final double periodYears;
+
+  @override
+  Widget build(BuildContext context) {
+    final ready = entries.where((e) => e.data.length >= 2).toList();
+    if (ready.isEmpty) {
+      return const Center(child: Text('Add at least one ticker with price history'));
+    }
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        for (final e in ready) ...[
+          _RiskMetricCard(stats: _EntryStats(e, periodYears)),
+          const SizedBox(height: 12),
+        ],
+      ],
+    );
+  }
+}
+
+class _RiskMetricCard extends StatelessWidget {
+  const _RiskMetricCard({required this.stats});
+  final _EntryStats stats;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(children: [
+              CircleAvatar(backgroundColor: stats.color, radius: 6),
+              const SizedBox(width: 8),
+              Text(stats.ticker, style: Theme.of(context).textTheme.titleMedium),
+            ]),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 24,
+              runSpacing: 12,
+              children: [
+                _Stat('Annualised return', _pct(stats.annualisedReturn)),
+                _Stat('Volatility (ann.)', _pct(stats.volatility)),
+                _Stat('Max drawdown', _pct(stats.maxDrawdown)),
+                _Stat('Sharpe ratio', stats.sharpeRatio.toStringAsFixed(2)),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _Stat extends StatelessWidget {
+  const _Stat(this.label, this.value);
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    final semantic = Theme.of(context).extension<AppSemanticColors>();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: TextStyle(color: semantic?.textMuted, fontSize: 12)),
+        Text(value, style: moneyTextStyle(context, fontSize: 15)),
+      ],
+    );
+  }
+}
+
+class _CorrelationTab extends StatelessWidget {
+  const _CorrelationTab({required this.entries});
+  final List<ComparisonEntry> entries;
+
+  @override
+  Widget build(BuildContext context) {
+    final ready = entries.where((e) => e.data.length >= 2).toList();
+    if (ready.length < 2) {
+      return const Center(child: Text('Add at least 2 tickers with price history to see correlation'));
+    }
+    final returns = {for (final e in ready) e.ticker: risk.calcDailyReturns(e.data.map((p) => p.close.toDouble()).toList())};
+
+    Color cellColor(double v) {
+      if (v >= 0.7) return Colors.green.shade400;
+      if (v >= 0.3) return Colors.green.shade100;
+      if (v <= -0.7) return Colors.red.shade400;
+      if (v <= -0.3) return Colors.red.shade100;
+      return Colors.grey.shade200;
+    }
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      scrollDirection: Axis.horizontal,
+      child: Table(
+        border: TableBorder.all(color: Colors.grey.shade300),
+        defaultColumnWidth: const FixedColumnWidth(72),
+        children: [
+          TableRow(children: [
+            const SizedBox(),
+            for (final e in ready) Padding(padding: const EdgeInsets.all(8), child: Text(e.ticker, textAlign: TextAlign.center)),
+          ]),
+          for (final rowEntry in ready)
+            TableRow(children: [
+              Padding(padding: const EdgeInsets.all(8), child: Text(rowEntry.ticker)),
+              for (final colEntry in ready)
+                Builder(builder: (context) {
+                  final r = risk.calcPearson(returns[rowEntry.ticker]!, returns[colEntry.ticker]!);
+                  return Container(
+                    color: rowEntry.ticker == colEntry.ticker ? Colors.grey.shade300 : cellColor(r),
+                    padding: const EdgeInsets.all(8),
+                    child: Text(r.toStringAsFixed(2), textAlign: TextAlign.center),
+                  );
+                }),
+            ]),
+        ],
+      ),
+    );
+  }
+}
+
+class _FactsheetTab extends StatelessWidget {
+  const _FactsheetTab({required this.entries});
+  final List<ComparisonEntry> entries;
+
+  @override
+  Widget build(BuildContext context) {
+    if (entries.isEmpty) {
+      return const Center(child: Text('Add a ticker to see its factsheet'));
+    }
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        for (final e in entries) ...[
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(children: [
+                    CircleAvatar(backgroundColor: e.color, radius: 6),
+                    const SizedBox(width: 8),
+                    Text(e.name, style: Theme.of(context).textTheme.titleMedium),
+                  ]),
+                  const SizedBox(height: 8),
+                  if (e.lookup case final lookup?) ...[
+                    _FactRow('Fund family', lookup.fundFamily ?? '—'),
+                    _FactRow('Category', lookup.fundCategory ?? '—'),
+                    _FactRow(
+                      'Expense ratio',
+                      lookup.expenseRatio != null ? _pct(lookup.expenseRatio!.toDouble() / 100) : '—',
+                    ),
+                    _FactRow(
+                      'Dividend yield',
+                      lookup.dividendYield != null ? _pct(lookup.dividendYield!.toDouble() / 100) : '—',
+                    ),
+                    _FactRow(
+                      'Inception',
+                      lookup.inceptionDate != null ? lookup.inceptionDate!.toIso8601String().substring(0, 10) : '—',
+                    ),
+                  ] else
+                    const Text('No factsheet data available'),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+        ],
+      ],
+    );
+  }
+}
+
+class _FactRow extends StatelessWidget {
+  const _FactRow(this.label, this.value);
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    final semantic = Theme.of(context).extension<AppSemanticColors>();
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label, style: TextStyle(color: semantic?.textMuted)),
+          Text(value),
+        ],
+      ),
+    );
+  }
+}

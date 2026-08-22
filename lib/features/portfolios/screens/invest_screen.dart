@@ -10,6 +10,7 @@ import '../../../shared/widgets/group_card.dart';
 import '../../../shared/widgets/hero_metric_card.dart';
 import '../models/portfolio.dart';
 import '../providers/portfolios_provider.dart';
+import 'instrument_comparison_screen.dart';
 import 'portfolio_detail_screen.dart';
 import 'portfolio_sheet.dart';
 
@@ -30,8 +31,15 @@ class InvestScreen extends ConsumerWidget {
           child: CircleAvatar(child: Icon(Icons.person_outline, size: 18)),
         ),
         title: const Text('Invest'),
-        actions: const [
-          Padding(
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.stacked_line_chart),
+            tooltip: 'Compare instruments',
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const InstrumentComparisonScreen()),
+            ),
+          ),
+          const Padding(
             padding: EdgeInsets.only(right: 12),
             child: Icon(Icons.notifications_none),
           ),
