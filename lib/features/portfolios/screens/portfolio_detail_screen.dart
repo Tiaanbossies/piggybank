@@ -9,6 +9,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/allocation_bar.dart';
 import '../../../shared/widgets/group_card.dart';
 import '../../../shared/widgets/hero_metric_card.dart';
+import '../../ra/screens/ra_ledger_screen.dart';
 import '../../tfsa/screens/tfsa_ledger_screen.dart';
 import '../asset_class_style.dart';
 import '../models/holding.dart';
@@ -48,6 +49,14 @@ class PortfolioDetailScreen extends ConsumerWidget {
               tooltip: 'TFSA contribution ledger',
               onPressed: () => Navigator.of(context).push(
                 MaterialPageRoute(builder: (_) => const TfsaLedgerScreen()),
+              ),
+            ),
+          if (portfolio.portfolioType == PortfolioType.ra)
+            IconButton(
+              icon: const Icon(Icons.receipt_long_outlined),
+              tooltip: 'Retirement Annuity ledger',
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const RaLedgerScreen()),
               ),
             ),
           IconButton(
