@@ -7,6 +7,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/group_card.dart';
 import '../../accounts/providers/accounts_provider.dart';
 import '../../expenses/screens/expenses_summary_screen.dart';
+import '../../imports/screens/imports_screen.dart';
 import '../models/transaction.dart';
 import '../providers/transactions_provider.dart';
 
@@ -37,6 +38,11 @@ class TransactionsScreen extends ConsumerWidget {
             icon: const Icon(Icons.pie_chart_outline),
             tooltip: 'Expenses summary',
             onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ExpensesSummaryScreen())),
+          ),
+          IconButton(
+            icon: const Icon(Icons.upload_file_outlined),
+            tooltip: 'Import CSV / Scan receipt',
+            onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ImportsScreen())),
           ),
         ],
       ),
