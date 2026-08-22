@@ -7,6 +7,14 @@ import '../../../shared/widgets/progress_card.dart';
 import '../models/budget.dart';
 import '../providers/budgets_provider.dart';
 
+Future<void> showEditBudgetSheet(BuildContext context, BudgetProgress existing) {
+  return showModalBottomSheet(
+    context: context,
+    isScrollControlled: true,
+    builder: (_) => _BudgetSheet(existing: existing),
+  );
+}
+
 const _monthNames = [
   'January', 'February', 'March', 'April', 'May', 'June', //
   'July', 'August', 'September', 'October', 'November', 'December',
@@ -82,14 +90,17 @@ class _BudgetProgressRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final pct = progress.pctUsed / 100;
-    return ProgressCard(
-      title: progress.category ?? 'Total',
-      pct: pct,
-      overBudget: progress.overBudget,
-      indented: indented,
-      footnote: progress.overBudget
-          ? '${formatZAR(progress.remaining.abs())} over budget'
-          : '${formatZAR(progress.spent)} / ${formatZAR(progress.budgetAmount)}',
+    return InkWell(
+      onTap: () => showEditBudgetSheet(context, progress),
+      child: ProgressCard(
+        title: progress.category ?? 'Total',
+        pct: pct,
+        overBudget: progress.overBudget,
+        indented: indented,
+        footnote: progress.overBudget
+            ? '${formatZAR(progress.remaining.abs())} over budget'
+            : '${formatZAR(progress.spent)} / ${formatZAR(progress.budgetAmount)}',
+      ),
     );
   }
 }
@@ -99,18 +110,29 @@ Future<void> showAddBudgetSheet(BuildContext context) {
 }
 
 class _BudgetSheet extends ConsumerStatefulWidget {
-  const _BudgetSheet();
+  const _BudgetSheet({this.existing});
+  final BudgetProgress? existing;
 
   @override
   ConsumerState<_BudgetSheet> createState() => _BudgetSheetState();
 }
 
 class _BudgetSheetState extends ConsumerState<_BudgetSheet> {
-  final _categoryController = TextEditingController();
-  final _amountController = TextEditingController();
+  late final TextEditingController _categoryController;
+  late final TextEditingController _amountController;
   String? _parentBudgetId;
   bool _submitting = false;
+  bool _deleting = false;
   String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    final existing = widget.existing;
+    _categoryController = TextEditingController(text: existing?.category ?? '');
+    _amountController = TextEditingController(text: existing != null ? existing.budgetAmount.toString() : '');
+    _parentBudgetId = existing?.parentBudgetId;
+  }
 
   @override
   void dispose() {
@@ -126,12 +148,21 @@ class _BudgetSheetState extends ConsumerState<_BudgetSheet> {
     });
     try {
       final month = ref.read(selectedBudgetMonthProvider);
-      await ref.read(budgetsApiProvider).create(
-            month: month,
-            totalBudget: _amountController.text.trim(),
-            category: _categoryController.text.trim().isEmpty ? null : _categoryController.text.trim(),
-            parentBudgetId: _parentBudgetId,
-          );
+      final category = _categoryController.text.trim().isEmpty ? null : _categoryController.text.trim();
+      if (widget.existing == null) {
+        await ref.read(budgetsApiProvider).create(
+              month: month,
+              totalBudget: _amountController.text.trim(),
+              category: category,
+              parentBudgetId: _parentBudgetId,
+            );
+      } else {
+        await ref.read(budgetsApiProvider).update(
+              widget.existing!.id,
+              totalBudget: _amountController.text.trim(),
+              category: category,
+            );
+      }
       ref.invalidate(budgetProgressProvider);
       ref.invalidate(budgetsForMonthProvider);
       if (mounted) Navigator.of(context).pop();
@@ -142,8 +173,29 @@ class _BudgetSheetState extends ConsumerState<_BudgetSheet> {
     }
   }
 
+  Future<void> _delete() async {
+    final existing = widget.existing;
+    if (existing == null) return;
+    setState(() {
+      _deleting = true;
+      _error = null;
+    });
+    try {
+      await ref.read(budgetsApiProvider).delete(existing.id);
+      ref.invalidate(budgetProgressProvider);
+      ref.invalidate(budgetsForMonthProvider);
+      if (mounted) Navigator.of(context).pop();
+    } on ApiError catch (e) {
+      setState(() => _error = e.message);
+    } finally {
+      if (mounted) setState(() => _deleting = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final isEdit = widget.existing != null;
+    final busy = _submitting || _deleting;
     final topLevelBudgetsAsync = ref.watch(budgetsForMonthProvider);
 
     return Padding(
@@ -152,7 +204,7 @@ class _BudgetSheetState extends ConsumerState<_BudgetSheet> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text('Add budget', style: Theme.of(context).textTheme.titleLarge),
+          Text(isEdit ? 'Edit budget' : 'Add budget', style: Theme.of(context).textTheme.titleLarge),
           const SizedBox(height: 16),
           TextField(
             controller: _amountController,
@@ -161,33 +213,42 @@ class _BudgetSheetState extends ConsumerState<_BudgetSheet> {
           ),
           const SizedBox(height: 16),
           TextField(controller: _categoryController, decoration: const InputDecoration(labelText: 'Category (optional — leave blank for the overall total)')),
-          const SizedBox(height: 16),
-          topLevelBudgetsAsync.when(
-            loading: () => const SizedBox.shrink(),
-            error: (_, _) => const SizedBox.shrink(),
-            data: (budgets) {
-              final topLevel = budgets.where((b) => b.parentBudgetId == null).toList();
-              if (topLevel.isEmpty) return const SizedBox.shrink();
-              return DropdownButtonFormField<String?>(
-                initialValue: _parentBudgetId,
-                decoration: const InputDecoration(labelText: 'Parent budget (optional, for a sub-category)'),
-                items: [
-                  const DropdownMenuItem(value: null, child: Text('None — top-level budget')),
-                  for (final b in topLevel) DropdownMenuItem(value: b.id, child: Text(b.category ?? 'Total')),
-                ],
-                onChanged: (value) => setState(() => _parentBudgetId = value),
-              );
-            },
-          ),
+          if (!isEdit) ...[
+            const SizedBox(height: 16),
+            topLevelBudgetsAsync.when(
+              loading: () => const SizedBox.shrink(),
+              error: (_, _) => const SizedBox.shrink(),
+              data: (budgets) {
+                final topLevel = budgets.where((b) => b.parentBudgetId == null).toList();
+                if (topLevel.isEmpty) return const SizedBox.shrink();
+                return DropdownButtonFormField<String?>(
+                  initialValue: _parentBudgetId,
+                  decoration: const InputDecoration(labelText: 'Parent budget (optional, for a sub-category)'),
+                  items: [
+                    const DropdownMenuItem(value: null, child: Text('None — top-level budget')),
+                    for (final b in topLevel) DropdownMenuItem(value: b.id, child: Text(b.category ?? 'Total')),
+                  ],
+                  onChanged: (value) => setState(() => _parentBudgetId = value),
+                );
+              },
+            ),
+          ],
           if (_error != null) ...[
             const SizedBox(height: 12),
             Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
           ],
           const SizedBox(height: 24),
           ElevatedButton(
-            onPressed: _submitting ? null : _submit,
+            onPressed: busy ? null : _submit,
             child: _submitting ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2)) : const Text('Save'),
           ),
+          if (isEdit) ...[
+            const SizedBox(height: 12),
+            TextButton(
+              onPressed: busy ? null : _delete,
+              child: Text('Delete', style: TextStyle(color: Theme.of(context).colorScheme.error)),
+            ),
+          ],
         ],
       ),
     );

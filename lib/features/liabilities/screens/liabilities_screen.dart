@@ -7,6 +7,15 @@ import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/group_card.dart';
 import '../models/liability.dart';
 import '../providers/liabilities_provider.dart';
+import 'liability_detail_screen.dart';
+
+Future<void> showLiabilitySheet(BuildContext context, {Liability? existing}) {
+  return showModalBottomSheet(
+    context: context,
+    isScrollControlled: true,
+    builder: (_) => _LiabilitySheet(existing: existing),
+  );
+}
 
 /// Grouped-list-cells pattern per DESIGN.md's reused component family.
 /// Payment-log/progress tracking is a documented v1 gap, not built.
@@ -41,7 +50,7 @@ class LiabilitiesScreen extends ConsumerWidget {
         ),
       ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => showModalBottomSheet(context: context, isScrollControlled: true, builder: (_) => const _LiabilitySheet()),
+        onPressed: () => showLiabilitySheet(context),
         label: const Text('Add liability'),
         icon: const Icon(Icons.add),
       ),
@@ -65,10 +74,8 @@ class _LiabilityRow extends StatelessWidget {
         formatZAR(liability.outstandingAmount),
         style: moneyTextStyle(context, fontSize: 15, color: semantic?.danger),
       ),
-      onTap: () => showModalBottomSheet(
-        context: context,
-        isScrollControlled: true,
-        builder: (_) => _LiabilitySheet(existing: liability),
+      onTap: () => Navigator.of(context).push(
+        MaterialPageRoute(builder: (_) => LiabilityDetailScreen(liability: liability)),
       ),
     );
   }

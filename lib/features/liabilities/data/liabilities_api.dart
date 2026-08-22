@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 
 import '../../../core/api/api_client.dart';
 import '../models/liability.dart';
+import '../models/liability_payment.dart';
 
 class LiabilitiesApi {
   LiabilitiesApi(this._client);
@@ -68,6 +69,54 @@ class LiabilitiesApi {
   Future<void> delete(String liabilityId) async {
     try {
       await _client.dio.delete('/liabilities/$liabilityId');
+    } on DioException catch (e) {
+      throw ApiClient.errorFrom(e);
+    }
+  }
+
+  Future<LiabilityProgress> getProgress(String liabilityId) async {
+    try {
+      final response = await _client.dio.get('/liabilities/$liabilityId/progress');
+      return LiabilityProgress.fromJson(response.data as Map<String, dynamic>);
+    } on DioException catch (e) {
+      throw ApiClient.errorFrom(e);
+    }
+  }
+
+  Future<List<LiabilityPayment>> listPayments(String liabilityId) async {
+    try {
+      final response = await _client.dio.get('/liabilities/$liabilityId/payments');
+      return (response.data as List).map((e) => LiabilityPayment.fromJson(e as Map<String, dynamic>)).toList();
+    } on DioException catch (e) {
+      throw ApiClient.errorFrom(e);
+    }
+  }
+
+  Future<LiabilityPayment> createPayment(
+    String liabilityId, {
+    required DateTime paymentDate,
+    required String amount,
+    required String principalPortion,
+    required String interestPortion,
+    String? notes,
+  }) async {
+    try {
+      final response = await _client.dio.post('/liabilities/$liabilityId/payments', data: {
+        'payment_date': _dateOnly(paymentDate),
+        'amount': amount,
+        'principal_portion': principalPortion,
+        'interest_portion': interestPortion,
+        if (notes case String n) 'notes': n,
+      });
+      return LiabilityPayment.fromJson(response.data as Map<String, dynamic>);
+    } on DioException catch (e) {
+      throw ApiClient.errorFrom(e);
+    }
+  }
+
+  Future<void> deletePayment(String liabilityId, String paymentId) async {
+    try {
+      await _client.dio.delete('/liabilities/$liabilityId/payments/$paymentId');
     } on DioException catch (e) {
       throw ApiClient.errorFrom(e);
     }

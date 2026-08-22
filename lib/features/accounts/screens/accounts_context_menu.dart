@@ -33,33 +33,30 @@ class AccountContextMenu extends ConsumerWidget {
   }
 
   void _confirmDeactivate(BuildContext context, WidgetRef ref) {
-    Navigator.pop(context);
+    final messenger = ScaffoldMessenger.of(context);
     showDialog(
       context: context,
-      builder: (_) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         title: const Text('Deactivate account?'),
         content: Text('This will deactivate "${account.name}". You can restore it later.'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop(dialogContext),
             child: const Text('Cancel'),
           ),
           FilledButton.tonal(
             onPressed: () async {
+              Navigator.pop(dialogContext);
               Navigator.pop(context);
               try {
                 await ref.read(deactivateAccountProvider(account.id).future);
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('${account.name} deactivated')),
-                  );
-                }
+                messenger.showSnackBar(
+                  SnackBar(content: Text('${account.name} deactivated')),
+                );
               } on ApiError catch (e) {
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Error: ${e.message}')),
-                  );
-                }
+                messenger.showSnackBar(
+                  SnackBar(content: Text('Error: ${e.message}')),
+                );
               }
             },
             child: const Text('Deactivate'),

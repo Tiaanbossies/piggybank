@@ -2,9 +2,10 @@ import 'package:flutter/material.dart';
 
 /// "This cannot be undone" confirmation, per `ui-ux-mockup-brief.md` §5.3:
 /// "Deletes (holding, dividend, portfolio) all go through an explicit
-/// confirmation" — the only place in the app that currently requires one
-/// (Assets/Liabilities/Goals delete directly), so this stays scoped to the
-/// Investments feature rather than becoming an app-wide convention.
+/// confirmation". Also used for RA/TFSA contribution deletes and Liability
+/// payment deletes — all ledger entries where deleting recomputes a running
+/// balance/total, not just removing a standalone record. Plain records
+/// (Assets, Liabilities themselves, Budgets, Goals) still delete directly.
 Future<bool> confirmDestroy(BuildContext context, {required String title, String? message}) async {
   final result = await showDialog<bool>(
     context: context,

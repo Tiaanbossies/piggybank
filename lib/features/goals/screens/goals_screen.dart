@@ -7,6 +7,14 @@ import '../../../shared/widgets/progress_card.dart';
 import '../models/goal.dart';
 import '../providers/goals_provider.dart';
 
+Future<void> showEditGoalSheet(BuildContext context, Goal existing) {
+  return showModalBottomSheet(
+    context: context,
+    isScrollControlled: true,
+    builder: (_) => _GoalSheet(existing: existing),
+  );
+}
+
 /// Body content for the Goals sub-view of the Budgets tab (per the Phase 2
 /// scope grouping Budgets and Goals together; DESIGN.md has no dedicated
 /// nav slot for Goals, so it lives as a second view alongside Budgets
@@ -46,10 +54,13 @@ class _GoalRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ProgressCard(
-      title: goal.name,
-      pct: goal.progressPct / 100,
-      footnote: '${formatZAR(goal.currentAmount)} / ${formatZAR(goal.targetAmount)} goal',
+    return InkWell(
+      onTap: () => showEditGoalSheet(context, goal),
+      child: ProgressCard(
+        title: goal.name,
+        pct: goal.progressPct / 100,
+        footnote: '${formatZAR(goal.currentAmount)} / ${formatZAR(goal.targetAmount)} goal',
+      ),
     );
   }
 }
@@ -59,18 +70,29 @@ Future<void> showAddGoalSheet(BuildContext context) {
 }
 
 class _GoalSheet extends ConsumerStatefulWidget {
-  const _GoalSheet();
+  const _GoalSheet({this.existing});
+  final Goal? existing;
 
   @override
   ConsumerState<_GoalSheet> createState() => _GoalSheetState();
 }
 
 class _GoalSheetState extends ConsumerState<_GoalSheet> {
-  final _nameController = TextEditingController();
-  final _targetController = TextEditingController();
-  final _currentController = TextEditingController(text: '0');
+  late final TextEditingController _nameController;
+  late final TextEditingController _targetController;
+  late final TextEditingController _currentController;
   bool _submitting = false;
+  bool _deleting = false;
   String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    final existing = widget.existing;
+    _nameController = TextEditingController(text: existing?.name ?? '');
+    _targetController = TextEditingController(text: existing != null ? existing.targetAmount.toString() : '');
+    _currentController = TextEditingController(text: existing != null ? existing.currentAmount.toString() : '0');
+  }
 
   @override
   void dispose() {
@@ -86,11 +108,23 @@ class _GoalSheetState extends ConsumerState<_GoalSheet> {
       _error = null;
     });
     try {
-      await ref.read(goalsApiProvider).create(
-            name: _nameController.text.trim(),
-            targetAmount: _targetController.text.trim(),
-            currentAmount: _currentController.text.trim().isEmpty ? null : _currentController.text.trim(),
-          );
+      final name = _nameController.text.trim();
+      final targetAmount = _targetController.text.trim();
+      final currentAmount = _currentController.text.trim().isEmpty ? null : _currentController.text.trim();
+      if (widget.existing == null) {
+        await ref.read(goalsApiProvider).create(
+              name: name,
+              targetAmount: targetAmount,
+              currentAmount: currentAmount,
+            );
+      } else {
+        await ref.read(goalsApiProvider).update(
+              widget.existing!.id,
+              name: name,
+              targetAmount: targetAmount,
+              currentAmount: currentAmount,
+            );
+      }
       ref.invalidate(goalsProvider);
       if (mounted) Navigator.of(context).pop();
     } on ApiError catch (e) {
@@ -100,15 +134,35 @@ class _GoalSheetState extends ConsumerState<_GoalSheet> {
     }
   }
 
+  Future<void> _delete() async {
+    final existing = widget.existing;
+    if (existing == null) return;
+    setState(() {
+      _deleting = true;
+      _error = null;
+    });
+    try {
+      await ref.read(goalsApiProvider).delete(existing.id);
+      ref.invalidate(goalsProvider);
+      if (mounted) Navigator.of(context).pop();
+    } on ApiError catch (e) {
+      setState(() => _error = e.message);
+    } finally {
+      if (mounted) setState(() => _deleting = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final isEdit = widget.existing != null;
+    final busy = _submitting || _deleting;
     return Padding(
       padding: EdgeInsets.only(left: 24, right: 24, top: 24, bottom: MediaQuery.of(context).viewInsets.bottom + 24),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text('Add goal', style: Theme.of(context).textTheme.titleLarge),
+          Text(isEdit ? 'Edit goal' : 'Add goal', style: Theme.of(context).textTheme.titleLarge),
           const SizedBox(height: 16),
           TextField(controller: _nameController, decoration: const InputDecoration(labelText: 'Goal name')),
           const SizedBox(height: 16),
@@ -129,9 +183,16 @@ class _GoalSheetState extends ConsumerState<_GoalSheet> {
           ],
           const SizedBox(height: 24),
           ElevatedButton(
-            onPressed: _submitting ? null : _submit,
+            onPressed: busy ? null : _submit,
             child: _submitting ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2)) : const Text('Save'),
           ),
+          if (isEdit) ...[
+            const SizedBox(height: 12),
+            TextButton(
+              onPressed: busy ? null : _delete,
+              child: Text('Delete', style: TextStyle(color: Theme.of(context).colorScheme.error)),
+            ),
+          ],
         ],
       ),
     );
