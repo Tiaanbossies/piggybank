@@ -1,12 +1,12 @@
 /// API base URL config.
 ///
-/// Override at build/run time with `--dart-define=API_BASE_URL=https://...`
-/// once Phase 7 settles on a real server. Default targets the Android
-/// emulator's alias for the host machine's localhost (`10.0.2.2`), matching
-/// finance-app.v3's local dev backend on port 8000 under the `/api` prefix.
+/// Default targets finance-app.v3's deployed backend on the home Ubuntu box
+/// reachable over Tailscale (`100.121.165.7`, port 8000, `/api` prefix).
+/// Override at build/run time with `--dart-define=API_BASE_URL=http://10.0.2.2:8000/api`
+/// to point at a local Docker Desktop backend from the Android emulator instead.
 abstract final class ApiConfig {
   static const baseUrl = String.fromEnvironment(
     'API_BASE_URL',
-    defaultValue: 'http://10.0.2.2:8000/api',
+    defaultValue: 'http://100.121.165.7:8000/api',
   );
 }
