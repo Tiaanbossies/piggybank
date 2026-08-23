@@ -68,10 +68,20 @@ class GroupRow extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(title, style: Theme.of(context).textTheme.titleMedium),
+                  Text(
+                    title,
+                    style: Theme.of(context).textTheme.titleMedium,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                   if (subtitle != null) ...[
                     const SizedBox(height: 2),
-                    Text(subtitle!, style: TextStyle(color: semantic?.textMuted, fontSize: 13)),
+                    Text(
+                      subtitle!,
+                      style: TextStyle(color: semantic?.textMuted, fontSize: 13),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ],
                 ],
               ),

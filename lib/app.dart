@@ -16,6 +16,13 @@ class PiggybankApp extends ConsumerWidget {
       darkTheme: AppTheme.dark(),
       routerConfig: router,
       debugShowCheckedModeBanner: false,
+      builder: (context, child) {
+        final clampedScaler = MediaQuery.textScalerOf(context).clamp(maxScaleFactor: 1.3);
+        return MediaQuery(
+          data: MediaQuery.of(context).copyWith(textScaler: clampedScaler),
+          child: child!,
+        );
+      },
     );
   }
 }
