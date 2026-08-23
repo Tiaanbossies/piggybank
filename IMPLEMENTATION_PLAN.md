@@ -81,3 +81,20 @@ See **todo tool** output above for 12 executable items:
 - **Validation (1 item)**: Final build verification
 
 Ready to start? Approve, and I'll begin with Tier 1.1 (Transaction Filters).
+
+---
+
+## Phase 8 Parity Sign-off (2026-08-23)
+
+Formal close-out of Phase 8's "full pass against the Phase 0 feature-parity matrix," per Part 2 of `binary-popping-tower.md`. Route-completeness pass confirmed 9/9 old web routes have real Flutter coverage except `/insights` (documented deferred below). This section records that sign-off as a repo artifact rather than tribal knowledge in session files. No code changes accompany this entry.
+
+| Item | Status | Disposition |
+|---|---|---|
+| Insights tab | Bare `PlaceholderScreen` | **Documented v1 exclusion** — PRO-gated/Ollama-dependent, per parity matrix's original deferred list. |
+| Chatbot | No route at all | **Documented v1 exclusion** — same reasoning, matches deferred list. |
+| RA/TFSA "estimated performance" backtest | Not built | **Documented v1 exclusion** — parity matrix already scoped this out explicitly (contribution CRUD itself is v1 and *is* built). |
+| Dashboard widget customization | Not built | **Documented v1 exclusion** — parity matrix: "ship one well-designed default layout." |
+| Admin | No route/screen anywhere | **Documented v1 exclusion** — internal-only per parity matrix; this pass adds the explicit sign-off line that was missing. |
+| Instrument Comparison | Built **unconditionally** (always-visible toolbar icon in `InvestScreen`), not gated | **Confirmed intentional** — plan said "if kept in v1 per Phase 0 matrix review"; it was kept, and shipped as always-on rather than PRO-gated. Recorded here as the settled decision (no code change) unless PRO-gating is picked up as a separate small follow-up. |
+| Settings sub-screens (Security, Notifications, Appearance, Subscription, Import history) | Not built, not routed | **Documented v1 exclusion**, already tracked as Tier 3 polish above. "Privacy & consent" is the one exception, now real per Part 1 of `binary-popping-tower.md`. |
+
