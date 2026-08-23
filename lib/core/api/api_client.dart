@@ -15,8 +15,11 @@ class ApiClient {
     required this._getAccessToken,
     required this._refreshAccessToken,
     required this._onSessionExpired,
+    void Function()? onConsentsRequired,
     Dio? dio,
-  }) : dio = dio ?? Dio(BaseOptions(baseUrl: baseUrl)) {
+    // ignore: prefer_initializing_formals
+  })  : _onConsentsRequired = onConsentsRequired,
+        dio = dio ?? Dio(BaseOptions(baseUrl: baseUrl)) {
     this.dio.interceptors.add(InterceptorsWrapper(onRequest: _onRequest, onError: _onError));
   }
 
@@ -24,6 +27,12 @@ class ApiClient {
   final String? Function() _getAccessToken;
   final Future<bool> Function() _refreshAccessToken;
   final void Function() _onSessionExpired;
+
+  /// Optional notify-only hook: on a 403 consents-required response, calls
+  /// this and lets the error still surface normally (no retry). Nullable so
+  /// existing [ApiClient] constructions (tests, in particular) don't need
+  /// to supply it.
+  final void Function()? _onConsentsRequired;
 
   Future<bool>? _refreshInFlight;
 
@@ -36,6 +45,12 @@ class ApiClient {
   }
 
   Future<void> _onError(DioException err, ErrorInterceptorHandler handler) async {
+    if (err.response?.statusCode == 403) {
+      final apiError = ApiError.fromResponse(403, err.response?.data);
+      if (apiError.isConsentsRequired) _onConsentsRequired?.call();
+      return handler.next(err);
+    }
+
     final isUnauthorized = err.response?.statusCode == 401;
     final alreadyRetried = err.requestOptions.extra['_retried'] == true;
 

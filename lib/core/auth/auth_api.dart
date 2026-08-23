@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 
 import '../api/api_client.dart';
 import '../api/api_config.dart';
+import '../consents/consent_models.dart';
 import 'user.dart';
 
 /// Result of a successful login/refresh — mirrors
@@ -61,6 +62,36 @@ class AuthApi {
     try {
       final response = await _dio.get('/auth/me', options: Options(headers: {'Authorization': 'Bearer $accessToken'}));
       return User.fromJson(response.data as Map<String, dynamic>);
+    } on DioException catch (e) {
+      throw ApiClient.errorFrom(e);
+    }
+  }
+
+  /// The full set of documents currently required to be accepted — always
+  /// returns the complete set (not a diff), per `required.py`. Raw-Dio +
+  /// bearer header, same as [me]: this runs before an [ApiClient] exists.
+  Future<List<RequiredDocument>> requiredConsents(String accessToken) async {
+    try {
+      final response = await _dio.get(
+        '/consents/required',
+        options: Options(headers: {'Authorization': 'Bearer $accessToken'}),
+      );
+      final items = response.data as List;
+      return items.map((e) => RequiredDocument.fromJson(e as Map<String, dynamic>)).toList();
+    } on DioException catch (e) {
+      throw ApiClient.errorFrom(e);
+    }
+  }
+
+  /// The current user's own accepted consent records.
+  Future<List<ConsentRecord>> acceptedConsents(String accessToken) async {
+    try {
+      final response = await _dio.get(
+        '/consents/',
+        options: Options(headers: {'Authorization': 'Bearer $accessToken'}),
+      );
+      final items = response.data as List;
+      return items.map((e) => ConsentRecord.fromJson(e as Map<String, dynamic>)).toList();
     } on DioException catch (e) {
       throw ApiClient.errorFrom(e);
     }

@@ -1,12 +1,13 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:mocktail/mocktail.dart';
 import 'package:local_auth/local_auth.dart';
+import 'package:mocktail/mocktail.dart';
 
 import 'package:piggybank/core/api/api_error.dart';
 import 'package:piggybank/core/auth/auth_api.dart';
 import 'package:piggybank/core/auth/auth_controller.dart';
 import 'package:piggybank/core/auth/secure_storage.dart';
 import 'package:piggybank/core/auth/user.dart';
+import 'package:piggybank/core/consents/consent_models.dart';
 
 class MockAuthApi extends Mock implements AuthApi {}
 
@@ -46,6 +47,11 @@ void main() {
       // Set default mock behavior for restoreSession to return null (no stored token)
       when(() => mockSecureStorage.readRefreshToken())
           .thenAnswer((_) async => null);
+
+      // Default: nothing required, so existing login/register/restore tests
+      // (which don't assert on consentsRequired) keep passing unchanged.
+      when(() => mockAuthApi.requiredConsents(any())).thenAnswer((_) async => const []);
+      when(() => mockAuthApi.acceptedConsents(any())).thenAnswer((_) async => const []);
 
       authController = AuthController(
         authApi: mockAuthApi,
@@ -243,6 +249,119 @@ void main() {
         verify(() => mockAuthApi.logout('refresh')).called(1);
         verify(() => mockSecureStorage.clearRefreshToken()).called(1);
         expect(authController.state.isAuthenticated, false);
+      });
+    });
+
+    group('consents', () {
+      const email = 'test@example.com';
+      const password = 'password123';
+      const tokenPair = TokenPair(accessToken: 'access_token_123', refreshToken: 'refresh_token_456');
+
+      setUp(() {
+        when(() => mockAuthApi.login(email: email, password: password)).thenAnswer((_) async => tokenPair);
+        when(() => mockSecureStorage.writeRefreshToken(any())).thenAnswer((_) async {});
+        when(() => mockAuthApi.me('access_token_123')).thenAnswer((_) async => FakeUser());
+      });
+
+      test('outstanding consents sets consentsRequired true', () async {
+        when(() => mockAuthApi.requiredConsents('access_token_123')).thenAnswer(
+          (_) async => const [RequiredDocument(documentType: 'privacy_policy', documentVersion: '1.0')],
+        );
+        when(() => mockAuthApi.acceptedConsents('access_token_123')).thenAnswer((_) async => const []);
+
+        await authController.login(email: email, password: password);
+
+        expect(authController.state.consentsRequired, true);
+      });
+
+      test('all accepted sets consentsRequired false', () async {
+        when(() => mockAuthApi.requiredConsents('access_token_123')).thenAnswer(
+          (_) async => const [RequiredDocument(documentType: 'privacy_policy', documentVersion: '1.0')],
+        );
+        when(() => mockAuthApi.acceptedConsents('access_token_123')).thenAnswer(
+          (_) async => [
+            ConsentRecord(
+              id: 'c1',
+              documentType: 'privacy_policy',
+              documentVersion: '1.0',
+              acceptedAt: DateTime.utc(2026),
+            ),
+          ],
+        );
+
+        await authController.login(email: email, password: password);
+
+        expect(authController.state.consentsRequired, false);
+      });
+
+      test('a transient fetch failure fails open (does not block login)', () async {
+        when(() => mockAuthApi.requiredConsents('access_token_123')).thenThrow(
+          const ApiError(statusCode: 0, message: 'Network error'),
+        );
+
+        await authController.login(email: email, password: password);
+
+        expect(authController.state.isAuthenticated, true);
+        expect(authController.state.consentsRequired, false);
+      });
+    });
+
+    group('refreshConsentStatus / markConsentsRequired', () {
+      const email = 'test@example.com';
+      const password = 'password123';
+      const tokenPair = TokenPair(accessToken: 'access_token_123', refreshToken: 'refresh_token_456');
+
+      setUp(() {
+        when(() => mockAuthApi.login(email: email, password: password)).thenAnswer((_) async => tokenPair);
+        when(() => mockSecureStorage.writeRefreshToken(any())).thenAnswer((_) async {});
+        when(() => mockAuthApi.me('access_token_123')).thenAnswer((_) async => FakeUser());
+      });
+
+      test('refreshConsentStatus re-checks and clears the gate once everything is accepted', () async {
+        when(() => mockAuthApi.requiredConsents('access_token_123')).thenAnswer(
+          (_) async => const [RequiredDocument(documentType: 'privacy_policy', documentVersion: '1.0')],
+        );
+        when(() => mockAuthApi.acceptedConsents('access_token_123')).thenAnswer((_) async => const []);
+        await authController.login(email: email, password: password);
+        expect(authController.state.consentsRequired, true);
+
+        when(() => mockAuthApi.acceptedConsents('access_token_123')).thenAnswer(
+          (_) async => [
+            ConsentRecord(
+              id: 'c1',
+              documentType: 'privacy_policy',
+              documentVersion: '1.0',
+              acceptedAt: DateTime.utc(2026),
+            ),
+          ],
+        );
+
+        await authController.refreshConsentStatus();
+
+        expect(authController.state.consentsRequired, false);
+      });
+
+      test('refreshConsentStatus is a no-op when there is no access token', () async {
+        await authController.refreshConsentStatus();
+
+        verifyNever(() => mockAuthApi.requiredConsents(any()));
+      });
+
+      test('markConsentsRequired sets the gate when authenticated', () async {
+        await authController.login(email: email, password: password);
+        expect(authController.state.consentsRequired, false);
+
+        authController.markConsentsRequired();
+
+        expect(authController.state.consentsRequired, true);
+      });
+
+      test('markConsentsRequired is a no-op when not authenticated', () async {
+        expect(authController.state.isAuthenticated, false);
+
+        authController.markConsentsRequired();
+
+        expect(authController.state.consentsRequired, false);
       });
     });
   });

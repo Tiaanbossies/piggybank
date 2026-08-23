@@ -34,21 +34,77 @@ class AuthController extends StateNotifier<AuthState> {
     }
     await _secureStorage.writeRefreshToken(pair.refreshToken);
     final user = await _authApi.me(pair.accessToken);
-    state = AuthState(status: AuthStatus.authenticated, accessToken: pair.accessToken, user: user, locked: true);
+    final consentsRequired = await _checkConsentsRequired(pair.accessToken);
+    state = AuthState(
+      status: AuthStatus.authenticated,
+      accessToken: pair.accessToken,
+      user: user,
+      locked: true,
+      consentsRequired: consentsRequired,
+    );
   }
 
   Future<void> login({required String email, required String password}) async {
     final pair = await _authApi.login(email: email, password: password);
     await _secureStorage.writeRefreshToken(pair.refreshToken);
     final user = await _authApi.me(pair.accessToken);
-    state = AuthState(status: AuthStatus.authenticated, accessToken: pair.accessToken, user: user, locked: false);
+    final consentsRequired = await _checkConsentsRequired(pair.accessToken);
+    state = AuthState(
+      status: AuthStatus.authenticated,
+      accessToken: pair.accessToken,
+      user: user,
+      locked: false,
+      consentsRequired: consentsRequired,
+    );
   }
 
   Future<void> register({required String email, required String password, String? fullName}) async {
     final pair = await _authApi.register(email: email, password: password, fullName: fullName);
     await _secureStorage.writeRefreshToken(pair.refreshToken);
     final user = await _authApi.me(pair.accessToken);
-    state = AuthState(status: AuthStatus.authenticated, accessToken: pair.accessToken, user: user, locked: false);
+    final consentsRequired = await _checkConsentsRequired(pair.accessToken);
+    state = AuthState(
+      status: AuthStatus.authenticated,
+      accessToken: pair.accessToken,
+      user: user,
+      locked: false,
+      consentsRequired: consentsRequired,
+    );
+  }
+
+  /// Diffs `/consents/required` against `/consents/` to decide whether the
+  /// `/consent` gate should show. Fails open (returns `false`) on a
+  /// transient failure rather than blocking login entirely — the server
+  /// still enforces consents on every gated call regardless, and
+  /// [ApiClient]'s `onConsentsRequired` fallback catches it if the app
+  /// proceeds without knowing.
+  Future<bool> _checkConsentsRequired(String accessToken) async {
+    try {
+      final required = await _authApi.requiredConsents(accessToken);
+      final accepted = await _authApi.acceptedConsents(accessToken);
+      final acceptedPairs = accepted.map((c) => (c.documentType, c.documentVersion)).toSet();
+      return required.any((doc) => !acceptedPairs.contains((doc.documentType, doc.documentVersion)));
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Re-runs the consents check and updates state — called after the
+  /// consent screen submits its acceptances. The router's redirect listener
+  /// clears the `/consent` gate automatically once this resolves to `false`.
+  Future<void> refreshConsentStatus() async {
+    final token = state.accessToken;
+    if (token == null) return;
+    final consentsRequired = await _checkConsentsRequired(token);
+    state = state.copyWith(consentsRequired: consentsRequired);
+  }
+
+  /// Passed into [ApiClient] as its `onConsentsRequired` fallback: fires
+  /// when any gated call surfaces a 403 consents-required response, even if
+  /// [_checkConsentsRequired] missed it at login (e.g. the fail-open path,
+  /// or a consent version bumped mid-session).
+  void markConsentsRequired() {
+    if (state.isAuthenticated) state = state.copyWith(consentsRequired: true);
   }
 
   Future<void> logout() async {
@@ -122,5 +178,6 @@ final apiClientProvider = Provider<ApiClient>((ref) {
     getAccessToken: () => ref.read(authControllerProvider).accessToken,
     refreshAccessToken: controller.refreshAccessToken,
     onSessionExpired: controller.handleSessionExpired,
+    onConsentsRequired: controller.markConsentsRequired,
   );
 });

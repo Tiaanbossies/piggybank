@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../features/consent/screens/consent_screen.dart';
 import '../../shared/widgets/group_card.dart';
 import '../auth/auth_controller.dart';
 
@@ -23,11 +24,12 @@ class PlaceholderScreen extends StatelessWidget {
 
 /// Settings mockup shows a fully fleshed screen (Profile, Security,
 /// Notifications, Appearance, Subscription, Privacy & consent, Import
-/// history) — none of those sub-screens exist yet (tracked as new gaps in
-/// `docs/ui-ux-mockup-brief.md` §12/§13). Restyled to the new card language,
-/// but only the two rows that are actually real today (profile, logout) are
-/// shown — adding non-functional rows for the rest would be exactly the
-/// "template artefact" this project's quality bar rules out.
+/// history) — most of those sub-screens don't exist yet (tracked as new
+/// gaps in `docs/ui-ux-mockup-brief.md` §12/§13). Restyled to the new card
+/// language, but only the rows that are actually real today (profile,
+/// privacy & consent, logout) are shown — adding non-functional rows for
+/// the rest would be exactly the "template artefact" this project's
+/// quality bar rules out.
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
 
@@ -51,6 +53,18 @@ class SettingsScreen extends ConsumerWidget {
                   ),
                 ],
               ),
+            const SizedBox(height: 12),
+            GroupCard(
+              children: [
+                GroupRow(
+                  leadingIcon: Icons.privacy_tip_outlined,
+                  title: 'Privacy & consent',
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const ConsentScreen()),
+                  ),
+                ),
+              ],
+            ),
             const SizedBox(height: 12),
             GroupCard(
               children: [

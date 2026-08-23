@@ -119,6 +119,37 @@ void main() {
       await expectLater(client.dio.get('/accounts'), throwsA(isA<DioException>()));
       expect(sessionExpiredCalls, 1);
     });
+
+    test('a consents-required 403 triggers onConsentsRequired once, with no retry', () async {
+      var consentsRequiredCalls = 0;
+      var refreshCalls = 0;
+      final adapter = _FakeAdapter([
+        () => _json(403, {
+              'detail': {
+                'error': 'consent required',
+                'missing': [
+                  {'document_type': 'privacy_policy', 'document_version': '1.0'},
+                ],
+              },
+            }),
+      ]);
+      final client = ApiClient(
+        baseUrl: 'https://api.test',
+        getAccessToken: () => 'token',
+        refreshAccessToken: () async {
+          refreshCalls++;
+          return true;
+        },
+        onSessionExpired: () {},
+        onConsentsRequired: () => consentsRequiredCalls++,
+      );
+      client.dio.httpClientAdapter = adapter;
+
+      await expectLater(client.dio.get('/accounts'), throwsA(isA<DioException>()));
+      expect(consentsRequiredCalls, 1);
+      expect(refreshCalls, 0);
+      expect(adapter.callCount, 1);
+    });
   });
 
   group('ApiClient.errorFrom', () {
