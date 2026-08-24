@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../features/consent/screens/consent_screen.dart';
+import '../../features/settings/screens/appearance_screen.dart';
 import '../../features/settings/screens/import_history_screen.dart';
 import '../../features/settings/screens/subscription_screen.dart';
 import '../../shared/widgets/group_card.dart';
@@ -31,8 +32,8 @@ class PlaceholderScreen extends StatelessWidget {
 /// going forward — not `docs/ui-ux-mockup-brief.md`, which predates it and
 /// isn't kept in sync). Restyled to the new card language; only the rows
 /// that are actually real today (profile, privacy & consent, subscription,
-/// import history, logout) are shown — adding non-functional rows for the
-/// rest (Security, Notifications, Appearance) would be exactly the
+/// import history, appearance, logout) are shown — adding non-functional
+/// rows for the rest (Security, Notifications) would be exactly the
 /// "template artefact" this project's quality bar rules out.
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -84,6 +85,13 @@ class SettingsScreen extends ConsumerWidget {
                   title: 'Import history',
                   onTap: () => Navigator.of(context).push(
                     MaterialPageRoute(builder: (_) => const ImportHistoryScreen()),
+                  ),
+                ),
+                GroupRow(
+                  leadingIcon: Icons.palette_outlined,
+                  title: 'Appearance',
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const AppearanceScreen()),
                   ),
                 ),
               ],
