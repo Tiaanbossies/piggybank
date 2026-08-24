@@ -6,6 +6,7 @@ import '../../../core/format/money.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/confirm_dialog.dart';
 import '../../../shared/widgets/group_card.dart';
+import '../../../shared/widgets/growth_projection_card.dart';
 import '../../../shared/widgets/hero_metric_card.dart';
 import '../models/ra_contribution.dart';
 import '../providers/ra_provider.dart';
@@ -41,6 +42,8 @@ class RaLedgerScreen extends ConsumerWidget {
                   const _SummarySection(),
                   const SizedBox(height: 24),
                   const _ByYearSection(),
+                  const SizedBox(height: 24),
+                  const _GrowthProjectionSection(),
                   const SizedBox(height: 24),
                   Text('Contributions', style: Theme.of(context).textTheme.titleMedium),
                   const SizedBox(height: 8),
@@ -177,6 +180,24 @@ class _ByYearSection extends ConsumerWidget {
           ],
         );
       },
+    );
+  }
+}
+
+class _GrowthProjectionSection extends ConsumerWidget {
+  const _GrowthProjectionSection();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final summaryAsync = ref.watch(raSummaryProvider);
+
+    return summaryAsync.when(
+      loading: () => const SizedBox.shrink(),
+      error: (_, _) => const SizedBox.shrink(),
+      data: (summary) => GrowthProjectionCard(
+        startingBalance: summary.totalContributed.toDouble(),
+        label: 'RA',
+      ),
     );
   }
 }
