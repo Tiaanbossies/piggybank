@@ -7,6 +7,7 @@ import '../../../core/api/api_error.dart';
 import '../../../core/format/money.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/group_card.dart';
+import '../../../shared/widgets/status_badge.dart';
 import '../../accounts/providers/accounts_provider.dart';
 import '../../transactions/models/transaction.dart';
 import '../../transactions/providers/transactions_provider.dart';
@@ -379,7 +380,7 @@ class _ImportsScreenState extends ConsumerState<ImportsScreen> {
                         subtitle: '${job.importedRows} / ${job.totalRows} imported'
                             '${job.failedRows > 0 ? ' · ${job.failedRows} failed' : ''}',
                         leadingIcon: Icons.description_outlined,
-                        trailing: _StatusBadge(status: job.status),
+                        trailing: StatusBadge(status: job.status),
                       ),
                   ],
                 );
@@ -425,37 +426,6 @@ class _ConfidenceBadge extends StatelessWidget {
   }
 }
 
-class _StatusBadge extends StatelessWidget {
-  const _StatusBadge({required this.status});
-  final ImportStatus status;
-
-  @override
-  Widget build(BuildContext context) {
-    final semantic = Theme.of(context).extension<AppSemanticColors>();
-    final Color fg;
-    final Color? bg;
-    switch (status) {
-      case ImportStatus.completed:
-        fg = semantic?.success ?? Colors.green;
-        bg = semantic?.accentChipBg;
-      case ImportStatus.partial:
-        fg = Theme.of(context).colorScheme.primary;
-        bg = semantic?.accentChipBg;
-      case ImportStatus.failed:
-        fg = semantic?.danger ?? Colors.red;
-        bg = semantic?.dangerChipBg;
-      case ImportStatus.pending:
-        fg = semantic?.textMuted ?? Colors.grey;
-        bg = null;
-    }
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(999)),
-      child: Text(status.name.toUpperCase(), style: TextStyle(color: fg, fontWeight: FontWeight.w700, fontSize: 11)),
-    );
-  }
-}
-
 class _ResultCard extends ConsumerStatefulWidget {
   const _ResultCard({required this.job});
   final ImportJob job;
@@ -497,7 +467,7 @@ class _ResultCardState extends ConsumerState<_ResultCard> {
               children: [
                 Text('Upload result', style: Theme.of(context).textTheme.titleMedium),
                 const SizedBox(width: 12),
-                _StatusBadge(status: job.status),
+                StatusBadge(status: job.status),
               ],
             ),
             const SizedBox(height: 12),
