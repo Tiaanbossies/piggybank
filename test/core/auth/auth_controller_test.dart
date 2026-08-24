@@ -8,12 +8,15 @@ import 'package:piggybank/core/auth/auth_controller.dart';
 import 'package:piggybank/core/auth/secure_storage.dart';
 import 'package:piggybank/core/auth/user.dart';
 import 'package:piggybank/core/consents/consent_models.dart';
+import 'package:piggybank/features/settings/data/security_api.dart';
 
 class MockAuthApi extends Mock implements AuthApi {}
 
 class MockSecureStorage extends Mock implements SecureStorage {}
 
 class MockLocalAuthentication extends Mock implements LocalAuthentication {}
+
+class MockSecurityApi extends Mock implements SecurityApi {}
 
 class FakeUser extends Fake implements User {
   @override
@@ -24,6 +27,23 @@ class FakeUser extends Fake implements User {
 
   @override
   final String? fullName = 'Test User';
+
+  @override
+  final bool hasPin = false;
+}
+
+class FakeUserWithPin extends Fake implements User {
+  @override
+  final String id = 'user123';
+
+  @override
+  final String email = 'test@example.com';
+
+  @override
+  final String? fullName = 'Test User';
+
+  @override
+  final bool hasPin = true;
 }
 
 class FakeAuthenticationOptions extends Fake implements AuthenticationOptions {}
@@ -208,7 +228,10 @@ void main() {
         expect(authController.state.locked, false);
       });
 
-      test('unlockWithBiometrics handles unavailable biometrics gracefully', () async {
+      test('unlockWithBiometrics does NOT silently unlock when no biometric hardware exists', () async {
+        // Regression test: this previously auto-unlocked with no auth check at
+        // all whenever canCheckBiometrics/isDeviceSupported were both false —
+        // any device without biometric hardware was unlockable by anyone.
         authController.state = authController.state.copyWith(locked: true);
 
         when(() => mockLocalAuth.canCheckBiometrics).thenAnswer((_) async => false);
@@ -216,8 +239,62 @@ void main() {
 
         final result = await authController.unlockWithBiometrics();
 
+        expect(result, false);
+        expect(authController.state.locked, true);
+      });
+    });
+
+    group('unlockWithPin', () {
+      late MockSecurityApi mockSecurityApi;
+
+      setUp(() {
+        mockSecurityApi = MockSecurityApi();
+      });
+
+      test('a correct PIN clears the lock flag', () async {
+        authController.state = authController.state.copyWith(locked: true);
+        when(() => mockSecurityApi.verifyPin('1234')).thenAnswer((_) async {});
+
+        final result = await authController.unlockWithPin('1234', verifyPin: mockSecurityApi.verifyPin);
+
         expect(result, true);
         expect(authController.state.locked, false);
+      });
+
+      test('a wrong PIN (401) leaves the app locked and returns false', () async {
+        authController.state = authController.state.copyWith(locked: true);
+        when(() => mockSecurityApi.verifyPin('0000'))
+            .thenThrow(const ApiError(statusCode: 401, message: 'invalid pin'));
+
+        final result = await authController.unlockWithPin('0000', verifyPin: mockSecurityApi.verifyPin);
+
+        expect(result, false);
+        expect(authController.state.locked, true);
+      });
+    });
+
+    group('refreshUser', () {
+      test('re-fetches /me and replaces state.user', () async {
+        const email = 'test@example.com';
+        const password = 'password123';
+        final tokenPair = TokenPair(accessToken: 'access_token_123', refreshToken: 'refresh_token_456');
+        when(() => mockAuthApi.login(email: email, password: password)).thenAnswer((_) async => tokenPair);
+        when(() => mockSecureStorage.writeRefreshToken(any())).thenAnswer((_) async {});
+        when(() => mockAuthApi.me('access_token_123')).thenAnswer((_) async => FakeUser());
+        await authController.login(email: email, password: password);
+        expect(authController.state.user?.hasPin, false);
+
+        when(() => mockAuthApi.me('access_token_123')).thenAnswer((_) async => FakeUserWithPin());
+
+        await authController.refreshUser();
+
+        expect(authController.state.user?.hasPin, true);
+      });
+
+      test('is a no-op when there is no access token', () async {
+        await authController.refreshUser();
+
+        verifyNever(() => mockAuthApi.me(any()));
       });
     });
 

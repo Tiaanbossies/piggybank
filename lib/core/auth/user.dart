@@ -7,6 +7,7 @@ class User {
     required this.role,
     required this.isActive,
     this.salaryDay,
+    this.hasPin = false,
   });
 
   final String id;
@@ -15,6 +16,7 @@ class User {
   final String role;
   final bool isActive;
   final int? salaryDay;
+  final bool hasPin;
 
   factory User.fromJson(Map<String, dynamic> json) => User(
         id: json['id'] as String,
@@ -23,5 +25,6 @@ class User {
         role: json['role'] as String,
         isActive: json['is_active'] as bool,
         salaryDay: json['salary_day'] as int?,
+        hasPin: json['has_pin'] as bool? ?? false,
       );
 }

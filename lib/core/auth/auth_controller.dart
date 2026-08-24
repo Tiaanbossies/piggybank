@@ -3,6 +3,7 @@ import 'package:local_auth/local_auth.dart';
 
 import '../api/api_client.dart';
 import '../api/api_config.dart';
+import '../api/api_error.dart';
 import 'auth_api.dart';
 import 'auth_state.dart';
 import 'secure_storage.dart';
@@ -131,18 +132,30 @@ class AuthController extends StateNotifier<AuthState> {
     return true;
   }
 
+  /// Re-fetches `/auth/me` and replaces [AuthState.user] — used after an
+  /// action that changes server-side user state the client needs to see
+  /// immediately (e.g. Security screen's set/remove PIN, which flips
+  /// `User.hasPin`). No-op when not authenticated.
+  Future<void> refreshUser() async {
+    final token = state.accessToken;
+    if (token == null) return;
+    final user = await _authApi.me(token);
+    state = state.copyWith(user: user);
+  }
+
   Future<void> handleSessionExpired() async {
     await _secureStorage.clearRefreshToken();
     state = AuthState.unauthenticated();
   }
 
+  /// No-hardware is deliberately NOT an auto-unlock path (regression fix,
+  /// blueprint Step 5a) — a device with no biometric/device-credential
+  /// capability must fall back to PIN entry (see [unlockWithPin]), never be
+  /// silently unlocked.
   Future<bool> unlockWithBiometrics() async {
     try {
       final canCheck = await _localAuth.canCheckBiometrics || await _localAuth.isDeviceSupported();
-      if (!canCheck) {
-        state = state.copyWith(locked: false);
-        return true;
-      }
+      if (!canCheck) return false;
       final ok = await _localAuth.authenticate(
         localizedReason: 'Unlock Piggybank',
         options: const AuthenticationOptions(biometricOnly: false, stickyAuth: true),
@@ -150,6 +163,21 @@ class AuthController extends StateNotifier<AuthState> {
       if (ok) state = state.copyWith(locked: false);
       return ok;
     } catch (_) {
+      return false;
+    }
+  }
+
+  /// Verifies [pin] via [verifyPin] (typically `SecurityApi.verifyPin`,
+  /// passed in rather than imported directly to avoid a circular import
+  /// between core auth and the settings feature layer) and clears the lock
+  /// flag on success. Returns `false` on a wrong PIN (401) without mutating
+  /// state, matching [unlockWithBiometrics]'s failure contract.
+  Future<bool> unlockWithPin(String pin, {required Future<void> Function(String pin) verifyPin}) async {
+    try {
+      await verifyPin(pin);
+      state = state.copyWith(locked: false);
+      return true;
+    } on ApiError {
       return false;
     }
   }
