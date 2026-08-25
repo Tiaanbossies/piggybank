@@ -699,7 +699,24 @@ paywall path verified.
 
 ---
 
-## Step 8 — Chatbot UI
+## Step 8 — Chatbot UI ✅ DONE (2026-08-25)
+
+**Outcome:** `lib/features/chatbot/{models/chat_message.dart, data/chatbot_api.dart,
+providers/chatbot_provider.dart, screens/chatbot_screen.dart}` — a conversational
+thread UI (bubbles, auto-scroll, single typing-indicator bubble while the
+non-streaming backend responds), matching every task-list item. Design decisions
+recorded in `docs/chatbot-design-note.md`: layout differs from the still-unbuilt
+Insights tab (thread vs. Q&A history list); entry point is a Settings `GroupRow`
+(`lib/core/router/placeholder_screens.dart`), not the Insights tab, since Insights
+is still Step 7's bare placeholder with no real screen to push from — revisit once
+Step 7 lands. Paywall handling reuses the exact `ApiError.isPaywall` /
+`showPaywallPrompt` pattern from `accounts_screen.dart`/`portfolio_sheet.dart`: on
+a 402 the screen pops itself and shows the generic upgrade dialog. 9 new tests
+(`test/features/chatbot/{data,providers,screens}/`) pass, `flutter analyze` clean,
+full 244-test suite still green. Verified live against the deployed backend with a
+fresh throwaway account: 402 confirmed on the free tier, then after
+`/subscription/upgrade` a real `POST /chatbot/chat` returned a coherent, correct
+answer about TFSAs in ~1.8s.
 
 **Type:** Flutter. **Model:** default. **Depends on:** Step 6 (benefits from Step 7
 landing first for pattern reuse).

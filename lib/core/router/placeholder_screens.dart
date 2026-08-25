@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../features/chatbot/screens/chatbot_screen.dart';
 import '../../features/consent/screens/consent_screen.dart';
 import '../../features/settings/screens/appearance_screen.dart';
 import '../../features/settings/screens/import_history_screen.dart';
@@ -107,6 +108,13 @@ class SettingsScreen extends ConsumerWidget {
                   title: 'Notifications',
                   onTap: () => Navigator.of(context).push(
                     MaterialPageRoute(builder: (_) => const NotificationsScreen()),
+                  ),
+                ),
+                GroupRow(
+                  leadingIcon: Icons.smart_toy_outlined,
+                  title: 'AI Assistant',
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const ChatbotScreen()),
                   ),
                 ),
               ],
