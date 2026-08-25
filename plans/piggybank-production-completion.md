@@ -158,7 +158,15 @@ written.
 
 ---
 
-## Step 1 — RA/TFSA "growth projection" calculator
+## Step 1 — RA/TFSA "growth projection" calculator ✅ DONE (2026-08-24, re-verified 2026-08-25)
+
+**Status note:** already implemented and committed on 2026-08-24 (`84a919c`), before this
+doc's DONE-marker convention caught up with it. Re-verified 2026-08-25:
+`lib/core/calc/growth_projection.dart` exists, the "not a forecast, not financial advice"
+disclaimer is present in both `lib/features/ra/screens/ra_ledger_screen.dart` and
+`lib/features/tfsa/screens/tfsa_ledger_screen.dart`, `flutter analyze` clean, all
+`test/core/calc/`, `test/features/ra/`, `test/features/tfsa/` tests pass. No further work
+needed on this step.
 
 **Type:** Flutter, client-only. **Model:** default.
 
@@ -275,7 +283,14 @@ live backend), → Import history (confirm past imports show with correct status
 
 ---
 
-## Step 3 — Settings: Appearance screen
+## Step 3 — Settings: Appearance screen ✅ DONE (2026-08-24, re-verified 2026-08-25)
+
+**Status note:** already implemented and committed on 2026-08-24 (`9a53a67`), before this
+doc's DONE-marker convention caught up with it. Re-verified 2026-08-25:
+`themeModeProvider` is read and wired into `MaterialApp.router`'s `themeMode:` param in
+`lib/app.dart`, `flutter analyze` clean, all `test/features/settings/` and `test/core/`
+tests pass (including the appearance-screen persistence test). No further work needed on
+this step.
 
 **Type:** Flutter, client-only, no backend. **Model:** default. **Depends on:** Step 2
 (creates the `lib/features/settings/` directory and `test/features/settings/` path this
@@ -427,7 +442,20 @@ Plus the same live deploy verification as Step 4a.
 
 ---
 
-## Step 5a — Settings: Security screen
+## Step 5a — Settings: Security screen ✅ DONE (2026-08-24, re-verified 2026-08-25)
+
+**Status note:** already implemented and committed on 2026-08-24 (`fe507fd`), before this
+doc's DONE-marker convention caught up with it. Re-verified 2026-08-25: the never-zero-
+unlock-methods invariant is enforced (biometric can't be disabled without a PIN set; PIN
+can't be removed while biometric is off/unsupported), `AuthController.unlockWithBiometrics`
+no longer silently unlocks devices with no biometric hardware (falls back to PIN entry),
+`flutter analyze` clean, all `test/features/settings/`, `test/core/router/`,
+`test/core/auth/`, and `test/features/auth/` tests pass — including
+`biometric_preference_test.dart` and `lock_screen_test.dart`'s explicit coverage of the
+invariant. **Still outstanding from the original exit criteria:** real-device manual
+verification (`T4X4F6UK4TA699S8`) of both toggle states was not performed this session — no
+device/emulator connected, same recurring limitation as Step 9b's icon check. Pick this up
+if/when a device is available.
 
 **Type:** Flutter. **Model:** strongest (Opus) — this step was originally scoped as a
 simple UI toggle over "existing local state." **There is no such existing state.**
