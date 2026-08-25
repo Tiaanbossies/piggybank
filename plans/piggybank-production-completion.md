@@ -662,7 +662,26 @@ model, not just "the container started."
 
 ---
 
-## Step 7 — Insights tab UI
+## Step 7 — Insights tab UI ✅ DONE (2026-08-25)
+
+**Outcome:** `lib/features/insights/{models/insight.dart, data/insights_api.dart,
+providers/insights_provider.dart, screens/insights_screen.dart}` replaces the
+`/insights` `PlaceholderScreen` in `app_router.dart`. Deliberately narrower than
+`docs/stitch-design-brief.md` §8's trend-dashboard suggestion (net-worth-over-time,
+spending-pattern callouts) — the backend has no time-series/analytics endpoint, only
+a one-off question/answer capability, so the build matches this blueprint's actual
+task list instead: a question box, the just-asked answer in a plain `Card` with a
+small stat-strip-style `Wrap` of the data it was computed from, and a `GroupCard`
+history list (mirrors `ImportHistoryScreen`). `HeroMetricCard`/`ProgressCard` were
+deliberately not reused — both widgets' own doc comments restrict them to a single
+net-worth-style number or a percentage-progress value, neither of which fits
+free-text prose. Full reasoning in `docs/insights-design-note.md`. Same paywall
+convention as `ChatbotScreen` (402 pops the screen, shows `showPaywallPrompt`); the
+60s rate limit (429) surfaces as a plain inline error. 10 new tests
+(`test/features/insights/{data,providers,screens}/`) pass, `flutter analyze` clean,
+full 254-test suite green. Verified live against the deployed backend: a Pro test
+account got a real, coherent answer in ~6s with correct `data_scope` echoed back and
+persisted to history; a fresh free-tier account got 402 on the same question.
 
 **Type:** Flutter. **Model:** default. **Depends on:** Step 6.
 
