@@ -8,6 +8,7 @@ class User {
     required this.isActive,
     this.salaryDay,
     this.hasPin = false,
+    this.notificationPreferences,
   });
 
   final String id;
@@ -18,6 +19,11 @@ class User {
   final int? salaryDay;
   final bool hasPin;
 
+  /// Null means "never saved" — the Notifications screen (blueprint Step 5b)
+  /// treats an absent key the same as `true`, not `false`; see
+  /// `NotificationsScreen._valueFor`.
+  final Map<String, bool>? notificationPreferences;
+
   factory User.fromJson(Map<String, dynamic> json) => User(
         id: json['id'] as String,
         email: json['email'] as String,
@@ -26,5 +32,7 @@ class User {
         isActive: json['is_active'] as bool,
         salaryDay: json['salary_day'] as int?,
         hasPin: json['has_pin'] as bool? ?? false,
+        notificationPreferences: (json['notification_preferences'] as Map<String, dynamic>?)
+            ?.map((key, value) => MapEntry(key, value as bool)),
       );
 }
