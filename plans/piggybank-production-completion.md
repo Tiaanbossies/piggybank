@@ -772,7 +772,31 @@ point is a deliberate documented choice.
 
 ---
 
-## Step 9a — Google Play: release signing
+## Step 9a — Google Play: release signing ✅ DONE (2026-08-24 signing, 2026-08-25 build verified, on-device install check pending)
+
+**Outcome:** Keystore generated and gitignore-protected in an untracked 2026-08-24
+session (commit `6576332`, log at `Piggybank - Ops/keystore/keytool-output.log`) —
+backed up to Google Drive + Google Password Manager per the user's explicit choice,
+stored outside the repo at `Piggybank - Ops/keystore/piggybank-release.jks`,
+referenced from a git-ignored `android/key.properties`.
+`android/app/build.gradle.kts`'s `signingConfigs.release` reads `keyAlias`/
+`keyPassword`/`storeFile`/`storePassword` from that file, replacing the debug
+fallback. `android/.gitignore` already had `key.properties`/`**/*.keystore`/
+`**/*.jks` from the original Flutter template — no gap existed to close there.
+**targetSdk/compileSdk verified 2026-08-25** against Google Play's current policy
+(new apps must target Android 16 / API 36 by 2026-08-31 — 6 days out from today):
+Flutter 3.47.0's own `FlutterExtension.kt` defaults are already `compileSdkVersion
+= 36`, `targetSdkVersion = 36`, `minSdkVersion = 24` — this app inherits them
+unmodified (`build.gradle.kts` uses `flutter.compileSdkVersion`/
+`flutter.targetSdkVersion`, no hardcoded override), so it already meets the
+deadline with no code change. `flutter build appbundle --release` and
+`flutter build apk --release` both succeeded cleanly using the real release
+keystore (56.2MB AAB, 57.7MB APK, at `build/app/outputs/{bundle,flutter-apk}/`).
+**Still outstanding, same recurring blocker as Step 9b/5a:** no Android device/
+emulator connected this session to install the release build and confirm it
+behaves identically to the debug build tested throughout (login, consent,
+biometric/PIN unlock) — do that the next time a device is available, per the
+task list's own verification step.
 
 **Type:** Flutter/Android config. **Model:** strongest (Opus) — irreversible action.
 
