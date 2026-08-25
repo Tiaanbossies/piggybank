@@ -1,6 +1,6 @@
 /// API base URL config.
 ///
-/// Default targets finance-app.v3's deployed backend on the home Ubuntu box
+/// Default targets the piggybank-backend deployment on the home Ubuntu box
 /// reachable over Tailscale (`100.121.165.7`, port 8000, `/api` prefix).
 /// Override at build/run time with `--dart-define=API_BASE_URL=http://10.0.2.2:8000/api`
 /// to point at a local Docker Desktop backend from the Android emulator instead.

@@ -45,29 +45,40 @@ Steps 4/5/9 each split into lettered sub-steps per the review).
 
 ## Path convention
 
-`Piggybank` and `finance-app.v3-main` are **sibling directories** under
+`Piggybank` and `piggybank-backend` are **sibling directories** under
 `C:\Fynbos Creative Master\02_Clients\`, not nested. Every path below is given in full
 from that root, or explicitly marked which repo it's relative to — a cold agent
-starting inside `Piggybank/` will not find `finance-app.v3-main/...` via a bare
+starting inside `Piggybank/` will not find `piggybank-backend/...` via a bare
 relative path.
+
+**Correction (2026-08-25):** `finance-app.v3-main` was never the real backend — it was
+only a template/scaffold the app was built and tested against. This blueprint's earlier
+revisions (and the Steps 4a/4b/5b "done" markers below) were written under that wrong
+assumption. `piggybank-backend` (forked from `finance-app.v3-main`'s current code,
+full domain scope kept) is now the real, standalone, deployed backend. It's still
+backed by the same codebase, so most of what's below stayed accurate after a path swap
+— but treat any surviving `finance-app.v3-main` reference in this doc as pointing at a
+retired template repo, not a deploy target. `finance-app.v3-main` remains on disk
+locally (not deleted) purely as a source for historical `legacy/react-web/` content
+(see Step 8's privacy-policy note) — it is not running anywhere.
 
 ## Server access note (read this before Step 6 or Step 9c)
 
-**Use `100.121.165.7`, SSH as `mcp` with `~/.ssh/id_ed25519`.** This is the current,
-correct, freshly-deployed backend host, established this session (Phase 7 infra work)
-and used successfully throughout this session's real-device testing.
+**Use `100.121.165.7`, SSH as `mcp` with `~/.ssh/id_ed25519`.** The real backend is now
+`piggybank-backend`, deployed to `~/piggybank-backend` on this host (containers prefixed
+`piggybank-backend-*`) via tar+scp (not `git pull` — the `mcp` server user has no GitHub
+credentials). The old `finance-appv3-*` stack that used to occupy this same host:port
+was backed up (`~/finance-appv3-backup-20260825.sql.gz` on the server) and decommissioned
+on 2026-08-25 to free port 8000 for the new deployment — the Flutter app's
+`api_config.dart` default needed **no change** as a result.
 
-`finance-app.v3-main/SERVER_CONTEXT.md` describes a **different, older host**
-(`100.107.227.52`, "jarvis") with different credentials — that host was explicitly
-confirmed **stale/abandoned** by the user in an earlier session; do not use it, and do
-not "correct" `100.121.165.7` to match `SERVER_CONTEXT.md`. That doc itself is stale
-and out of date with the actual current deployment; this is a known, previously-flagged
-discrepancy, not a new one to re-investigate. `docker-compose.yml`'s *default*
-`OLLAMA_BASE_URL` value (`http://100.107.227.52:11434`) is a leftover from before the
-jarvis→100.121.165.7 migration and must be overridden via `.env.docker` on the current
-host, the same way `CORS_ORIGINS`/`POSTGRES_*`/`JWT_SECRET_KEY` were already overridden
-this session — the compose file's defaults were never edited, only overridden per-
-deployment.
+`piggybank-backend/docker-compose.yml`'s Ollama defaults were fixed during the fork (no
+more hardcoded jarvis IP/model) — `OLLAMA_BASE_URL` defaults to `http://ollama:11434`,
+`OLLAMA_MODEL` to `llama3.1:8b`. `AI_FEATURES_ENABLED=false` on this deployment until
+Step 6 is picked up. `finance-app.v3-main/SERVER_CONTEXT.md`'s "jarvis"
+(`100.107.227.52`) host reference is doubly stale now — both because that host was
+already abandoned, and because `finance-app.v3-main` itself is a retired template, not
+a deploy target at all.
 
 ---
 
@@ -199,8 +210,15 @@ correct math.
 
 **Context brief:** Both backend endpoints already exist and are fully functional —
 `GET /api/subscriptions/`, `POST /api/subscriptions/upgrade`/`/cancel`
-(`finance-app.v3-main/backend/app/subscriptions/router.py`), and `GET /api/imports/`
-list-with-status (`finance-app.v3-main/backend/app/imports/router.py`).
+(`piggybank-backend/backend/app/subscriptions/router.py`), and `GET /api/imports/`
+list-with-status (`piggybank-backend/backend/app/imports/router.py`).
+
+**Naming mismatch flagged (2026-08-25, not yet resolved):** the Piggybank Flutter client's
+`lib/features/settings/data/subscription_api.dart` calls **singular** `/subscription`,
+`/subscription/upgrade`, `/subscription/cancel`, while the backend router above is
+**plural** `/subscriptions/...`. Verify the actual route table
+(`piggybank-backend/backend/app/subscriptions/router.py`) before wiring this screen up —
+one side is wrong and needs fixing, but which side wasn't determined during research.
 `Piggybank/docs/stitch-design-brief.md` §8 is the **authoritative** design reference
 for both screens (not `docs/ui-ux-mockup-brief.md`, which predates it and is not being
 kept in sync — use the stitch brief going forward and note this explicitly wherever a
@@ -282,18 +300,25 @@ the three modes on the screens checked.
 
 ## Step 4a — Backend: PIN/Security schema ✅ DONE (deploy confirmed 2026-08-25)
 
+**Re-verified against `piggybank-backend` (2026-08-25, follow-up session):** the code was
+never lost — it was already part of `finance-app.v3-main`'s current backend code, which
+`piggybank-backend` was forked from — only re-deployed and re-checked. `alembic current`
+on the new deployment shows head `b4c5d6e7f8a9` (past both this migration and Step 4b's),
+and a fresh register→login→`/auth/me` round trip confirmed `has_pin` is present in the
+response shape.
+
 **Outcome:** Code + migration (`a3b4c5d6e7f8_add_pin_hash_to_user.py`) were already deployed
 prior to this session (server's `alembic current` showed `a3b4c5d6e7f8` before any Step 4b
 work this session, confirming task 4's deploy had already happened). Re-confirmed live during
 this session's Step 4b deploy pass.
 
-**Type:** Backend (FastAPI/Python), `finance-app.v3-main`. **Model:** strongest
+**Type:** Backend (FastAPI/Python), `piggybank-backend`. **Model:** strongest
 (Opus) — genuine security design, not a mechanical addition.
 
 **Context brief:** No server-side PIN exists today — the current biometric lock
 (`local_auth`) is entirely client-side. This adds a PIN as an *additional*, optional
 unlock method, reusing the existing argon2id/`pwdlib` password-hashing scheme
-(`finance-app.v3-main/backend/app/security.py`) — do not invent new hashing.
+(`piggybank-backend/backend/app/security.py`) — do not invent new hashing.
 
 **Task list:**
 1. Add `pin_hash` (nullable) to the `User` model (`backend/app/models.py`) — new
@@ -321,7 +346,7 @@ unlock method, reusing the existing argon2id/`pwdlib` password-hashing scheme
 
 **Verification:**
 ```bash
-cd finance-app.v3-main/backend
+cd piggybank-backend/backend
 ruff check .
 pytest tests/test_auth.py            # full existing suite — regression check,
                                        # run WITHOUT a -k filter that would exclude it
@@ -337,6 +362,11 @@ tests pass, `ruff check .` clean.
 
 ## Step 4b — Backend: Notification preferences schema ✅ DONE (2026-08-25)
 
+**Re-verified against `piggybank-backend` (2026-08-25, follow-up session):** same situation
+as Step 4a — the migration/endpoint code was already part of the codebase `piggybank-backend`
+forked from, so only a fresh deploy + re-check was needed, not re-implementation. Confirmed
+`notification_preferences` present (as `null` on a fresh user) in a live `/auth/me` response.
+
 **Outcome:** Server was found back online this session (`tailscale status`, `100.121.165.7`
 reachable again after being offline). Code (commit `b7ca8b0`) reused the `dashboard_widgets`
 precedent exactly — no dedicated route, `notification_preferences` exposed via existing
@@ -348,7 +378,7 @@ Verified live via the deployed `/openapi.json`: `UserOut` schema now includes
 deploy: `ruff check .` clean on touched files (20 pre-existing errors elsewhere, unrelated),
 `pytest tests/test_auth.py` 46/46, `pytest -k "pin or notification"` 19/19.
 
-**Type:** Backend (FastAPI/Python), `finance-app.v3-main`. **Model:** default (this one
+**Type:** Backend (FastAPI/Python), `piggybank-backend`. **Model:** default (this one
 turned out to be simple once the right precedent was found — no longer needs Opus).
 
 **Context brief:** No notification-preference storage exists today. **Reuse the
@@ -372,7 +402,7 @@ much larger undertaking not implied by "Notifications settings screen."
 
 **Verification:**
 ```bash
-cd finance-app.v3-main/backend
+cd piggybank-backend/backend
 ruff check .
 pytest tests/ -k "notification"
 ```
@@ -445,6 +475,11 @@ completed without regressing the existing biometric flow.
 
 ## Step 5b — Settings: Notifications screen ✅ DONE (2026-08-25)
 
+**Re-verified against `piggybank-backend` (2026-08-25, follow-up session):** no client code
+changed — the screen already talks to `PATCH /auth/me`, which `piggybank-backend` serves
+identically. Full on-device manual smoke test still recommended (no Android device was
+connected in the follow-up session either), but the API contract is confirmed live.
+
 **Outcome:** Two preference toggles (`budget_alerts`, `weekly_summary` — key names taken
 from the backend's own test fixtures, `test_notification_preferences_round_trip_via_patch_me`
 in `backend/tests/test_auth.py`, rather than invented here) via
@@ -497,7 +532,7 @@ this flag is `true`, but this session's Phase 7 deployment explicitly set it `fa
 the server's `.env.docker`; confirm the actual current value by reading that file on
 the server, don't trust either the compose default or this note as gospel by the time
 this step runs. **Model name**: the compose file's `OLLAMA_MODEL` default is
-`finsight:latest` (a custom/fine-tuned prod model per `finance-app.v3-main/CLAUDE.md`'s
+`finsight:latest` (a custom/fine-tuned prod model per `piggybank-backend/CLAUDE.md`'s
 "Ollama (self-hosted, `llama3.1:8b` dev / `finsight:latest` prod)" note), not the
 generic `llama3.1:8b`. For this home-server deployment, prefer pulling the plain
 `llama3.1:8b` dev model unless a `finsight` Modelfile/build process is found elsewhere
@@ -705,7 +740,7 @@ rebuild over the existing install).
 
 ## Step 9c — Google Play: public privacy-policy URL
 
-**Type:** Infra, but **deliberately not touching `finance-app.v3-main`'s backend
+**Type:** Infra, but **deliberately not touching `piggybank-backend`'s backend
 server**. **Model:** default.
 
 **Context brief:** The deployed backend host (`100.121.165.7`) is Tailscale-only —

@@ -12,7 +12,7 @@ multi-tier admin hierarchy needed.
 
 ## Existing infrastructure to reuse (do not reinvent)
 
-`finance-app.v3-main/backend/app/admin/router.py` already has the role-gating pattern
+`piggybank-backend/backend/app/admin/router.py` already has the role-gating pattern
 proven and working: a `UserRole` enum (`ADMIN`/`USER`) on `User.role`
 (`backend/app/models.py:115`), and a `_require_admin` FastAPI dependency wrapping
 `get_current_user`. The one existing endpoint, `POST /admin/refresh-prices`
@@ -38,7 +38,7 @@ open implementation decision, not resolved here.
      transaction counts, `created_at`).
    - `PATCH /admin/users/{user_id}` — **limited, safe fields only** — toggling
      `is_active` (existing field) to disable/enable login. **Explicitly excludes
-     hard-delete** — `docs/delete-policy.md` in `finance-app.v3-main` already
+     hard-delete** — `docs/delete-policy.md` in `piggybank-backend` already
      documents user deletion as "never soft-deleted, hard delete cascades, ops-only,"
      meaning that's a deliberate manual ops action outside the app, not something to
      wire into a casual admin UI button. Keep it that way.
