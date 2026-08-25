@@ -204,21 +204,35 @@ correct math.
 
 ---
 
-## Step 2 — Settings: Subscription + Import history screens
+## Step 2 — Settings: Subscription + Import history screens ✅ DONE (2026-08-24, re-verified 2026-08-25 against piggybank-backend)
+
+**Status note:** this step was actually implemented and committed on 2026-08-24
+(`27ca3d6`) — before the "naming mismatch" above was even flagged and before this
+step's header had been updated with a DONE marker like Steps 0/4a/4b/5b/9b got, so it
+was at risk of being redone. Re-verified 2026-08-25: `flutter analyze` clean, all 40
+tests across `test/features/settings/`, `test/features/imports/`, and
+`test/shared/widgets/status_badge_test.dart` pass; live round-trip against the new
+`piggybank-backend` deploy confirms `GET /api/subscription` → 200
+`{"tier":"free","status":"active",...}` and `GET /api/imports/` → 200 `[]` for a fresh
+user post-consent, matching `Subscription.fromJson` and the empty-state test exactly.
+No further work needed on this step.
 
 **Type:** Flutter, client-only (backend already ready). **Model:** default.
 
 **Context brief:** Both backend endpoints already exist and are fully functional —
-`GET /api/subscriptions/`, `POST /api/subscriptions/upgrade`/`/cancel`
-(`piggybank-backend/backend/app/subscriptions/router.py`), and `GET /api/imports/`
+`GET /api/subscription`, `POST /api/subscription/upgrade`/`/cancel`
+(`piggybank-backend/backend/app/subscriptions/router.py`, mounted singular via
+`api/router.py`'s `prefix="/subscription"`), and `GET /api/imports/`
 list-with-status (`piggybank-backend/backend/app/imports/router.py`).
 
-**Naming mismatch flagged (2026-08-25, not yet resolved):** the Piggybank Flutter client's
-`lib/features/settings/data/subscription_api.dart` calls **singular** `/subscription`,
-`/subscription/upgrade`, `/subscription/cancel`, while the backend router above is
-**plural** `/subscriptions/...`. Verify the actual route table
-(`piggybank-backend/backend/app/subscriptions/router.py`) before wiring this screen up —
-one side is wrong and needs fixing, but which side wasn't determined during research.
+**Naming "mismatch" flagged 2026-08-25, resolved 2026-08-25 as a non-issue:** re-checked
+`api/router.py` line 54 (`api_router.include_router(subscriptions_router,
+prefix="/subscription", ...)`) and `tests/test_subscriptions.py` (all calls hit
+`/api/subscription`, `/api/subscription/upgrade`, `/api/subscription/cancel`) — the
+backend mount is already **singular**, matching the Flutter client's
+`subscription_api.dart` exactly. No code change needed on either side; the module
+directory/file being named `subscriptions/` (plural) was the source of the earlier
+confusion, not the actual route prefix.
 `Piggybank/docs/stitch-design-brief.md` §8 is the **authoritative** design reference
 for both screens (not `docs/ui-ux-mockup-brief.md`, which predates it and is not being
 kept in sync — use the stitch brief going forward and note this explicitly wherever a
