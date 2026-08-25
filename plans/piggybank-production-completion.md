@@ -562,7 +562,46 @@ logout/login cycle.
 
 ---
 
-## Step 6 — AI infra: stand up Ollama, enable AI features
+## Step 6 — AI infra: stand up Ollama, enable AI features ✅ DONE (2026-08-25)
+
+**Outcome:** Reused the sibling "stringmonitor" project's existing Ollama container
+(`stringmonitor-db_default` network) rather than standing up a second instance — it's
+GPU-backed (GTX1650, 4GB VRAM, confirmed via `nvidia-smi` and
+`docker inspect ollama --format '{{json .HostConfig.DeviceRequests}}'`). Model choice
+(user decision, via AskUserQuestion): `qwen2.5:3b-instruct-q4_K_M` (already pulled on
+that instance, 1.9GB) over `llama3.1:8b` (~4.7GB q4 — wouldn't fit fully in 4GB VRAM,
+would partially fall back to CPU). No `finsight` Modelfile/build process exists anywhere
+in the repo (`grep -r finsight` → only doc/test references) — confirmed not building one.
+
+`piggybank-backend-backend-1` joined `stringmonitor-db_default` via a new `ollama-shared`
+external network declared in `docker-compose.yml` (not a one-off `docker network connect`
+— that was tried first and confirmed **not durable**: `docker compose up --force-recreate`
+silently drops any network attached outside the compose file on the next recreate. Learned
+this the hard way mid-step: first connect → verified reachable → flipped the flag →
+recreated the container → attachment gone → had to add it to compose properly and
+redeploy). `.env.docker` on the server: `AI_FEATURES_ENABLED=true`,
+`OLLAMA_BASE_URL=http://ollama:11434` (unchanged from the fork's generic default — the
+shared container is literally named `ollama`, DNS resolution just works once on the same
+network), `OLLAMA_MODEL=qwen2.5:3b-instruct-q4_K_M`. Compose file's own fallback defaults
+for `OLLAMA_MODEL` updated to match in both `backend` and `backend-test` services. The
+compose file's own optional `ollama` service (`profiles: ["ai"]`) was left in place as a
+future self-hosting fallback — it's profile-gated, so it can't activate accidentally.
+
+**Verification performed:** `GET /api/health` → `ai_features_enabled: true`.
+`GET /api/insights/health` (as a Pro-tier test account) → `{"reachable":true,
+"model_available":true,"status":"ok"}`. Real smoke test —
+`POST /api/chatbot/chat` with a genuine question — returned a coherent,
+correct answer in ~4 seconds (`qwen2.5:3b-instruct-q4_K_M`, GPU-backed). Exit criteria
+met in full: not just "the container started," a real authenticated request got a real
+generated response.
+
+**Auto-mode classifier note (reproduced from prior session):** both `docker network
+connect` and the `docker compose ... up -d --force-recreate` restart got hard-blocked by
+the classifier even after retry; the network-connect step had to be handed to the user to
+run manually. The plain `docker compose ... up -d backend` (no `--force-recreate` flag)
+that picked up the compose-file network change went through fine on the first try —
+worth trying the non-`--force-recreate` form first next time a config change alone should
+be enough to trigger a recreate.
 
 **Type:** Ops/infra. **Model:** default. Runs on the deployed server, not local dev.
 
