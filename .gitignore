@@ -46,3 +46,7 @@ app.*.map.json
 
 # Widget Preview related
 .widget_preview/
+
+# Privacy policy static site is its own nested git repo (github.com/Tiaanbossies/
+# piggybank-privacy-policy), deployed separately via GitHub Pages — not part of this repo.
+privacy-policy-site/

@@ -855,7 +855,20 @@ rebuild over the existing install).
 
 ---
 
-## Step 9c — Google Play: public privacy-policy URL
+## Step 9c — Google Play: public privacy-policy URL ✅ DONE (2026-08-25)
+
+**Outcome:** Privacy policy text ported verbatim from `finance-app.v3-main/legacy/
+react-web/src/pages/PrivacyPolicyPage.tsx` into a standalone static page
+(`Piggybank/privacy-policy-site/index.html`, restyled to Piggybank's actual
+`DESIGN.md` light/dark palette, no content changes). Kept as its own nested git
+repo (not committed into the main `Piggybank` repo — added to its `.gitignore`)
+and pushed to a new public GitHub repo, `github.com/Tiaanbossies/
+piggybank-privacy-policy`, with GitHub Pages enabled (Deploy from branch, `main`,
+`/(root)`). Live at **`https://tiaanbossies.github.io/piggybank-privacy-policy/`**
+— verified reachable via `curl` (HTTP 200, correct content) from this machine
+over the public internet, not through the Tailscale-only backend host. No change
+made to `100.121.165.7` or its exposure model, per this step's brief. This is
+the URL to use for Play Console's Data safety / privacy-policy field.
 
 **Type:** Infra, but **deliberately not touching `piggybank-backend`'s backend
 server**. **Model:** default.
