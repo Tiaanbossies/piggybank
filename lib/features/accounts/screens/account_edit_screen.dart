@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/api/api_error.dart';
+import '../../../shared/widgets/group_card.dart';
 import '../models/account.dart';
 import '../providers/accounts_mutation_provider.dart';
 import '../providers/accounts_provider.dart';
@@ -135,20 +136,11 @@ class _AccountEditScreenState extends ConsumerState<AccountEditScreen> {
                 enabled: !_submitting,
               ),
               const SizedBox(height: 16),
-              Padding(
-                padding: const EdgeInsets.only(top: 8),
-                child: Text(
-                  'Account type: ${widget.account.accountType}',
-                  style: Theme.of(context).textTheme.bodySmall,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: Text(
-                  'Currency: ${widget.account.currency}',
-                  style: Theme.of(context).textTheme.bodySmall,
-                ),
+              GroupCard(
+                children: [
+                  GroupRow(leadingIcon: Icons.account_balance_outlined, title: 'Account type', trailing: Text(widget.account.accountType)),
+                  GroupRow(leadingIcon: Icons.payments_outlined, title: 'Currency', trailing: Text(widget.account.currency)),
+                ],
               ),
               if (_error != null) ...[
                 const SizedBox(height: 12),

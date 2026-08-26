@@ -260,31 +260,51 @@ class _SummaryTab extends StatelessWidget {
       return const Center(child: Text('Add at least one ticker with price history'));
     }
     final stats = [for (final e in ready) _EntryStats(e, periodYears)];
-    return SingleChildScrollView(
+    final semantic = Theme.of(context).extension<AppSemanticColors>();
+    final headerStyle = TextStyle(color: semantic?.textMuted, fontSize: 12, fontWeight: FontWeight.w600);
+    Widget money(String v) => Text(v, style: moneyTextStyle(context, fontSize: 13));
+    return Padding(
       padding: const EdgeInsets.all(16),
-      scrollDirection: Axis.horizontal,
-      child: DataTable(
-        columns: const [
-          DataColumn(label: Text('Ticker')),
-          DataColumn(label: Text('Total return')),
-          DataColumn(label: Text('Annualised')),
-          DataColumn(label: Text('Volatility')),
-          DataColumn(label: Text('Max drawdown')),
-          DataColumn(label: Text('Sharpe')),
-          DataColumn(label: Text('Div yield')),
-        ],
-        rows: [
-          for (final s in stats)
-            DataRow(cells: [
-              DataCell(Text(s.ticker)),
-              DataCell(Text(_pct(s.totalReturn))),
-              DataCell(Text(_pct(s.annualisedReturn))),
-              DataCell(Text(_pct(s.volatility))),
-              DataCell(Text(_pct(s.maxDrawdown))),
-              DataCell(Text(s.sharpeRatio.toStringAsFixed(2))),
-              DataCell(Text(s.dividendYield != null ? _pct(s.dividendYield! / 100) : '—')),
-            ]),
-        ],
+      child: Card(
+        clipBehavior: Clip.antiAlias,
+        child: SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: DataTable(
+            headingRowHeight: 40,
+            dataRowMinHeight: 48,
+            dataRowMaxHeight: 56,
+            columnSpacing: 20,
+            horizontalMargin: 16,
+            columns: [
+              DataColumn(label: Text('Ticker', style: headerStyle)),
+              DataColumn(label: Text('Total return', style: headerStyle), numeric: true),
+              DataColumn(label: Text('Annualised', style: headerStyle), numeric: true),
+              DataColumn(label: Text('Volatility', style: headerStyle), numeric: true),
+              DataColumn(label: Text('Max drawdown', style: headerStyle), numeric: true),
+              DataColumn(label: Text('Sharpe', style: headerStyle), numeric: true),
+              DataColumn(label: Text('Div yield', style: headerStyle), numeric: true),
+            ],
+            rows: [
+              for (final s in stats)
+                DataRow(cells: [
+                  DataCell(Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      CircleAvatar(backgroundColor: s.color, radius: 5),
+                      const SizedBox(width: 6),
+                      Text(s.ticker, style: const TextStyle(fontWeight: FontWeight.w600)),
+                    ],
+                  )),
+                  DataCell(money(_pct(s.totalReturn))),
+                  DataCell(money(_pct(s.annualisedReturn))),
+                  DataCell(money(_pct(s.volatility))),
+                  DataCell(money(_pct(s.maxDrawdown))),
+                  DataCell(money(s.sharpeRatio.toStringAsFixed(2))),
+                  DataCell(money(s.dividendYield != null ? _pct(s.dividendYield! / 100) : '—')),
+                ]),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -377,40 +397,75 @@ class _CorrelationTab extends StatelessWidget {
       return const Center(child: Text('Add at least 2 tickers with price history to see correlation'));
     }
     final returns = {for (final e in ready) e.ticker: risk.calcDailyReturns(e.data.map((p) => p.close.toDouble()).toList())};
+    final semantic = Theme.of(context).extension<AppSemanticColors>();
+    final success = semantic?.success ?? Colors.green;
+    final danger = semantic?.danger ?? Colors.red;
+    final border = Theme.of(context).colorScheme.outline;
 
     Color cellColor(double v) {
-      if (v >= 0.7) return Colors.green.shade400;
-      if (v >= 0.3) return Colors.green.shade100;
-      if (v <= -0.7) return Colors.red.shade400;
-      if (v <= -0.3) return Colors.red.shade100;
-      return Colors.grey.shade200;
+      if (v >= 0) return success.withValues(alpha: v * 0.7);
+      return danger.withValues(alpha: -v * 0.7);
     }
 
-    return SingleChildScrollView(
+    Color textColorFor(double v) => v.abs() >= 0.5 ? Colors.white : Theme.of(context).colorScheme.onSurface;
+
+    return Padding(
       padding: const EdgeInsets.all(16),
-      scrollDirection: Axis.horizontal,
-      child: Table(
-        border: TableBorder.all(color: Colors.grey.shade300),
-        defaultColumnWidth: const FixedColumnWidth(72),
-        children: [
-          TableRow(children: [
-            const SizedBox(),
-            for (final e in ready) Padding(padding: const EdgeInsets.all(8), child: Text(e.ticker, textAlign: TextAlign.center)),
-          ]),
-          for (final rowEntry in ready)
-            TableRow(children: [
-              Padding(padding: const EdgeInsets.all(8), child: Text(rowEntry.ticker)),
-              for (final colEntry in ready)
-                Builder(builder: (context) {
-                  final r = risk.calcPearson(returns[rowEntry.ticker]!, returns[colEntry.ticker]!);
-                  return Container(
-                    color: rowEntry.ticker == colEntry.ticker ? Colors.grey.shade300 : cellColor(r),
-                    padding: const EdgeInsets.all(8),
-                    child: Text(r.toStringAsFixed(2), textAlign: TextAlign.center),
-                  );
-                }),
-            ]),
-        ],
+      child: Card(
+        clipBehavior: Clip.antiAlias,
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Table(
+              border: TableBorder.all(color: border, borderRadius: BorderRadius.circular(8)),
+              defaultColumnWidth: const FixedColumnWidth(64),
+              children: [
+                TableRow(children: [
+                  const SizedBox(),
+                  for (final e in ready)
+                    Padding(
+                      padding: const EdgeInsets.all(8),
+                      child: Text(
+                        e.ticker,
+                        textAlign: TextAlign.center,
+                        style: TextStyle(color: semantic?.textMuted, fontSize: 12, fontWeight: FontWeight.w600),
+                      ),
+                    ),
+                ]),
+                for (final rowEntry in ready)
+                  TableRow(children: [
+                    Padding(
+                      padding: const EdgeInsets.all(8),
+                      child: Text(
+                        rowEntry.ticker,
+                        style: TextStyle(color: semantic?.textMuted, fontSize: 12, fontWeight: FontWeight.w600),
+                      ),
+                    ),
+                    for (final colEntry in ready)
+                      Builder(builder: (context) {
+                        final isDiagonal = rowEntry.ticker == colEntry.ticker;
+                        final r = isDiagonal ? 1.0 : risk.calcPearson(returns[rowEntry.ticker]!, returns[colEntry.ticker]!);
+                        final bg = isDiagonal ? Theme.of(context).colorScheme.surfaceContainerHighest : cellColor(r);
+                        return Container(
+                          color: bg,
+                          padding: const EdgeInsets.all(8),
+                          child: Text(
+                            r.toStringAsFixed(2),
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              color: isDiagonal ? semantic?.textMuted : textColorFor(r),
+                              fontWeight: FontWeight.w600,
+                              fontSize: 12,
+                            ),
+                          ),
+                        );
+                      }),
+                  ]),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }

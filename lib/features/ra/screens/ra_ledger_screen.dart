@@ -90,6 +90,8 @@ class _SummarySection extends ConsumerWidget {
               value: formatZAR(summary.totalContributed),
             ),
             const SizedBox(height: 16),
+            Text('This tax year', style: Theme.of(context).textTheme.labelMedium),
+            const SizedBox(height: 8),
             Card(
               child: Padding(
                 padding: const EdgeInsets.all(16),

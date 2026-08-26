@@ -1,3 +1,4 @@
+import 'package:decimal/decimal.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -5,12 +6,25 @@ import '../../../core/api/api_error.dart';
 import '../../../core/format/money.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/group_card.dart';
+import '../../../shared/widgets/hero_metric_card.dart';
 import '../models/asset.dart';
 import '../providers/assets_provider.dart';
 
-/// Grouped-list-cells pattern per DESIGN.md's reused component family.
-/// Core CRUD only — the savings-account preset/interest-calculator
-/// sub-feature is a documented v1 gap.
+const _assetTypeIcons = {
+  AssetType.cash: Icons.payments_outlined,
+  AssetType.savingsAccount: Icons.savings_outlined,
+  AssetType.property: Icons.home_outlined,
+  AssetType.vehicle: Icons.directions_car_outlined,
+  AssetType.investment: Icons.show_chart_outlined,
+  AssetType.retirement: Icons.beach_access_outlined,
+  AssetType.other: Icons.category_outlined,
+};
+
+/// Grouped-list-cells pattern per DESIGN.md's reused component family, plus
+/// a "Total assets" hero card (client-side sum, same pattern as Accounts'
+/// "Total balance" — no new API call) and per-[AssetType] icon chips. Core
+/// CRUD only — the savings-account preset/interest-calculator sub-feature is
+/// a documented v1 gap.
 class AssetsScreen extends ConsumerWidget {
   const AssetsScreen({super.key});
 
@@ -33,9 +47,14 @@ class AssetsScreen extends ConsumerWidget {
                   children: const [Center(child: Padding(padding: EdgeInsets.only(top: 48), child: Text('No assets yet.')))],
                 );
               }
+              final total = assets.fold(Decimal.zero, (sum, a) => sum + a.currentValue);
               return ListView(
                 padding: const EdgeInsets.all(16),
-                children: [GroupCard(children: [for (final asset in assets) _AssetRow(asset: asset)])],
+                children: [
+                  HeroMetricCard(label: 'Total assets', value: formatZAR(total)),
+                  const SizedBox(height: 24),
+                  GroupCard(children: [for (final asset in assets) _AssetRow(asset: asset)]),
+                ],
               );
             },
           ),
@@ -57,7 +76,7 @@ class _AssetRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GroupRow(
-      leadingIcon: Icons.savings_outlined,
+      leadingIcon: _assetTypeIcons[asset.assetType],
       title: asset.name,
       subtitle:
           '${assetTypeLabels[asset.assetType]}${asset.institutionName != null ? ' · ${asset.institutionName}' : ''}',

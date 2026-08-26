@@ -66,12 +66,10 @@ class ExpensesSummaryScreen extends ConsumerWidget {
                 const SizedBox(height: 12),
                 GroupCard(
                   children: [
-                    for (final bucket in summary.byCategory)
-                      GroupRow(
-                        leadingIcon: Icons.donut_small_outlined,
-                        title: bucket.category.isEmpty ? 'Uncategorised' : bucket.category,
-                        subtitle: '${bucket.count} transaction${bucket.count == 1 ? '' : 's'}',
-                        trailing: Text(formatZAR(bucket.total), style: moneyTextStyle(context, fontSize: 15)),
+                    for (var i = 0; i < summary.byCategory.length; i++)
+                      _CategoryRow(
+                        bucket: summary.byCategory[i],
+                        color: _chartColors(summary.byCategory.length)[i],
                       ),
                   ],
                 ),
@@ -103,27 +101,16 @@ class ExpensesSummaryScreen extends ConsumerWidget {
   List<PieChartSectionData> _buildPieChartSections(List<dynamic> categories) {
     if (categories.isEmpty) return [];
 
-    // Define a palette of distinct colors for pie slices
-    const colors = [
-      Color(0xFF2196F3), // Blue
-      Color(0xFFF44336), // Red
-      Color(0xFF4CAF50), // Green
-      Color(0xFFFF9800), // Orange
-      Color(0xFF9C27B0), // Purple
-      Color(0xFF00BCD4), // Cyan
-      Color(0xFFFFEB3B), // Yellow
-      Color(0xFF795548), // Brown
-    ];
+    final colors = _chartColors(categories.length);
 
     return List.generate(categories.length, (index) {
       final bucket = categories[index];
-      final color = colors[index % colors.length];
       final value = bucket.total.toDouble();
 
       return PieChartSectionData(
         value: value,
         title: bucket.category.isEmpty ? 'Uncategorised' : bucket.category,
-        color: color,
+        color: colors[index],
         radius: 80,
         titleStyle: const TextStyle(
           fontSize: 12,
@@ -132,5 +119,64 @@ class ExpensesSummaryScreen extends ConsumerWidget {
         ),
       );
     });
+  }
+}
+
+/// A brand-derived qualitative palette for the pie chart and category list —
+/// lightness steps around the accent hue rather than an arbitrary rainbow,
+/// per DESIGN.md's "one confident green accent" identity (a categorical data
+/// palette stays in-hue even where individual UI chrome wouldn't).
+List<Color> _chartColors(int count) {
+  if (count <= 0) return const [];
+  final hsl = HSLColor.fromColor(AppColors.lightAccent);
+  return List.generate(count, (i) {
+    final t = count == 1 ? 0.0 : i / (count - 1);
+    final lightness = (0.28 + t * 0.45).clamp(0.0, 1.0);
+    return hsl.withLightness(lightness).toColor();
+  });
+}
+
+/// Category row tying its leading dot to the same colour as its pie slice —
+/// replaces [GroupRow]'s fixed accent [IconChip], which can't vary colour
+/// per row; categories are freeform user text, not a fixed enum, so a
+/// type-icon map (as used for [AssetType]/[LiabilityType]) doesn't apply.
+class _CategoryRow extends StatelessWidget {
+  const _CategoryRow({required this.bucket, required this.color});
+  final dynamic bucket;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    final semantic = Theme.of(context).extension<AppSemanticColors>();
+    return Padding(
+      padding: const EdgeInsets.all(16),
+      child: Row(
+        children: [
+          Container(width: 14, height: 14, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  bucket.category.isEmpty ? 'Uncategorised' : bucket.category,
+                  style: Theme.of(context).textTheme.titleMedium,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  '${bucket.count} transaction${bucket.count == 1 ? '' : 's'}',
+                  style: TextStyle(color: semantic?.textMuted, fontSize: 13),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 12),
+          Text(formatZAR(bucket.total), style: moneyTextStyle(context, fontSize: 15)),
+        ],
+      ),
+    );
   }
 }

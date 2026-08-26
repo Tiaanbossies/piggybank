@@ -7,6 +7,7 @@ import '../../../core/api/api_error.dart';
 import '../../../core/format/money.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/group_card.dart';
+import '../../../shared/widgets/icon_chip.dart';
 import '../../../shared/widgets/status_badge.dart';
 import '../../accounts/providers/accounts_provider.dart';
 import '../../transactions/models/transaction.dart';
@@ -213,7 +214,13 @@ class _ImportsScreenState extends ConsumerState<ImportsScreen> {
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            Text('Scan receipt', style: Theme.of(context).textTheme.titleMedium),
+            Row(
+              children: [
+                const IconChip(icon: Icons.document_scanner_outlined, size: 36),
+                const SizedBox(width: 10),
+                Text('Scan receipt', style: Theme.of(context).textTheme.titleMedium),
+              ],
+            ),
             const SizedBox(height: 8),
             Row(
               children: [
@@ -308,7 +315,13 @@ class _ImportsScreenState extends ConsumerState<ImportsScreen> {
               ),
             ],
             const SizedBox(height: 32),
-            Text('Import CSV', style: Theme.of(context).textTheme.titleMedium),
+            Row(
+              children: [
+                const IconChip(icon: Icons.upload_file_outlined, size: 36),
+                const SizedBox(width: 10),
+                Text('Import CSV', style: Theme.of(context).textTheme.titleMedium),
+              ],
+            ),
             const SizedBox(height: 12),
             templatesAsync.when(
               loading: () => const SizedBox.shrink(),
@@ -360,7 +373,13 @@ class _ImportsScreenState extends ConsumerState<ImportsScreen> {
               _ResultCard(job: _result!),
             ],
             const SizedBox(height: 32),
-            Text('Past imports', style: Theme.of(context).textTheme.titleMedium),
+            Row(
+              children: [
+                const IconChip(icon: Icons.history, size: 36),
+                const SizedBox(width: 10),
+                Text('Past imports', style: Theme.of(context).textTheme.titleMedium),
+              ],
+            ),
             const SizedBox(height: 8),
             historyAsync.when(
               loading: () => const Center(child: CircularProgressIndicator()),
@@ -465,8 +484,9 @@ class _ResultCardState extends ConsumerState<_ResultCard> {
           children: [
             Row(
               children: [
-                Text('Upload result', style: Theme.of(context).textTheme.titleMedium),
-                const SizedBox(width: 12),
+                const IconChip(icon: Icons.fact_check_outlined, size: 36),
+                const SizedBox(width: 10),
+                Expanded(child: Text('Upload result', style: Theme.of(context).textTheme.titleMedium)),
                 StatusBadge(status: job.status),
               ],
             ),
@@ -475,7 +495,18 @@ class _ResultCardState extends ConsumerState<_ResultCard> {
             Text('Failed rows: ${job.failedRows}'),
             Text('Auto-categorized: ${job.autoCategorizedRows}'),
             if (job.duplicateRows > 0) Text('Duplicates skipped: ${job.duplicateRows}'),
-            if (job.importedBalance != null) Text('Bank balance (last row): ${formatZAR(job.importedBalance)}'),
+            if (job.importedBalance != null)
+              Text.rich(
+                TextSpan(
+                  text: 'Bank balance (last row): ',
+                  children: [
+                    TextSpan(
+                      text: formatZAR(job.importedBalance),
+                      style: moneyTextStyle(context, fontSize: 14),
+                    ),
+                  ],
+                ),
+              ),
             const SizedBox(height: 12),
             OutlinedButton(
               onPressed: _normalizing ? null : _normalize,

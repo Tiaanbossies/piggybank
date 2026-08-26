@@ -93,43 +93,39 @@ final recentTransactionsProvider = FutureProvider.autoDispose<TransactionsPage>(
 
 /// Accumulated transactions: holds all transactions loaded so far across pages.
 /// This is a StateNotifier that accumulates items as the user loads more.
+///
+/// Syncs itself off [transactionsProvider] via `ref.listen` in its own
+/// constructor (with `fireImmediately: true` to also pick up whatever page
+/// is already resolved at construction time) rather than requiring some
+/// widget to relay updates in. A prior version relied on a separate
+/// `FutureProvider` that mutated this notifier as a side effect of being
+/// `ref.watch`ed during another widget's `build()` — mutating provider state
+/// as a direct consequence of a widget build throws in Riverpod, and because
+/// nothing ever inspected that provider's resulting `AsyncError`, this list
+/// silently stayed stuck at its initial `[]` forever, so the Transactions
+/// screen always showed "No transactions match this filter" regardless of
+/// what filters (if any) were set.
 class AccumulatedTransactionsNotifier extends StateNotifier<List<Transaction>> {
-  AccumulatedTransactionsNotifier() : super([]);
+  AccumulatedTransactionsNotifier(this._ref) : super([]) {
+    _ref.listen<AsyncValue<TransactionsPage>>(transactionsProvider, (_, next) {
+      next.whenData(_sync);
+    }, fireImmediately: true);
+  }
 
-  /// Replace accumulated items (called on filter change to reset).
-  void reset(List<Transaction> initialItems) => state = initialItems;
+  final Ref _ref;
 
-  /// Append new items from next page.
-  void loadMore(List<Transaction> newItems) => state = [...state, ...newItems];
+  void _sync(TransactionsPage page) {
+    final offset = _ref.read(transactionPaginationProvider);
+    state = offset == 0 ? page.items : [...state, ...page.items];
+  }
 
   /// Get total items accumulated so far.
   int get count => state.length;
 }
 
 final accumulatedTransactionsProvider = StateNotifierProvider.autoDispose<AccumulatedTransactionsNotifier, List<Transaction>>(
-  (ref) => AccumulatedTransactionsNotifier(),
+  AccumulatedTransactionsNotifier.new,
 );
-
-/// Side effect: when transactionsProvider updates, sync to accumulated list.
-final transactionAccumulatorEffect = FutureProvider.autoDispose<void>((ref) {
-  final currentPage = ref.watch(transactionsProvider);
-  final offset = ref.watch(transactionPaginationProvider);
-  
-  currentPage.when(
-    loading: () {},
-    error: (_, _) {},
-    data: (page) {
-      final accumulated = ref.read(accumulatedTransactionsProvider.notifier);
-      if (offset == 0) {
-        // First page: reset accumulated to these items
-        accumulated.reset(page.items);
-      } else {
-        // Subsequent page: append to accumulated
-        accumulated.loadMore(page.items);
-      }
-    },
-  );
-});
 
 /// Common transaction categories (defaults for picker), sorted alphabetically.
 const commonCategories = [

@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/api/api_error.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/group_card.dart';
+import '../../../shared/widgets/icon_chip.dart';
 import '../../../shared/widgets/paywall_dialog.dart';
 import '../models/insight.dart';
 import '../providers/insights_provider.dart';
@@ -82,7 +83,6 @@ class _InsightsScreenState extends ConsumerState<InsightsScreen> {
               onSubmitted: (_) => _ask(),
               decoration: InputDecoration(
                 hintText: 'Ask about your spending, budgets, or net worth…',
-                border: const OutlineInputBorder(),
                 suffixIcon: IconButton(
                   onPressed: askState.asking ? null : _ask,
                   icon: askState.asking
@@ -141,6 +141,14 @@ class _AnswerCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            const Row(
+              children: [
+                IconChip(icon: Icons.auto_awesome_outlined, size: 36),
+                SizedBox(width: 12),
+                Expanded(child: Text('Answer', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13))),
+              ],
+            ),
+            const SizedBox(height: 12),
             Text(result.answer, style: Theme.of(context).textTheme.bodyLarge),
             if (result.counts.isNotEmpty || result.dateScopeDays != null) ...[
               const SizedBox(height: 12),

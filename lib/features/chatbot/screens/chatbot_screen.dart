@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/api/api_error.dart';
+import '../../../core/theme/app_theme.dart';
+import '../../../shared/widgets/icon_chip.dart';
 import '../../../shared/widgets/paywall_dialog.dart';
 import '../models/chat_message.dart';
 import '../providers/chatbot_provider.dart';
@@ -81,10 +83,21 @@ class _ChatbotScreenState extends ConsumerState<ChatbotScreen> {
           children: [
             Expanded(
               child: state.messages.isEmpty && !state.sending
-                  ? const Center(
+                  ? Center(
                       child: Padding(
-                        padding: EdgeInsets.all(24),
-                        child: Text('Ask about your accounts, budgets, or investments.'),
+                        padding: const EdgeInsets.all(24),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const IconChip(icon: Icons.smart_toy_outlined, size: 56),
+                            const SizedBox(height: 16),
+                            Text(
+                              'Ask about your accounts, budgets, or investments.',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(color: Theme.of(context).extension<AppSemanticColors>()?.textMuted),
+                            ),
+                          ],
+                        ),
                       ),
                     )
                   : ListView(
@@ -99,7 +112,7 @@ class _ChatbotScreenState extends ConsumerState<ChatbotScreen> {
             if (_error != null)
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                child: Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
+                child: Text(_error!, style: TextStyle(color: Theme.of(context).extension<AppSemanticColors>()?.danger)),
               ),
             SafeArea(
               top: false,
@@ -145,6 +158,7 @@ class _ChatBubble extends StatelessWidget {
   Widget build(BuildContext context) {
     final isUser = message.role == ChatRole.user;
     final colorScheme = Theme.of(context).colorScheme;
+    final semantic = Theme.of(context).extension<AppSemanticColors>();
     return Align(
       alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
       child: Container(
@@ -152,8 +166,13 @@ class _ChatBubble extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.75),
         decoration: BoxDecoration(
-          color: isUser ? colorScheme.primary : colorScheme.surfaceContainerHighest,
-          borderRadius: BorderRadius.circular(16),
+          color: isUser ? colorScheme.primary : semantic?.accentChipBg,
+          borderRadius: BorderRadius.only(
+            topLeft: const Radius.circular(18),
+            topRight: const Radius.circular(18),
+            bottomLeft: Radius.circular(isUser ? 18 : 4),
+            bottomRight: Radius.circular(isUser ? 4 : 18),
+          ),
         ),
         child: Text(
           message.content,
@@ -170,19 +189,25 @@ class _TypingBubble extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final semantic = Theme.of(context).extension<AppSemanticColors>();
     return Align(
       alignment: Alignment.centerLeft,
       child: Container(
         margin: const EdgeInsets.symmetric(vertical: 4),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         decoration: BoxDecoration(
-          color: colorScheme.surfaceContainerHighest,
-          borderRadius: BorderRadius.circular(16),
+          color: semantic?.accentChipBg,
+          borderRadius: const BorderRadius.only(
+            topLeft: Radius.circular(18),
+            topRight: Radius.circular(18),
+            bottomRight: Radius.circular(18),
+            bottomLeft: Radius.circular(4),
+          ),
         ),
         child: SizedBox(
           width: 16,
           height: 16,
-          child: CircularProgressIndicator(strokeWidth: 2, color: colorScheme.onSurface),
+          child: CircularProgressIndicator(strokeWidth: 2, color: colorScheme.primary),
         ),
       ),
     );

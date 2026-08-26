@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/api/api_error.dart';
 import '../../../core/auth/auth_controller.dart';
+import '../../../shared/widgets/group_card.dart';
+import '../../../shared/widgets/icon_chip.dart';
 import '../consent_documents.dart';
 import '../data/consents_api.dart';
 
@@ -142,7 +144,7 @@ class _ConsentScreenState extends ConsumerState<ConsentScreen> {
       return ListView(
         padding: const EdgeInsets.all(24),
         children: [
-          const Icon(Icons.check_circle_outline, size: 48),
+          const Center(child: IconChip(icon: Icons.check_circle_outline, size: 56)),
           const SizedBox(height: 16),
           Text(
             "You're up to date",
@@ -155,13 +157,18 @@ class _ConsentScreenState extends ConsumerState<ConsentScreen> {
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 24),
-          for (final doc in consentDocuments)
-            ListTile(
-              title: Text(doc.label),
-              subtitle: Text(doc.summary),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: () => _showDocument(doc),
-            ),
+          GroupCard(
+            children: [
+              for (final doc in consentDocuments)
+                GroupRow(
+                  leadingIcon: Icons.description_outlined,
+                  title: doc.label,
+                  subtitle: doc.summary,
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => _showDocument(doc),
+                ),
+            ],
+          ),
         ],
       );
     }

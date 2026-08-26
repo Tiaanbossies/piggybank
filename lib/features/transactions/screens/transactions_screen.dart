@@ -22,9 +22,6 @@ class TransactionsScreen extends ConsumerWidget {
     final currentPage = ref.watch(transactionsProvider);
     final selectedType = ref.watch(transactionFiltersProvider).transactionType;
 
-    // Trigger accumulator side effect to sync transactions
-    ref.watch(transactionAccumulatorEffect);
-
     return Scaffold(
       appBar: AppBar(
         title: const Text('Transactions'),

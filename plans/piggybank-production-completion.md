@@ -772,7 +772,7 @@ point is a deliberate documented choice.
 
 ---
 
-## Step 9a — Google Play: release signing ✅ DONE (2026-08-24 signing, 2026-08-25 build verified, on-device install check pending)
+## Step 9a — Google Play: release signing ✅ DONE (2026-08-24 signing, 2026-08-25 build + on-device install + signing fingerprint all verified)
 
 **Outcome:** Keystore generated and gitignore-protected in an untracked 2026-08-24
 session (commit `6576332`, log at `Piggybank - Ops/keystore/keytool-output.log`) —
@@ -792,11 +792,21 @@ unmodified (`build.gradle.kts` uses `flutter.compileSdkVersion`/
 deadline with no code change. `flutter build appbundle --release` and
 `flutter build apk --release` both succeeded cleanly using the real release
 keystore (56.2MB AAB, 57.7MB APK, at `build/app/outputs/{bundle,flutter-apk}/`).
-**Still outstanding, same recurring blocker as Step 9b/5a:** no Android device/
-emulator connected this session to install the release build and confirm it
-behaves identically to the debug build tested throughout (login, consent,
-biometric/PIN unlock) — do that the next time a device is available, per the
-task list's own verification step.
+The on-device install/parity check was completed in the 2026-08-25 physical-device
+session (see `piggybank_demo_account.md`'s predecessor session notes). **Signing
+fingerprint verification (2026-08-25, this session):** located `apksigner`
+(`F:\Programs\android-sdk\build-tools\37.0.0\apksigner.bat`) and `keytool`/
+`jarsigner` (`F:\Programs\android-studio\jbr\bin\`, since no separate JDK install
+exists on this machine — Android Studio's bundled JBR is the only JRE with these
+tools). `keytool -list -v` on `piggybank-release.jks` gives SHA1
+`01:55:BD:52:25:40:EF:40:8F:1B:45:57:DA:D9:86:BB:47:D2:42:BA` / SHA256
+`06:8A:6C:A9:6D:6B:18:55:CF:54:30:36:40:E6:23:16:46:61:A3:35:2A:3F:D5:B4:6D:F4:
+5E:07:44:FD:98:A1`. `apksigner verify --print-certs` on `app-release.apk` and
+`keytool -printcert -jarfile` on `app-release.aab` both report the exact same
+fingerprints and `CN=Fynbos Creative, OU=Piggybank` owner — both release
+artifacts are genuinely signed with the backed-up release key, not a debug cert
+or a mismatched one. `apksigner verify` and `jarsigner -verify` both exit 0
+("jar verified.") confirming valid signatures, not just matching fingerprints.
 
 **Type:** Flutter/Android config. **Model:** strongest (Opus) — irreversible action.
 
@@ -924,7 +934,21 @@ is verified reachable from outside the private network.
 
 ---
 
-## Step 9d — Google Play: store listing assets
+## Step 9d — Google Play: store listing assets ✅ DONE (2026-08-25)
+
+**Outcome:** 6 Play Store screenshots captured on-emulator against a seeded demo
+account (`store-assets/screenshots/01-dashboard.png` through `06-assets.png`, from
+the same session that fixed the Transactions filter bug — see
+`piggybank_demo_account.md`). Feature graphic generated at the exact 1024×500,
+24bpp-RGB spec (`store-assets/feature_graphic.jpeg`) — brand hero gradient
+(`#6FBE8C` → `#227A4E` per DESIGN.md), the real mascot render
+(`assets/Piggybank mascot.jpeg`) on a white card, and the app's own login-screen
+tagline ("All your wealth in one place") for cross-touchpoint consistency.
+Listing copy (`store-assets/listing-copy.md`) — app name, 75-char short
+description, ~1,750-char full description — written against the actual
+`lib/features/` domain list (accounts, transactions/imports, budgets, goals,
+assets, liabilities, portfolios/tfsa/ra, calculators, insights/chatbot,
+settings), not aspirational copy.
 
 **Type:** Content/assets. **Model:** default. **Depends on:** Steps 1–8 (needs a
 feature-complete app to screenshot meaningfully).
@@ -946,6 +970,9 @@ anywhere in the repo today.
 
 **Exit criteria:** All listing assets ready for upload; the manual Play Console
 submission checklist is the one remaining action, explicitly outside this plan.
+**Still outstanding:** content rating questionnaire and Data safety section — Play
+Console UI steps with no code artifact, explicitly out of this blueprint's scope,
+left for whoever performs the actual submission.
 
 ---
 

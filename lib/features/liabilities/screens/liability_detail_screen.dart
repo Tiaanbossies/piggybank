@@ -7,6 +7,7 @@ import '../../../core/format/money.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/confirm_dialog.dart';
 import '../../../shared/widgets/group_card.dart';
+import '../../../shared/widgets/icon_chip.dart';
 import '../../../shared/widgets/progress_card.dart';
 import '../models/liability.dart';
 import '../models/liability_payment.dart';
@@ -115,7 +116,15 @@ class _ProgressSection extends ConsumerWidget {
       return const Card(
         child: Padding(
           padding: EdgeInsets.all(16),
-          child: Text('Set original balance on the liability to track progress.'),
+          child: Row(
+            children: [
+              IconChip(icon: Icons.info_outline),
+              SizedBox(width: 12),
+              Expanded(
+                child: Text('Set original balance on the liability to track progress.'),
+              ),
+            ],
+          ),
         ),
       );
     }
@@ -135,6 +144,9 @@ class _ProgressSection extends ConsumerWidget {
               footnote:
                   '${formatZAR(progress.totalPrincipalPaid)} principal paid of ${formatZAR(progress.originalBalance)}',
             ),
+            const SizedBox(height: 12),
+            Text('Loan breakdown', style: Theme.of(context).textTheme.labelMedium),
+            const SizedBox(height: 8),
             Card(
               child: Padding(
                 padding: const EdgeInsets.all(16),

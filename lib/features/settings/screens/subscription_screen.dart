@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/api/api_error.dart';
+import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/group_card.dart';
 import '../data/subscription_api.dart';
 import '../models/subscription.dart';
@@ -80,6 +81,7 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
                     subtitle: sub.currentPeriodEnd != null
                         ? '${_statusLabel(sub.status)} · renews ${sub.currentPeriodEnd!.toLocal().toString().split(' ').first}'
                         : _statusLabel(sub.status),
+                    trailing: _TierBadge(tier: sub.tier),
                   ),
                 ],
               ),
@@ -104,6 +106,41 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
                 ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Small trailing badge distinguishing Pro (hero-gradient fill, matching the
+/// same gradient as [HeroMetricCard]) from Free (muted accent chip) — per
+/// DESIGN.md, the hero gradient is otherwise reserved for full-width top-of-
+/// screen cards, so this reuses it at badge scale rather than introducing a
+/// third "premium" colour.
+class _TierBadge extends StatelessWidget {
+  const _TierBadge({required this.tier});
+  final SubscriptionTier tier;
+
+  @override
+  Widget build(BuildContext context) {
+    final isPro = tier == SubscriptionTier.pro;
+    final semantic = Theme.of(context).extension<AppSemanticColors>();
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        gradient: isPro
+            ? const LinearGradient(colors: [AppColors.heroGradientStart, AppColors.heroGradientEnd])
+            : null,
+        color: isPro ? null : semantic?.accentChipBg,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        isPro ? 'PRO' : 'FREE',
+        style: TextStyle(
+          color: isPro ? Colors.white : Theme.of(context).colorScheme.primary,
+          fontSize: 11,
+          fontWeight: FontWeight.w700,
+          letterSpacing: 0.4,
         ),
       ),
     );

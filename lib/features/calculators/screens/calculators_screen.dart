@@ -3,10 +3,13 @@ import 'package:flutter/material.dart';
 import '../../../core/calc/loan_calc.dart';
 import '../../../core/format/money.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../shared/widgets/icon_chip.dart';
 
 /// Ports `CalculatorsPage.tsx`'s two forms (Loan Calculator + Loan
 /// Accelerator), grouped with Liabilities per the Phase 0 scoping note.
-/// Pure client-side math (`loan_calc.dart`), no backend calls.
+/// Pure client-side math (`loan_calc.dart`), no backend calls. Uses the same
+/// `SegmentedButton` toggle pattern as `BudgetsHomeScreen`'s Budgets/Goals
+/// switch, in place of a plain `TabBar`.
 class CalculatorsScreen extends StatefulWidget {
   const CalculatorsScreen({super.key});
 
@@ -14,34 +17,30 @@ class CalculatorsScreen extends StatefulWidget {
   State<CalculatorsScreen> createState() => _CalculatorsScreenState();
 }
 
-class _CalculatorsScreenState extends State<CalculatorsScreen> with SingleTickerProviderStateMixin {
-  late final TabController _tabController;
-
-  @override
-  void initState() {
-    super.initState();
-    _tabController = TabController(length: 2, vsync: this);
-  }
-
-  @override
-  void dispose() {
-    _tabController.dispose();
-    super.dispose();
-  }
+class _CalculatorsScreenState extends State<CalculatorsScreen> {
+  int _segment = 0;
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Calculators'),
-        bottom: TabBar(
-          controller: _tabController,
-          tabs: const [Tab(text: 'Loan Calculator'), Tab(text: 'Loan Accelerator')],
+      appBar: AppBar(title: const Text('Calculators')),
+      body: SafeArea(
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: SegmentedButton<int>(
+                segments: const [
+                  ButtonSegment(value: 0, label: Text('Loan Calculator')),
+                  ButtonSegment(value: 1, label: Text('Loan Accelerator')),
+                ],
+                selected: {_segment},
+                onSelectionChanged: (selection) => setState(() => _segment = selection.first),
+              ),
+            ),
+            Expanded(child: _segment == 0 ? const _LoanCalculatorTab() : const _LoanAcceleratorTab()),
+          ],
         ),
-      ),
-      body: TabBarView(
-        controller: _tabController,
-        children: const [_LoanCalculatorTab(), _LoanAcceleratorTab()],
       ),
     );
   }
@@ -82,6 +81,19 @@ class _LoanCalculatorTabState extends State<_LoanCalculatorTab> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          Row(
+            children: [
+              const IconChip(icon: Icons.calculate_outlined),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  'Work out the monthly payment for a loan',
+                  style: Theme.of(context).textTheme.bodyMedium,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 24),
           TextField(
             controller: _principalController,
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
@@ -161,6 +173,19 @@ class _LoanAcceleratorTabState extends State<_LoanAcceleratorTab> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          Row(
+            children: [
+              const IconChip(icon: Icons.speed_outlined),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  'See how much extra monthly payments save',
+                  style: Theme.of(context).textTheme.bodyMedium,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 24),
           TextField(
             controller: _outstandingController,
             keyboardType: const TextInputType.numberWithOptions(decimal: true),

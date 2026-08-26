@@ -325,26 +325,37 @@ class _ProjectedIncomeTableState extends State<_ProjectedIncomeTable> {
       ]));
     }
 
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: DataTable(
-        columns: const [
-          DataColumn(label: Text('Ticker')),
-          DataColumn(label: Text('Value')),
-          DataColumn(label: Text('Yield')),
-          DataColumn(label: Text('Annual')),
-          DataColumn(label: Text('Monthly')),
-        ],
-        rows: [
-          ...rows,
-          DataRow(cells: [
-            const DataCell(Text('Total', style: TextStyle(fontWeight: FontWeight.w700))),
-            const DataCell(Text('')),
-            const DataCell(Text('')),
-            DataCell(Text(formatZAR(totalAnnual), style: const TextStyle(fontWeight: FontWeight.w700))),
-            DataCell(Text(formatZAR(totalMonthly), style: const TextStyle(fontWeight: FontWeight.w700))),
-          ]),
-        ],
+    final semantic = Theme.of(context).extension<AppSemanticColors>();
+    final headerStyle = TextStyle(color: semantic?.textMuted, fontSize: 12, fontWeight: FontWeight.w600);
+
+    return Card(
+      clipBehavior: Clip.antiAlias,
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: DataTable(
+          headingRowHeight: 40,
+          dataRowMinHeight: 48,
+          dataRowMaxHeight: 56,
+          columnSpacing: 20,
+          horizontalMargin: 16,
+          columns: [
+            DataColumn(label: Text('Ticker', style: headerStyle)),
+            DataColumn(label: Text('Value', style: headerStyle)),
+            DataColumn(label: Text('Yield', style: headerStyle)),
+            DataColumn(label: Text('Annual', style: headerStyle)),
+            DataColumn(label: Text('Monthly', style: headerStyle)),
+          ],
+          rows: [
+            ...rows,
+            DataRow(cells: [
+              const DataCell(Text('Total', style: TextStyle(fontWeight: FontWeight.w700))),
+              const DataCell(Text('')),
+              const DataCell(Text('')),
+              DataCell(Text(formatZAR(totalAnnual), style: moneyTextStyle(context, fontSize: 14))),
+              DataCell(Text(formatZAR(totalMonthly), style: moneyTextStyle(context, fontSize: 14))),
+            ]),
+          ],
+        ),
       ),
     );
   }

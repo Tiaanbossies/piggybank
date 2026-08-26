@@ -1,3 +1,4 @@
+import 'package:decimal/decimal.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -5,6 +6,7 @@ import '../../../core/api/api_error.dart';
 import '../../../core/format/money.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/group_card.dart';
+import '../../../shared/widgets/hero_metric_card.dart';
 import '../models/liability.dart';
 import '../providers/liabilities_provider.dart';
 import 'liability_detail_screen.dart';
@@ -17,7 +19,18 @@ Future<void> showLiabilitySheet(BuildContext context, {Liability? existing}) {
   );
 }
 
-/// Grouped-list-cells pattern per DESIGN.md's reused component family.
+const _liabilityTypeIcons = {
+  LiabilityType.creditCard: Icons.credit_card_outlined,
+  LiabilityType.personalLoan: Icons.request_quote_outlined,
+  LiabilityType.vehicleLoan: Icons.directions_car_outlined,
+  LiabilityType.mortgage: Icons.home_outlined,
+  LiabilityType.tax: Icons.receipt_long_outlined,
+  LiabilityType.other: Icons.request_quote_outlined,
+};
+
+/// Grouped-list-cells pattern per DESIGN.md's reused component family, plus
+/// a "Total liabilities" hero card (client-side sum, same pattern as
+/// Accounts' "Total balance") and per-[LiabilityType] icon chips.
 /// Payment-log/progress tracking is a documented v1 gap, not built.
 class LiabilitiesScreen extends ConsumerWidget {
   const LiabilitiesScreen({super.key});
@@ -41,9 +54,14 @@ class LiabilitiesScreen extends ConsumerWidget {
                   children: const [Center(child: Padding(padding: EdgeInsets.only(top: 48), child: Text('No liabilities yet.')))],
                 );
               }
+              final total = liabilities.fold(Decimal.zero, (sum, l) => sum + l.outstandingAmount);
               return ListView(
                 padding: const EdgeInsets.all(16),
-                children: [GroupCard(children: [for (final liability in liabilities) _LiabilityRow(liability: liability)])],
+                children: [
+                  HeroMetricCard(label: 'Total liabilities', value: formatZAR(total)),
+                  const SizedBox(height: 24),
+                  GroupCard(children: [for (final liability in liabilities) _LiabilityRow(liability: liability)]),
+                ],
               );
             },
           ),
@@ -66,7 +84,7 @@ class _LiabilityRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final semantic = Theme.of(context).extension<AppSemanticColors>();
     return GroupRow(
-      leadingIcon: Icons.request_quote_outlined,
+      leadingIcon: _liabilityTypeIcons[liability.liabilityType],
       leadingDanger: true,
       title: liability.name,
       subtitle: liabilityTypeLabels[liability.liabilityType],
