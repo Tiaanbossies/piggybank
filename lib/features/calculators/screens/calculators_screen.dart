@@ -58,6 +58,7 @@ class _LoanCalculatorTabState extends State<_LoanCalculatorTab> {
   final _rateController = TextEditingController();
   final _termController = TextEditingController();
   double? _pmt;
+  String? _error;
 
   @override
   void dispose() {
@@ -67,11 +68,48 @@ class _LoanCalculatorTabState extends State<_LoanCalculatorTab> {
     super.dispose();
   }
 
+  /// Guards against the silent-zero result the raw `?? 0` parsing used to
+  /// produce for empty/invalid/negative input (e.g. a blank loan amount
+  /// used to render a confident-looking "Monthly payment R0,00" card
+  /// instead of telling the user their input was invalid). `calcPmt` itself
+  /// intentionally treats non-positive principal/term as "no payment" (0)
+  /// so it can be reused by other callers without throwing — validation
+  /// belongs at this screen-wiring layer, not in the pure math function.
   void _calculate() {
-    final principal = double.tryParse(_principalController.text.trim()) ?? 0;
-    final rate = double.tryParse(_rateController.text.trim()) ?? 0;
-    final term = int.tryParse(_termController.text.trim()) ?? 0;
-    setState(() => _pmt = calcPmt(principal, rate, term));
+    final principalText = _principalController.text.trim();
+    final rateText = _rateController.text.trim();
+    final termText = _termController.text.trim();
+
+    final principal = double.tryParse(principalText);
+    final rate = double.tryParse(rateText);
+    final term = int.tryParse(termText);
+
+    if (principal == null || principal <= 0) {
+      setState(() {
+        _error = 'Enter a loan amount greater than zero.';
+        _pmt = null;
+      });
+      return;
+    }
+    if (rate == null || rate < 0) {
+      setState(() {
+        _error = 'Enter a valid interest rate (0 or more).';
+        _pmt = null;
+      });
+      return;
+    }
+    if (term == null || term <= 0) {
+      setState(() {
+        _error = 'Enter a term greater than zero.';
+        _pmt = null;
+      });
+      return;
+    }
+
+    setState(() {
+      _error = null;
+      _pmt = calcPmt(principal, rate, term);
+    });
   }
 
   @override
@@ -113,6 +151,10 @@ class _LoanCalculatorTabState extends State<_LoanCalculatorTab> {
           ),
           const SizedBox(height: 24),
           ElevatedButton(onPressed: _calculate, child: const Text('Calculate')),
+          if (_error != null) ...[
+            const SizedBox(height: 12),
+            Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
+          ],
           if (_pmt != null) ...[
             const SizedBox(height: 24),
             Card(
@@ -147,6 +189,7 @@ class _LoanAcceleratorTabState extends State<_LoanAcceleratorTab> {
   final _remainingController = TextEditingController();
   final _extraController = TextEditingController();
   AcceleratedPayoffResult? _result;
+  String? _error;
 
   @override
   void dispose() {
@@ -157,12 +200,48 @@ class _LoanAcceleratorTabState extends State<_LoanAcceleratorTab> {
     super.dispose();
   }
 
+  /// Same rationale as `_LoanCalculatorTabState._calculate`: without this,
+  /// an empty/negative outstanding balance silently rendered a "0 months
+  /// saved / R0,00 interest saved" card rather than flagging invalid input.
   void _calculate() {
-    final outstanding = double.tryParse(_outstandingController.text.trim()) ?? 0;
-    final rate = double.tryParse(_rateController.text.trim()) ?? 0;
-    final remaining = int.tryParse(_remainingController.text.trim()) ?? 0;
-    final extra = double.tryParse(_extraController.text.trim()) ?? 0;
-    setState(() => _result = calcAcceleratedPayoff(outstanding, rate, remaining, extra));
+    final outstanding = double.tryParse(_outstandingController.text.trim());
+    final rate = double.tryParse(_rateController.text.trim());
+    final remaining = int.tryParse(_remainingController.text.trim());
+    final extra = double.tryParse(_extraController.text.trim());
+
+    if (outstanding == null || outstanding <= 0) {
+      setState(() {
+        _error = 'Enter an outstanding balance greater than zero.';
+        _result = null;
+      });
+      return;
+    }
+    if (rate == null || rate < 0) {
+      setState(() {
+        _error = 'Enter a valid interest rate (0 or more).';
+        _result = null;
+      });
+      return;
+    }
+    if (remaining == null || remaining <= 0) {
+      setState(() {
+        _error = 'Enter a remaining term greater than zero.';
+        _result = null;
+      });
+      return;
+    }
+    if (extra == null || extra < 0) {
+      setState(() {
+        _error = 'Enter a valid extra payment (0 or more).';
+        _result = null;
+      });
+      return;
+    }
+
+    setState(() {
+      _error = null;
+      _result = calcAcceleratedPayoff(outstanding, rate, remaining, extra);
+    });
   }
 
   @override
@@ -211,6 +290,10 @@ class _LoanAcceleratorTabState extends State<_LoanAcceleratorTab> {
           ),
           const SizedBox(height: 24),
           ElevatedButton(onPressed: _calculate, child: const Text('Calculate')),
+          if (_error != null) ...[
+            const SizedBox(height: 12),
+            Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
+          ],
           if (result != null) ...[
             const SizedBox(height: 24),
             Card(
