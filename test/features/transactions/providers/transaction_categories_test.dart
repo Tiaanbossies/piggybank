@@ -1,13 +1,42 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mocktail/mocktail.dart';
+import 'package:piggybank/features/transactions/data/transactions_api.dart';
 import 'package:piggybank/features/transactions/providers/transactions_provider.dart';
+
+class _MockTransactionsApi extends Mock implements TransactionsApi {}
 
 void main() {
   group('Transaction Categories Provider', () {
+    late _MockTransactionsApi mockApi;
     late ProviderContainer container;
 
     setUp(() {
-      container = ProviderContainer();
+      // transactionCategoriesProvider watches accumulatedTransactionsProvider,
+      // whose notifier (AccumulatedTransactionsNotifier) listens to
+      // transactionsProvider in its own constructor -- which in turn watches
+      // transactionsApiProvider -> apiClientProvider -> authControllerProvider
+      // -> sharedPreferencesProvider. A bare `ProviderContainer()` (as the
+      // original version of this test used) therefore throws as soon as
+      // transactionCategoriesProvider is read, because sharedPreferencesProvider
+      // has no default and throws UnimplementedError unless overridden (see
+      // test/test_helpers/pump_app.dart doc comment). Overriding
+      // transactionsApiProvider directly (the pattern used throughout
+      // test/features/transactions/providers/transaction_pagination_test.dart)
+      // short-circuits that whole chain before it ever reaches the auth/prefs
+      // providers, without needing a fake SharedPreferences instance here.
+      mockApi = _MockTransactionsApi();
+      when(() => mockApi.list(
+            accountId: any(named: 'accountId'),
+            transactionType: any(named: 'transactionType'),
+            dateFrom: any(named: 'dateFrom'),
+            dateTo: any(named: 'dateTo'),
+            category: any(named: 'category'),
+            offset: any(named: 'offset'),
+          )).thenAnswer((_) async => const TransactionsPage(total: 0, items: []));
+      container = ProviderContainer(
+        overrides: [transactionsApiProvider.overrideWithValue(mockApi)],
+      );
     });
 
     tearDown(() {

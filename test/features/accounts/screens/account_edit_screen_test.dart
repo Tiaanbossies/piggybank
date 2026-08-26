@@ -38,7 +38,8 @@ void main() {
         ),
       );
 
-      expect(find.text('Account type: bank'), findsOneWidget);
+      expect(find.text('Account type'), findsOneWidget);
+      expect(find.text('bank'), findsOneWidget);
     });
 
     testWidgets('displays currency as read-only text', (WidgetTester tester) async {
@@ -48,7 +49,8 @@ void main() {
         ),
       );
 
-      expect(find.text('Currency: ZAR'), findsOneWidget);
+      expect(find.text('Currency'), findsOneWidget);
+      expect(find.text('ZAR'), findsOneWidget);
     });
 
     testWidgets('displays institution name in field', (WidgetTester tester) async {
