@@ -20,16 +20,23 @@ import 'accounts_context_menu.dart';
 /// (client-side sum of active balances, no new API call), then active
 /// accounts as rows sharing one [GroupCard], then a separate [GroupCard] for
 /// soft-deleted "Inactive" accounts.
-class AccountsScreen extends ConsumerWidget {
+class AccountsScreen extends ConsumerStatefulWidget {
   const AccountsScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<AccountsScreen> createState() => _AccountsScreenState();
+}
+
+class _AccountsScreenState extends ConsumerState<AccountsScreen> {
+  bool _inactiveExpanded = true;
+
+  @override
+  Widget build(BuildContext context) {
     final accountsAsync = ref.watch(accountsProvider);
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Piggybank'),
+        title: const Text('Accounts'),
         actions: [
           IconButton(
             icon: const Icon(Icons.receipt_long_outlined),
@@ -61,9 +68,22 @@ class AccountsScreen extends ConsumerWidget {
                     GroupCard(children: [for (final account in active) _AccountRow(account: account)]),
                   if (inactive.isNotEmpty) ...[
                     const SizedBox(height: 12),
-                    Text('Inactive', style: Theme.of(context).textTheme.labelMedium),
+                    InkWell(
+                      onTap: () => setState(() => _inactiveExpanded = !_inactiveExpanded),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text('Inactive accounts', style: Theme.of(context).textTheme.labelMedium),
+                            Icon(_inactiveExpanded ? Icons.expand_less : Icons.expand_more, size: 20),
+                          ],
+                        ),
+                      ),
+                    ),
                     const SizedBox(height: 12),
-                    GroupCard(children: [for (final account in inactive) _AccountRow(account: account)]),
+                    if (_inactiveExpanded)
+                      GroupCard(children: [for (final account in inactive) _AccountRow(account: account)]),
                   ],
                 ],
               );
@@ -92,8 +112,22 @@ class _AccountRow extends ConsumerWidget {
   const _AccountRow({required this.account});
   final Account account;
 
+  // Per the delivered accounts.jpeg mockup: each account type gets a
+  // distinct icon (bank building / piggy / wallet), not one icon for all.
+  IconData get _icon {
+    switch (account.accountType) {
+      case 'savings':
+        return Icons.savings_outlined;
+      case 'cash':
+        return Icons.account_balance_wallet_outlined;
+      default:
+        return Icons.account_balance_outlined;
+    }
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final semantic = Theme.of(context).extension<AppSemanticColors>();
     return GestureDetector(
       onTap: () => Navigator.of(context).push(
         MaterialPageRoute(builder: (_) => AccountEditScreen(account: account)),
@@ -103,10 +137,21 @@ class _AccountRow extends ConsumerWidget {
         builder: (_) => AccountContextMenu(account: account),
       ),
       child: GroupRow(
-        leadingIcon: Icons.account_balance_outlined,
+        leadingIcon: _icon,
+        muted: !account.isActive,
         title: account.name,
         subtitle: account.institutionName,
-        trailing: Text(formatZAR(account.balance), style: moneyTextStyle(context, fontSize: 15)),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              formatZAR(account.balance),
+              style: moneyTextStyle(context, fontSize: 15, color: account.isActive ? semantic?.success : null),
+            ),
+            const SizedBox(width: 4),
+            Icon(Icons.chevron_right, size: 20, color: semantic?.textMuted),
+          ],
+        ),
       ),
     );
   }

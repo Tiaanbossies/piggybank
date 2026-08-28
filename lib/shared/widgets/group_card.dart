@@ -38,6 +38,7 @@ class GroupRow extends StatelessWidget {
     this.subtitle,
     this.leadingIcon,
     this.leadingDanger = false,
+    this.muted = false,
     this.trailing,
     this.onTap,
     super.key,
@@ -47,6 +48,7 @@ class GroupRow extends StatelessWidget {
   final String? subtitle;
   final IconData? leadingIcon;
   final bool leadingDanger;
+  final bool muted;
   final Widget? trailing;
   final VoidCallback? onTap;
 
@@ -60,7 +62,7 @@ class GroupRow extends StatelessWidget {
         child: Row(
           children: [
             if (leadingIcon != null) ...[
-              IconChip(icon: leadingIcon!, danger: leadingDanger),
+              IconChip(icon: leadingIcon!, danger: leadingDanger, muted: muted),
               const SizedBox(width: 12),
             ],
             Expanded(

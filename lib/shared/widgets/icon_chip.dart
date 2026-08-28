@@ -7,17 +7,18 @@ import '../../core/theme/app_theme.dart';
 /// components). Accent-tinted by default, danger-tinted for warning rows
 /// (e.g. an over-budget category, "Log out").
 class IconChip extends StatelessWidget {
-  const IconChip({required this.icon, this.danger = false, this.size = 44, super.key});
+  const IconChip({required this.icon, this.danger = false, this.muted = false, this.size = 44, super.key});
 
   final IconData icon;
   final bool danger;
+  final bool muted;
   final double size;
 
   @override
   Widget build(BuildContext context) {
     final semantic = Theme.of(context).extension<AppSemanticColors>();
-    final fg = danger ? semantic?.danger : Theme.of(context).colorScheme.primary;
-    final bg = danger ? semantic?.dangerChipBg : semantic?.accentChipBg;
+    final fg = danger ? semantic?.danger : (muted ? semantic?.textMuted : Theme.of(context).colorScheme.primary);
+    final bg = danger ? semantic?.dangerChipBg : (muted ? Theme.of(context).colorScheme.surfaceContainerHighest : semantic?.accentChipBg);
     return Container(
       width: size,
       height: size,
