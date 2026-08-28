@@ -255,15 +255,21 @@ class _RecentTransactionsPreview extends ConsumerWidget {
           error: (err, _) => Text(err is ApiError ? err.message : 'Failed to load transactions'),
           data: (page) {
             if (page.items.isEmpty) return const Text('No transactions yet.');
+            final semantic = Theme.of(context).extension<AppSemanticColors>();
             return GroupCard(
               children: [
                 for (final t in page.items)
                   GroupRow(
+                    leadingIcon: t.transactionType.name == 'expense' ? Icons.arrow_upward : Icons.arrow_downward,
                     title: t.merchantName ?? t.description ?? t.category,
                     subtitle: t.category,
                     trailing: Text(
                       formatZAR(t.transactionType.name == 'expense' ? -t.amount.toDouble() : t.amount.toDouble()),
-                      style: moneyTextStyle(context, fontSize: 14),
+                      style: moneyTextStyle(
+                        context,
+                        fontSize: 14,
+                        color: t.transactionType.name == 'income' ? semantic?.success : null,
+                      ),
                     ),
                   ),
               ],
