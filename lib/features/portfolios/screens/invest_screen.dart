@@ -170,7 +170,7 @@ class _OverviewSection extends ConsumerWidget {
               Text('Top holdings', style: Theme.of(context).textTheme.titleMedium),
               GroupCard(
                 children: [
-                  for (final holding in overview.topHoldings.take(5))
+                  for (final holding in overview.topHoldings.take(3))
                     GroupRow(
                       title: holding.ticker,
                       subtitle: holding.name,

@@ -211,7 +211,7 @@ Confirmed directly by mockup (second segment of the Budgets tab). Same progress-
 pattern as Budgets: title + percentage pill + linear bar + "R saved / R goal" footnote,
 one card per goal, no sub-nesting.
 
-### 8. Invest tab-root (confirmed by mockup, unbuilt — Phase 4)
+### 8. Invest tab-root (confirmed by mockup — built; verified live 2026-08-28)
 Hero metric card for **Total value**, delta chip + unrealized P&L / YTD dividends stat
 strip beneath it. Below: an **allocation donut** with a legend (colour swatch + asset
 class + percentage) — the mockup uses a donut here, not the stacked bar the superseded
