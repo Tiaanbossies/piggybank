@@ -29,10 +29,17 @@ class ChatbotScreen extends ConsumerStatefulWidget {
   ConsumerState<ChatbotScreen> createState() => _ChatbotScreenState();
 }
 
+const _suggestedQuestions = [
+  'How much did I spend on dining?',
+  'Am I on track with my budget?',
+  'Show my net worth trend',
+];
+
 class _ChatbotScreenState extends ConsumerState<ChatbotScreen> {
   final _inputController = TextEditingController();
   final _scrollController = ScrollController();
   String? _error;
+  String? _retryText;
 
   @override
   void dispose() {
@@ -52,11 +59,14 @@ class _ChatbotScreenState extends ConsumerState<ChatbotScreen> {
     });
   }
 
-  Future<void> _send() async {
-    final text = _inputController.text;
+  Future<void> _send([String? overrideText]) async {
+    final text = overrideText ?? _inputController.text;
     if (text.trim().isEmpty) return;
-    setState(() => _error = null);
-    _inputController.clear();
+    setState(() {
+      _error = null;
+      _retryText = null;
+    });
+    if (overrideText == null) _inputController.clear();
     _scrollToBottom();
     try {
       await ref.read(chatbotControllerProvider.notifier).sendMessage(text);
@@ -68,7 +78,10 @@ class _ChatbotScreenState extends ConsumerState<ChatbotScreen> {
           unawaited(showPaywallPrompt(context, message: e.message));
         }
       } else if (mounted) {
-        setState(() => _error = e.message);
+        setState(() {
+          _error = e.message;
+          _retryText = text;
+        });
       }
     }
   }
@@ -76,8 +89,28 @@ class _ChatbotScreenState extends ConsumerState<ChatbotScreen> {
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(chatbotControllerProvider);
+    final semantic = Theme.of(context).extension<AppSemanticColors>();
     return Scaffold(
-      appBar: AppBar(title: const Text('AI Assistant')),
+      appBar: AppBar(
+        titleSpacing: 0,
+        title: Row(
+          children: [
+            const IconChip(icon: Icons.savings, size: 32),
+            const SizedBox(width: 10),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text('Financial Assistant', style: TextStyle(fontSize: 16)),
+                Text(
+                  'Ask me anything about your money',
+                  style: TextStyle(fontSize: 11, color: semantic?.textMuted, fontWeight: FontWeight.normal),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
       body: SafeArea(
         child: Column(
           children: [
@@ -89,13 +122,32 @@ class _ChatbotScreenState extends ConsumerState<ChatbotScreen> {
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            const IconChip(icon: Icons.smart_toy_outlined, size: 56),
+                            const IconChip(icon: Icons.savings, size: 56),
                             const SizedBox(height: 16),
                             Text(
-                              'Ask about your accounts, budgets, or investments.',
+                              "Hi, I'm your financial assistant",
                               textAlign: TextAlign.center,
-                              style: TextStyle(color: Theme.of(context).extension<AppSemanticColors>()?.textMuted),
+                              style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
                             ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'I can help you track spending, check your budgets, or analyze your investments.',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(color: semantic?.textMuted),
+                            ),
+                            const SizedBox(height: 20),
+                            for (final q in _suggestedQuestions)
+                              Padding(
+                                padding: const EdgeInsets.only(bottom: 8),
+                                child: SizedBox(
+                                  width: double.infinity,
+                                  child: OutlinedButton(
+                                    onPressed: state.sending ? null : () => _send(q),
+                                    style: OutlinedButton.styleFrom(shape: const StadiumBorder()),
+                                    child: Text(q),
+                                  ),
+                                ),
+                              ),
                           ],
                         ),
                       ),
@@ -106,14 +158,11 @@ class _ChatbotScreenState extends ConsumerState<ChatbotScreen> {
                       children: [
                         for (final message in state.messages) _ChatBubble(message: message),
                         if (state.sending) const _TypingBubble(),
+                        if (_error != null)
+                          _ErrorBubble(message: _error!, onRetry: _retryText == null ? null : () => _send(_retryText)),
                       ],
                     ),
             ),
-            if (_error != null)
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                child: Text(_error!, style: TextStyle(color: Theme.of(context).extension<AppSemanticColors>()?.danger)),
-              ),
             SafeArea(
               top: false,
               child: Padding(
@@ -150,6 +199,16 @@ class _ChatbotScreenState extends ConsumerState<ChatbotScreen> {
   }
 }
 
+/// Matches an amount like "R 4,230" or "R4230.50" plus a trailing "12% lower"
+/// / "8% higher" style clause, so a bot reply that states a money figure
+/// with a period-over-period comparison renders as a compact stat card
+/// instead of a plain bubble. Any reply that doesn't match this shape (the
+/// overwhelming majority) falls back to the plain-text bubble unchanged.
+final _statCardPattern = RegExp(
+  r'(?<label>[A-Za-z ]{3,40}?)[:\s]*\bR\s?(?<amount>[\d][\d,]*\.?\d*)\b[^%]{0,40}?(?<pct>\d{1,3}(?:\.\d+)?)%\s*(?<dir>lower|higher|up|down|less|more)',
+  caseSensitive: false,
+);
+
 class _ChatBubble extends StatelessWidget {
   const _ChatBubble({required this.message});
   final ChatMessage message;
@@ -159,6 +218,8 @@ class _ChatBubble extends StatelessWidget {
     final isUser = message.role == ChatRole.user;
     final colorScheme = Theme.of(context).colorScheme;
     final semantic = Theme.of(context).extension<AppSemanticColors>();
+    final match = isUser ? null : _statCardPattern.firstMatch(message.content);
+
     return Align(
       alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
       child: Container(
@@ -174,9 +235,112 @@ class _ChatBubble extends StatelessWidget {
             bottomRight: Radius.circular(isUser ? 4 : 18),
           ),
         ),
-        child: Text(
-          message.content,
-          style: TextStyle(color: isUser ? colorScheme.onPrimary : colorScheme.onSurface),
+        child: match == null
+            ? Text(
+                message.content,
+                style: TextStyle(color: isUser ? colorScheme.onPrimary : colorScheme.onSurface),
+              )
+            : _StatCardReply(fullText: message.content, match: match),
+      ),
+    );
+  }
+}
+
+class _StatCardReply extends StatelessWidget {
+  const _StatCardReply({required this.fullText, required this.match});
+  final String fullText;
+  final RegExpMatch match;
+
+  @override
+  Widget build(BuildContext context) {
+    final semantic = Theme.of(context).extension<AppSemanticColors>();
+    final dir = (match.namedGroup('dir') ?? '').toLowerCase();
+    final isDown = dir == 'lower' || dir == 'down' || dir == 'less';
+    final label = (match.namedGroup('label') ?? '').trim();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(fullText, style: TextStyle(color: Theme.of(context).colorScheme.onSurface)),
+        const SizedBox(height: 10),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.surface,
+            borderRadius: BorderRadius.circular(14),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (label.isNotEmpty)
+                Text(
+                  label.toUpperCase(),
+                  style: TextStyle(fontSize: 11, color: semantic?.textMuted, fontWeight: FontWeight.w700),
+                ),
+              const SizedBox(height: 2),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'R ${match.namedGroup('amount')}',
+                    style: moneyTextStyle(context, fontSize: 20),
+                  ),
+                  const SizedBox(width: 8),
+                  Icon(isDown ? Icons.trending_down : Icons.trending_up, size: 16, color: semantic?.success),
+                  Text(
+                    ' ${match.namedGroup('pct')}%',
+                    style: TextStyle(color: semantic?.success, fontWeight: FontWeight.w700, fontSize: 12),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _ErrorBubble extends StatelessWidget {
+  const _ErrorBubble({required this.message, this.onRetry});
+  final String message;
+  final VoidCallback? onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    final semantic = Theme.of(context).extension<AppSemanticColors>();
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Container(
+        margin: const EdgeInsets.symmetric(vertical: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.75),
+        decoration: BoxDecoration(
+          color: semantic?.dangerChipBg,
+          borderRadius: const BorderRadius.only(
+            topLeft: Radius.circular(18),
+            topRight: Radius.circular(18),
+            bottomRight: Radius.circular(18),
+            bottomLeft: Radius.circular(4),
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text("Sorry, I'm having trouble with that. $message", style: TextStyle(color: semantic?.danger)),
+            if (onRetry != null) ...[
+              const SizedBox(height: 4),
+              InkWell(
+                onTap: onRetry,
+                child: Text(
+                  'Retry',
+                  style: TextStyle(color: semantic?.danger, fontWeight: FontWeight.w700, decoration: TextDecoration.underline),
+                ),
+              ),
+            ],
+          ],
         ),
       ),
     );

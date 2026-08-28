@@ -88,6 +88,8 @@ void main() {
 
     await pumpApp(tester, const ImportsScreen(), overrides: overrides());
     await tester.pumpAndSettle();
+    await tester.drag(find.byType(ListView), const Offset(0, -1000));
+    await tester.pumpAndSettle();
 
     expect(find.text('No imports yet — upload a CSV above.'), findsOneWidget);
   });
@@ -111,6 +113,8 @@ void main() {
 
     await pumpApp(tester, const ImportsScreen(), overrides: overrides());
     await tester.pumpAndSettle();
+    await tester.drag(find.byType(ListView), const Offset(0, -1000));
+    await tester.pumpAndSettle();
 
     expect(find.text('fnb-statement.csv'), findsOneWidget);
     expect(find.text('18 / 20 imported · 2 failed'), findsOneWidget);
@@ -121,6 +125,8 @@ void main() {
     when(() => mockImportsApi.listImports()).thenThrow(const ApiError(statusCode: 500, message: 'Server error.'));
 
     await pumpApp(tester, const ImportsScreen(), overrides: overrides());
+    await tester.pumpAndSettle();
+    await tester.drag(find.byType(ListView), const Offset(0, -1000));
     await tester.pumpAndSettle();
 
     expect(find.text('Server error.'), findsOneWidget);

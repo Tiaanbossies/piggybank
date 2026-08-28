@@ -415,55 +415,105 @@ class _CorrelationTab extends StatelessWidget {
         clipBehavior: Clip.antiAlias,
         child: Padding(
           padding: const EdgeInsets.all(12),
-          child: SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Table(
-              border: TableBorder.all(color: border, borderRadius: BorderRadius.circular(8)),
-              defaultColumnWidth: const FixedColumnWidth(64),
-              children: [
-                TableRow(children: [
-                  const SizedBox(),
-                  for (final e in ready)
-                    Padding(
-                      padding: const EdgeInsets.all(8),
-                      child: Text(
-                        e.ticker,
-                        textAlign: TextAlign.center,
-                        style: TextStyle(color: semantic?.textMuted, fontSize: 12, fontWeight: FontWeight.w600),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text('Correlation Matrix', style: Theme.of(context).textTheme.titleMedium),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.tune, size: 20),
+                    tooltip: 'How to read this',
+                    onPressed: () => showDialog<void>(
+                      context: context,
+                      builder: (ctx) => AlertDialog(
+                        title: const Text('Correlation matrix'),
+                        content: const Text(
+                          'Each cell is the Pearson correlation of daily returns between two '
+                          'instruments, from -1 (inverse) to +1 (perfectly aligned). Diagonal '
+                          'cells compare an instrument to itself and are always 1.00.',
+                        ),
+                        actions: [
+                          TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('Got it')),
+                        ],
                       ),
                     ),
-                ]),
-                for (final rowEntry in ready)
-                  TableRow(children: [
-                    Padding(
-                      padding: const EdgeInsets.all(8),
-                      child: Text(
-                        rowEntry.ticker,
-                        style: TextStyle(color: semantic?.textMuted, fontSize: 12, fontWeight: FontWeight.w600),
-                      ),
-                    ),
-                    for (final colEntry in ready)
-                      Builder(builder: (context) {
-                        final isDiagonal = rowEntry.ticker == colEntry.ticker;
-                        final r = isDiagonal ? 1.0 : risk.calcPearson(returns[rowEntry.ticker]!, returns[colEntry.ticker]!);
-                        final bg = isDiagonal ? Theme.of(context).colorScheme.surfaceContainerHighest : cellColor(r);
-                        return Container(
-                          color: bg,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Table(
+                  border: TableBorder.all(color: border, borderRadius: BorderRadius.circular(8)),
+                  defaultColumnWidth: const FixedColumnWidth(64),
+                  children: [
+                    TableRow(children: [
+                      const SizedBox(),
+                      for (final e in ready)
+                        Padding(
                           padding: const EdgeInsets.all(8),
                           child: Text(
-                            r.toStringAsFixed(2),
+                            e.ticker,
                             textAlign: TextAlign.center,
-                            style: TextStyle(
-                              color: isDiagonal ? semantic?.textMuted : textColorFor(r),
-                              fontWeight: FontWeight.w600,
-                              fontSize: 12,
-                            ),
+                            style: TextStyle(color: semantic?.textMuted, fontSize: 12, fontWeight: FontWeight.w600),
                           ),
-                        );
-                      }),
-                  ]),
-              ],
-            ),
+                        ),
+                    ]),
+                    for (final rowEntry in ready)
+                      TableRow(children: [
+                        Padding(
+                          padding: const EdgeInsets.all(8),
+                          child: Text(
+                            rowEntry.ticker,
+                            style: TextStyle(color: semantic?.textMuted, fontSize: 12, fontWeight: FontWeight.w600),
+                          ),
+                        ),
+                        for (final colEntry in ready)
+                          Builder(builder: (context) {
+                            final isDiagonal = rowEntry.ticker == colEntry.ticker;
+                            final r =
+                                isDiagonal ? 1.0 : risk.calcPearson(returns[rowEntry.ticker]!, returns[colEntry.ticker]!);
+                            final bg = isDiagonal ? Theme.of(context).colorScheme.surfaceContainerHighest : cellColor(r);
+                            return Container(
+                              color: bg,
+                              padding: const EdgeInsets.all(8),
+                              child: Text(
+                                r.toStringAsFixed(2),
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  color: isDiagonal ? semantic?.textMuted : textColorFor(r),
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            );
+                          }),
+                      ]),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Text('Inverse', style: TextStyle(color: semantic?.textMuted, fontSize: 11)),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Container(
+                      height: 6,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(3),
+                        gradient: LinearGradient(colors: [danger, border, success]),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text('Aligned', style: TextStyle(color: semantic?.textMuted, fontSize: 11)),
+                ],
+              ),
+            ],
           ),
         ),
       ),

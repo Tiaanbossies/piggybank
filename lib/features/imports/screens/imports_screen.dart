@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -37,6 +39,7 @@ class _ImportsScreenState extends ConsumerState<ImportsScreen> {
   bool _uploading = false;
   String? _uploadError;
   ImportJob? _result;
+  List<List<String>>? _csvPreviewRows;
 
   // Scan Receipt state
   bool _ocrLoading = false;
@@ -63,10 +66,25 @@ class _ImportsScreenState extends ConsumerState<ImportsScreen> {
       allowedExtensions: ['csv'],
     );
     if (result == null || result.files.isEmpty) return;
+    final file = result.files.single;
+    List<List<String>>? preview;
+    if (file.path != null) {
+      try {
+        final lines = await File(file.path!).readAsLines();
+        preview = lines
+            .where((l) => l.trim().isNotEmpty)
+            .take(6)
+            .map((l) => l.split(',').map((c) => c.trim()).toList())
+            .toList();
+      } catch (_) {
+        preview = null;
+      }
+    }
     setState(() {
-      _selectedFile = result.files.single;
+      _selectedFile = file;
       _uploadError = null;
       _result = null;
+      _csvPreviewRows = preview;
     });
   }
 
@@ -88,6 +106,7 @@ class _ImportsScreenState extends ConsumerState<ImportsScreen> {
       setState(() {
         _result = job;
         _selectedFile = null;
+        _csvPreviewRows = null;
       });
       ref.invalidate(importHistoryProvider);
       ref.invalidate(transactionsProvider);
@@ -99,34 +118,7 @@ class _ImportsScreenState extends ConsumerState<ImportsScreen> {
     }
   }
 
-  Future<void> _pickReceiptSource() async {
-    final source = await showModalBottomSheet<_ReceiptSource>(
-      context: context,
-      builder: (ctx) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: const Icon(Icons.photo_camera_outlined),
-              title: const Text('Take photo'),
-              onTap: () => Navigator.of(ctx).pop(_ReceiptSource.camera),
-            ),
-            ListTile(
-              leading: const Icon(Icons.photo_library_outlined),
-              title: const Text('Choose from gallery'),
-              onTap: () => Navigator.of(ctx).pop(_ReceiptSource.gallery),
-            ),
-            ListTile(
-              leading: const Icon(Icons.picture_as_pdf_outlined),
-              title: const Text('Choose PDF'),
-              onTap: () => Navigator.of(ctx).pop(_ReceiptSource.pdf),
-            ),
-          ],
-        ),
-      ),
-    );
-    if (source == null) return;
-
+  Future<void> _runReceiptFlow(_ReceiptSource source) async {
     String? path;
     String? name;
     if (source == _ReceiptSource.pdf) {
@@ -224,20 +216,55 @@ class _ImportsScreenState extends ConsumerState<ImportsScreen> {
               ],
             ),
             const SizedBox(height: 8),
-            Row(
-              children: [
-                OutlinedButton.icon(
-                  onPressed: _ocrLoading ? null : _pickReceiptSource,
-                  icon: _ocrLoading
-                      ? const SizedBox(height: 16, width: 16, child: CircularProgressIndicator(strokeWidth: 2))
-                      : const Icon(Icons.document_scanner_outlined),
-                  label: Text(_ocrLoading ? 'Processing...' : 'Choose photo or PDF'),
-                ),
-                if (_ocrResult != null) ...[
-                  const SizedBox(width: 12),
-                  _ConfidenceBadge(score: _ocrResult!.confidenceScore),
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  if (_ocrLoading)
+                    const Center(
+                      child: Padding(
+                        padding: EdgeInsets.symmetric(vertical: 4),
+                        child: SizedBox(height: 16, width: 16, child: CircularProgressIndicator(strokeWidth: 2)),
+                      ),
+                    )
+                  else
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: () => _runReceiptFlow(_ReceiptSource.camera),
+                            icon: const Icon(Icons.photo_camera_outlined),
+                            label: const Text('Take photo'),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: () => _runReceiptFlow(_ReceiptSource.gallery),
+                            icon: const Icon(Icons.image_outlined),
+                            label: const Text('Pick image'),
+                          ),
+                        ),
+                      ],
+                    ),
+                  Align(
+                    alignment: Alignment.center,
+                    child: TextButton(
+                      onPressed: _ocrLoading ? null : () => _runReceiptFlow(_ReceiptSource.pdf),
+                      child: const Text('or choose a PDF instead'),
+                    ),
+                  ),
+                  if (_ocrResult != null) ...[
+                    const SizedBox(height: 4),
+                    _ConfidenceBadge(score: _ocrResult!.confidenceScore),
+                  ],
                 ],
-              ],
+              ),
             ),
             if (_ocrError != null) ...[
               const SizedBox(height: 8),
@@ -359,6 +386,37 @@ class _ImportsScreenState extends ConsumerState<ImportsScreen> {
               icon: const Icon(Icons.upload_file_outlined),
               label: Text(_selectedFile == null ? 'Choose CSV file' : _selectedFile!.name),
             ),
+            if (_csvPreviewRows != null && _csvPreviewRows!.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              Text(
+                'Preview',
+                style: TextStyle(color: semantic?.textMuted, fontSize: 12, fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(height: 4),
+              Card(
+                clipBehavior: Clip.antiAlias,
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: DataTable(
+                    headingRowHeight: 32,
+                    dataRowMinHeight: 32,
+                    dataRowMaxHeight: 36,
+                    columnSpacing: 16,
+                    columns: [
+                      for (final header in _csvPreviewRows!.first)
+                        DataColumn(label: Text(header, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700))),
+                    ],
+                    rows: [
+                      for (final row in _csvPreviewRows!.skip(1))
+                        DataRow(cells: [
+                          for (var i = 0; i < _csvPreviewRows!.first.length; i++)
+                            DataCell(Text(i < row.length ? row[i] : '', style: const TextStyle(fontSize: 11))),
+                        ]),
+                    ],
+                  ),
+                ),
+              ),
+            ],
             const SizedBox(height: 12),
             ElevatedButton(
               onPressed: (_selectedFile == null || _uploading) ? null : _upload,
@@ -400,7 +458,12 @@ class _ImportsScreenState extends ConsumerState<ImportsScreen> {
                         title: job.filename,
                         subtitle: '${job.importedRows} / ${job.totalRows} imported'
                             '${job.failedRows > 0 ? ' · ${job.failedRows} failed' : ''}',
-                        leadingIcon: Icons.description_outlined,
+                        leadingIcon: job.status == ImportStatus.failed
+                            ? Icons.error_outline
+                            : job.status == ImportStatus.completed
+                                ? Icons.check_circle_outline
+                                : Icons.description_outlined,
+                        leadingDanger: job.status == ImportStatus.failed,
                         trailing: StatusBadge(status: job.status),
                       ),
                   ],
@@ -497,18 +560,14 @@ class _ResultCardState extends ConsumerState<_ResultCard> {
             Text('Failed rows: ${job.failedRows}'),
             Text('Auto-categorized: ${job.autoCategorizedRows}'),
             if (job.duplicateRows > 0) Text('Duplicates skipped: ${job.duplicateRows}'),
-            if (job.importedBalance != null)
-              Text.rich(
-                TextSpan(
-                  text: 'Bank balance (last row): ',
-                  children: [
-                    TextSpan(
-                      text: formatZAR(job.importedBalance),
-                      style: moneyTextStyle(context, fontSize: 14),
-                    ),
-                  ],
-                ),
+            if (job.importedBalance != null) ...[
+              const SizedBox(height: 8),
+              Text(
+                'Bank balance (last row)',
+                style: TextStyle(color: Theme.of(context).extension<AppSemanticColors>()?.textMuted, fontSize: 12),
               ),
+              Text(formatZAR(job.importedBalance), style: moneyTextStyle(context, fontSize: 24)),
+            ],
             const SizedBox(height: 12),
             OutlinedButton(
               onPressed: _normalizing ? null : _normalize,
