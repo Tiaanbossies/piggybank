@@ -69,7 +69,19 @@ class _InsightsScreenState extends ConsumerState<InsightsScreen> {
     final historyAsync = ref.watch(insightHistoryProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Insights')),
+      appBar: AppBar(
+        leading: const Padding(
+          padding: EdgeInsets.all(8),
+          child: CircleAvatar(child: Icon(Icons.person_outline, size: 18)),
+        ),
+        title: const Text('Insights'),
+        actions: const [
+          Padding(
+            padding: EdgeInsets.only(right: 12),
+            child: Icon(Icons.notifications_none),
+          ),
+        ],
+      ),
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.all(16),
