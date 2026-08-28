@@ -155,7 +155,7 @@ class _ProgressBlock extends ConsumerWidget {
           return ProgressCard(
             title: goal.name,
             pct: goal.progressPct / 100,
-            footnote: '${formatZAR(goal.currentAmount)} / ${formatZAR(goal.targetAmount)} goal',
+            footnote: '${formatZAR(goal.currentAmount)} saved / ${formatZAR(goal.targetAmount)} goal',
           );
         }
         return const _BudgetProgressFallback();

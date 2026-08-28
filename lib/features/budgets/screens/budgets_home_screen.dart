@@ -19,7 +19,22 @@ class _BudgetsHomeScreenState extends State<BudgetsHomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(_segment == 0 ? 'Budgets' : 'Goals')),
+      // Tab-root app bar (avatar/title/bell) per DESIGN.md § Navigation —
+      // Budgets is listed as a tab-root screen, was shipped with a bare
+      // title and no avatar/bell, matching neither Dashboard nor Invest.
+      appBar: AppBar(
+        leading: const Padding(
+          padding: EdgeInsets.all(8),
+          child: CircleAvatar(child: Icon(Icons.person_outline, size: 18)),
+        ),
+        title: Text(_segment == 0 ? 'Budgets' : 'Goals'),
+        actions: const [
+          Padding(
+            padding: EdgeInsets.only(right: 12),
+            child: Icon(Icons.notifications_none),
+          ),
+        ],
+      ),
       body: SafeArea(
         child: Column(
           children: [

@@ -59,7 +59,7 @@ class _GoalRow extends StatelessWidget {
       child: ProgressCard(
         title: goal.name,
         pct: goal.progressPct / 100,
-        footnote: '${formatZAR(goal.currentAmount)} / ${formatZAR(goal.targetAmount)} goal',
+        footnote: '${formatZAR(goal.currentAmount)} saved / ${formatZAR(goal.targetAmount)} goal',
       ),
     );
   }
