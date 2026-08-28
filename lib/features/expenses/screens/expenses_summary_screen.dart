@@ -6,6 +6,7 @@ import '../../../core/api/api_error.dart';
 import '../../../core/format/money.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/group_card.dart';
+import '../../../shared/widgets/hero_metric_card.dart';
 import '../providers/expenses_provider.dart';
 
 /// Read-model over transactions per the parity matrix — category/total
@@ -47,8 +48,7 @@ class ExpensesSummaryScreen extends ConsumerWidget {
             return ListView(
               padding: const EdgeInsets.all(16),
               children: [
-                Text('Total', style: Theme.of(context).textTheme.labelMedium),
-                Text(formatZAR(summary.total), style: moneyTextStyle(context, fontSize: 28)),
+                HeroMetricCard(label: 'Total', value: formatZAR(summary.total)),
                 const SizedBox(height: 24),
                 SizedBox(
                   height: 300,
@@ -109,14 +109,9 @@ class ExpensesSummaryScreen extends ConsumerWidget {
 
       return PieChartSectionData(
         value: value,
-        title: bucket.category.isEmpty ? 'Uncategorised' : bucket.category,
         color: colors[index],
         radius: 80,
-        titleStyle: const TextStyle(
-          fontSize: 12,
-          fontWeight: FontWeight.bold,
-          color: Colors.white,
-        ),
+        showTitle: false,
       );
     });
   }
