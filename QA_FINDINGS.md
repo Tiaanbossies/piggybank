@@ -1,5 +1,93 @@
 # Piggybank QA Findings & Feature Completeness Audit
 
+## Update — 2026-08-28 (current status; supersedes the 2026-08-21 audit below)
+
+The 2026-08-21 audit below is preserved as history but is **stale** — it
+predates Insights, Chatbot, and Imports being built, and several of its
+specific claims are now confirmed wrong. This update reflects the state
+verified by the `plans/piggybank-full-suite-qa.md` blueprint (Steps 0-8):
+~190 automated unit/widget tests added (406/406 passing, `flutter analyze`
+clean, 37 pre-existing info-level lints only), plus a live exploratory pass
+on a real Android emulator against the shared demo account. See
+`docs/qa/QA_LOG.md` for the full step-by-step record this section
+summarizes.
+
+### Corrections to the 2026-08-21 audit
+
+- **"Insights Tab: NOT IMPLEMENTED" (§12) — superseded.** Insights is fully
+  built: a Q&A interface backed by a real Ollama LLM, Pro-tier gated
+  (`require_pro_tier`), returns real answers grounded in account data. See
+  the Finding below, though — its answers are incomplete, not absent.
+- **"No CSV/OCR import" (Known Limitations #5) — superseded.** Both exist:
+  Imports screen (reached via Transactions' app-bar icon) supports CSV
+  upload (7 bank templates + generic) and receipt scan/OCR. Verified working
+  end-to-end this session (see Finding below re: one bug found and fixed).
+- **"No PIN code fallback... app auto-unlocks if no biometrics" (§1, Known
+  Limitations #1) — wrong, not just stale.** Verified 2026-08-28: if the
+  device has no biometrics enrolled, the app does **not** auto-unlock — it
+  shows a permanent "Piggybank is locked" screen with no way forward. This
+  only reproduces if app-lock was previously enabled in Settings; it is not
+  the default state, so it did not block this session's testing, but the
+  "auto-unlocks" claim is actively incorrect and should not be repeated.
+- **"Liabilities payment history screen" (Tier 2 gap) — superseded.** Built:
+  each liability's detail screen has a "Payment history" section and a
+  working "Log payment" action. Verified via the Toyota Fortuner Finance
+  liability (0 payments logged, correctly rendering an empty state).
+- **"Transaction filter UI" (Tier 1 gap, type filter only) — superseded for
+  type filtering.** The Income/Expense/Transfer/All filter chips work
+  correctly (regression-tested and re-verified live this session). Account
+  and date-range/category filters were not exercised this session — status
+  unconfirmed, not claimed fixed.
+- **Testing coverage "5%" (Technical Findings) — superseded.** Now ~406
+  automated tests across unit/widget coverage for Transactions, Accounts,
+  Budgets, Goals, Assets, Liabilities, Portfolios/TFSA/RA/Calculators,
+  Imports, Chatbot, Insights, Dashboard, Settings (see `docs/qa/QA_LOG.md`
+  Steps 0-7 for the per-domain breakdown).
+
+### Prioritized issue list (from `docs/qa/QA_LOG.md`, Steps 0-8)
+
+**Critical**
+- None found.
+
+**High**
+1. **Portfolio Unrealized P&L wildly wrong** — a seed-data defect (not an
+   app/backend bug): `seed_test_user.py` populated *total* purchase amounts
+   into holdings' `cost_basis` field, which the whole system (correctly, by
+   design and by UI label "Cost basis per unit (ZAR)") treats as per-unit.
+   Produces a portfolio showing millions of rand in fabricated losses.
+   Fix: correct the seed script's holdings values next time the demo
+   account is reseeded. Zero risk to real users.
+2. **AI features (Insights + Chatbot) never see account or investment
+   balances.** Two different net-worth figures are shown in the same app
+   for the same account at the same moment (Dashboard: Assets + Accounts −
+   Liabilities; Insights: Assets − Liabilities only, while its own answer
+   text incorrectly claims investments are included). The Chatbot
+   explicitly confirms its context has no account-balance data. Needs
+   investigation of the backend's shared AI-context-assembly code
+   (`backend/app/chatbot/service.py` / `backend/app/insights/router.py`).
+
+**Medium**
+- None found this session beyond the two High items above.
+
+**Low**
+1. Chatbot has no topic guardrail — answers general-knowledge questions
+   (e.g. "capital of France") using real LLM inference instead of declining
+   or redirecting to finance topics. Product/UX decision, not a defect.
+2. Goals still have no deadline/date field in the Add Goal UI despite the
+   backend and model fully supporting `targetDate` — a pre-existing,
+   previously-logged gap, reconfirmed still open.
+
+**Fixed this session**
+1. Transactions list didn't auto-refresh after a successful CSV import
+   (stale list until a manual pull-to-refresh). Fixed in
+   `lib/features/imports/screens/imports_screen.dart` by invalidating
+   `transactionsProvider`/`recentTransactionsProvider` alongside
+   `importHistoryProvider` on upload success.
+
+---
+
+## Original audit (2026-08-21) — preserved as history, see corrections above
+
 **Date**: 2026-08-21  
 **Scope**: All implemented features per Phase 1-4 migration plan  
 **Status**: Code inspection complete; functional testing deferred (no live backend)

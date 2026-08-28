@@ -90,6 +90,8 @@ class _ImportsScreenState extends ConsumerState<ImportsScreen> {
         _selectedFile = null;
       });
       ref.invalidate(importHistoryProvider);
+      ref.invalidate(transactionsProvider);
+      ref.invalidate(recentTransactionsProvider);
     } on ApiError catch (e) {
       setState(() => _uploadError = e.message);
     } finally {

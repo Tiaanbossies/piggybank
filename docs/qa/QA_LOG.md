@@ -614,3 +614,124 @@ prior step (no errors, none introduced by this fix).
 **Bugs found:** none in `lib/` — the hang was entirely a test-code defect
 (direct `await` on `.show()`), now fixed. No production code touched this
 step.
+
+---
+
+## Step 8 — Exploratory Pass (2026-08-28)
+
+**Setup:** Bumped the shared demo account (`demo@financeapp.co.za`) to Pro tier
+via the backend's existing self-serve `POST /api/subscription/upgrade`
+endpoint (logged in as the demo user, called the endpoint, confirmed via
+`GET /api/subscription` → `tier: "pro"`, `status: "active"`,
+`current_period_end: 2026-09-27`). This resolved the blueprint's Step 8 open
+question — no new endpoint was needed. Ran the walk on a fresh `piggybank`
+AVD (`emulator-5554`) via `flutter run --release`, logged in as the demo
+account.
+
+**Environment note (not a bug):** the app showed a "Piggybank is locked /
+Tap to unlock with biometrics" screen on first relaunch after backgrounding,
+with no PIN fallback and `BiometricService.canAuthenticate` returning a
+non-success status (no biometrics enrolled on the fresh AVD). Root-caused via
+`pm clear` + fresh login + re-background test: the lock does **not** trigger
+by default — it was leftover local app-lock state from a prior session on
+this same AVD. Not a reproducible product defect; flagged only so a future
+session doesn't rediscover it as new.
+
+**Walked:** Dashboard, Transactions (incl. Income filter — confirms the
+2026-08-25 empty-state fix holds), Accounts (3, R88,530.50), Budgets (Aug
+2026 empty as expected; May 2026 shows the seeded 114%/102% over-budget
+states), Goals (all 3 correct; Add Goal sheet reconfirmed to still lack a
+deadline field — known gap, not re-fixed), Assets (6, R3,478,000), Liabilities
+(3, R1,758,500; Toyota Fortuner Finance detail confirms Payment
+history/Log payment feature works, superseding the stale "not implemented"
+QA_FINDINGS claim), Calculators (empty-submit validation fix from Step 7
+reconfirmed: "Enter a loan amount greater than zero."), Invest/Portfolios,
+Insights, Chatbot, Imports, Settings/Subscription.
+
+**MAJOR FINDING 1 — Portfolio Unrealized P&L wildly wrong (seed-data bug, not
+an app bug).** Invest tab showed -R5,392,102.43 total unrealized loss against
+a R89,897.57 portfolio (e.g. SBK.JO: current value R31,932.00, shown loss
+-R2,068,068.00 — 65x its own value). Root-caused via direct API inspection
+(`GET /api/portfolios/{id}/holdings`): SBK.JO has `quantity=100,
+cost_basis=21000.00`. Both the backend (`portfolios/schemas.py:190`'s own
+comment `# value - (quantity * cost_basis)`, applied consistently in
+`router.py`) and the Flutter app (`holding.dart:62`, UI labelled "Cost basis
+per unit (ZAR)" in `add_edit_holding_sheet.dart:258`) correctly treat
+`cost_basis` as **per-unit**. The math checks out exactly for a per-unit
+cost_basis of R21,000/share: (100×319.32) − (100×21,000) = −2,068,068.00.
+Verified identically on AAPL. **Conclusion:** `seed_test_user.py` seeded
+*total* purchase amounts into a field the whole system correctly treats as
+per-unit — a seed-data defect, not an app or backend bug. Not fixed this
+session (out of scope — recommend fixing the seed script's holdings values
+next time the demo account is reseeded). Severity: HIGH for demo/screenshot
+credibility, ZERO risk to real users (the app's own Add/Edit Holding UI can't
+produce this state).
+
+**MAJOR FINDING 2 — AI features' financial context excludes account balances
+entirely; two different, both-incomplete "net worth" figures shown in the
+same app.** Insights answered "What is my net worth" with R1,719,500.00
+(= Assets − Liabilities only), while the Dashboard shows R1,808,030.50
+(= Assets + Accounts − Liabilities) for the same account at the same moment.
+Neither equals the true total (Assets + Accounts + Investments − Liabilities
+= R1,897,928.07), and the Insights answer's own text incorrectly claims it
+"includ[es] your investments." Corroborated by the Chatbot: asked "How much
+do I have in my FNB Cheque Account," it explicitly said its financial
+snapshot has no account-balance data, only "income, expenses, assets,
+liabilities, and recent transactions." Strongly suggests the backend context-
+assembly code shared by Insights and Chatbot never queries Accounts (or
+Portfolios). Not fixed this session — cross-cutting backend investigation
+needed (`backend/app/chatbot/service.py` / `backend/app/insights/router.py`'s
+snapshot-building logic), outside Flutter test scope. Severity: HIGH.
+
+**Chatbot — 3 real Ollama-backed prompts, logged verbatim:**
+1. "How much do I have in my FNB Cheque Account" → "Based on the provided
+   financial snapshot, there is no specific information about the FNB Cheque
+   Account. The snapshot includes details about income, expenses, assets,
+   liabilities, and recent transactions but does not detail FNB Cheque
+   Account balances. You may want to check your account directly for this
+   information." (see Finding 2 above)
+2. "Am I over budget on anything this month" → "Based on the provided
+   financial snapshot, there is no information about budget progress or
+   specific spending categories. The snapshot shows no income or expenses
+   for this month, so it appears you are not over budget. However, you can
+   check your recent transactions for any unusual or unplanned expenses..."
+   — actually correct: August 2026 genuinely has zero budgets configured.
+3. "What is the capital of France" → "The capital of France is Paris." —
+   answered directly with no scope guardrail. Logged as a LOW-severity UX
+   observation (real Ollama inference spent on an unrelated query), not a bug.
+
+**FIXED — Transactions list doesn't auto-refresh after a successful CSV
+import.** Imported a real 2-row CSV (`date,type,amount,category,description`
+generic format) via Imports → Import CSV: reported "Imported: 2/2, Failed
+rows: 0, COMPLETED" and confirmed present server-side
+(`GET /api/transactions/?start_date=2026-08-01...` → both rows,
+`source: csv_import`). But navigating to Transactions immediately after
+showed stale data (newest visible date still 30 Jun 2026, missing the new
+27 Aug 2026 rows) — a manual pull-to-refresh revealed them correctly. Root
+cause: `imports_screen.dart`'s `_upload()` success path only called
+`ref.invalidate(importHistoryProvider)`, never invalidating any transactions
+provider. **Fix:** added `ref.invalidate(transactionsProvider)` and
+`ref.invalidate(recentTransactionsProvider)` alongside the existing
+`importHistoryProvider` invalidation in `_upload()`
+(`lib/features/imports/screens/imports_screen.dart`). No regression test
+added: `test/features/imports/screens/imports_screen_test.dart`'s own doc
+comment already documents that the CSV upload button is untestable in this
+harness (`file_picker` is a native plugin with no fake available) — the same
+pre-existing, documented gap that blocked testing the upload flow itself in
+Step 4/5, not a new gap introduced by this fix.
+
+**Subscription:** Settings → Subscription correctly shows "Pro · Active ·
+renews 2026-09-27" with a working Cancel subscription option, confirming the
+upgrade is reflected live in the UI, not just via the raw API.
+
+**Post-fix verification:**
+```
+flutter analyze   → 37 issues (all pre-existing info-level lints, none new)
+flutter test      → 406/406 passing (unchanged from Step 7's baseline)
+```
+
+**Data/account used:** shared demo account (`demo@financeapp.co.za`),
+upgraded to Pro tier this step (see Setup above). One test CSV import
+(2 synthetic rows) added to the account's live transaction history on the
+production server — left in place as real (if clearly-labelled "Test
+import...") transaction data; not cleaned up, per no instruction to do so.

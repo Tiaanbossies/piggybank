@@ -360,12 +360,19 @@ dual-path test for Insights. Log entries on real current scope for all three.
 
 ---
 
-## Step 8 — Exploratory end-to-end pass (device/emulator required)
+## Step 8 — Exploratory end-to-end pass (device/emulator required) — DONE (2026-08-28)
 
 **Type:** Manual/agent-driven exploratory QA. **Model:** default. **Depends
 on:** Steps 1–7 (needs the automated baseline established first, so any
 exploratory finding can be checked against "did the automated tests already
 catch this" before being logged as new).
+
+**Completed 2026-08-28** — demo account upgraded to Pro via the existing
+`POST /api/subscription/upgrade` endpoint (the "how to upgrade" open question
+resolved: no new endpoint needed), full walk on a fresh `piggybank` AVD, 2
+findings logged (portfolio P&L seed-data bug, AI context excludes account
+balances) and 1 bug found+fixed (Transactions list not auto-refreshing after
+CSV import). See `docs/qa/QA_LOG.md`'s "Step 8" section for the full record.
 
 **Context brief:** This is the one step that needs a real running app — an
 Android emulator or the physical test device, logged in as the shared demo
@@ -418,7 +425,12 @@ structurally; a bad log entry can just be edited.
 
 ---
 
-## Step 9 — Final QA report
+## Step 9 — Final QA report — DONE (2026-08-28)
+
+Completed: `flutter analyze`/`flutter test` re-run clean (406/406, 37
+pre-existing info lints), `QA_FINDINGS.md` updated with a new dated section
+superseding stale 2026-08-21 claims and a prioritized issue list, this plan
+marked done, everything committed.
 
 **Type:** Documentation/aggregation. **Model:** default (strongest model
 recommended for the discrepancy-reconciliation pass, since it requires
