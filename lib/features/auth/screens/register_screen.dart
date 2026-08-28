@@ -16,6 +16,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   final _passwordController = TextEditingController();
   final _fullNameController = TextEditingController();
   bool _submitting = false;
+  bool _obscurePassword = true;
   String? _error;
   Map<String, String>? _fieldErrors;
 
@@ -77,19 +78,40 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
               const SizedBox(height: 24),
               TextField(
                 controller: _fullNameController,
-                decoration: const InputDecoration(labelText: 'Full name (optional)'),
+                decoration: const InputDecoration(
+                  labelText: 'Full name (optional)',
+                  prefixIcon: Icon(Icons.person_outline),
+                ),
               ),
               const SizedBox(height: 16),
               TextField(
                 controller: _emailController,
                 keyboardType: TextInputType.emailAddress,
-                decoration: InputDecoration(labelText: 'Email', errorText: _fieldErrors?['email']),
+                decoration: InputDecoration(
+                  labelText: 'Email',
+                  prefixIcon: const Icon(Icons.mail_outline),
+                  errorText: _fieldErrors?['email'],
+                ),
               ),
               const SizedBox(height: 16),
               TextField(
                 controller: _passwordController,
-                obscureText: true,
-                decoration: InputDecoration(labelText: 'Password', errorText: _fieldErrors?['password']),
+                obscureText: _obscurePassword,
+                decoration: InputDecoration(
+                  labelText: 'Password',
+                  prefixIcon: const Icon(Icons.lock_outline),
+                  suffixIcon: IconButton(
+                    icon: Icon(_obscurePassword ? Icons.visibility_outlined : Icons.visibility_off_outlined),
+                    onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                  ),
+                  errorText: _fieldErrors?['password'],
+                ),
+              ),
+              const SizedBox(height: 4),
+              // Helper text per assets/register.jpeg — was entirely missing.
+              Text(
+                'Use at least 8 characters with a mix of letters, numbers & symbols.',
+                style: Theme.of(context).textTheme.bodySmall,
               ),
               if (_error != null) ...[
                 const SizedBox(height: 16),
@@ -100,7 +122,15 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                 onPressed: _submitting ? null : _submit,
                 child: _submitting
                     ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                    : const Text('Register'),
+                    : const Text('Create account'),
+              ),
+              const SizedBox(height: 16),
+              // Toggle link back to Login, per assets/register.jpeg ("Already have
+              // an account? Log in") and DESIGN.md §1's reciprocal toggle-link
+              // requirement — was entirely missing.
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('Already have an account? Log in'),
               ),
             ],
           ),
