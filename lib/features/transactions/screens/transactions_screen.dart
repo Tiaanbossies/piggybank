@@ -167,15 +167,20 @@ class _TransactionRow extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final isExpense = transaction.transactionType == TransactionType.expense;
+    final isIncome = transaction.transactionType == TransactionType.income;
     final signedAmount = isExpense ? -transaction.amount.toDouble() : transaction.amount.toDouble();
+    final semantic = Theme.of(context).extension<AppSemanticColors>();
 
-    // Ordinary amounts render in plain ink per the mockups — success/danger
-    // is reserved for budget/goal progress and destructive actions only.
+    // Per the delivered transactions.jpeg mockup: income amounts render in
+    // the success/accent colour, expense and transfer amounts stay plain ink.
     return GroupRow(
       leadingIcon: isExpense ? Icons.arrow_upward : Icons.arrow_downward,
       title: transaction.merchantName ?? transaction.description ?? transaction.category,
       subtitle: transaction.category,
-      trailing: Text(formatZAR(signedAmount), style: moneyTextStyle(context, fontSize: 15)),
+      trailing: Text(
+        formatZAR(signedAmount),
+        style: moneyTextStyle(context, fontSize: 15, color: isIncome ? semantic?.success : null),
+      ),
       onTap: () => showModalBottomSheet(
         context: context,
         isScrollControlled: true,
