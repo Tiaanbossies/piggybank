@@ -28,7 +28,7 @@ class AccountsScreen extends ConsumerStatefulWidget {
 }
 
 class _AccountsScreenState extends ConsumerState<AccountsScreen> {
-  bool _inactiveExpanded = true;
+  bool _inactiveExpanded = false;
 
   @override
   Widget build(BuildContext context) {
@@ -75,7 +75,20 @@ class _AccountsScreenState extends ConsumerState<AccountsScreen> {
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Text('Inactive accounts', style: Theme.of(context).textTheme.labelMedium),
+                            Row(
+                              children: [
+                                Text('Inactive accounts', style: Theme.of(context).textTheme.labelMedium),
+                                const SizedBox(width: 6),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  child: Text('${inactive.length}', style: Theme.of(context).textTheme.labelSmall),
+                                ),
+                              ],
+                            ),
                             Icon(_inactiveExpanded ? Icons.expand_less : Icons.expand_more, size: 20),
                           ],
                         ),
@@ -112,14 +125,20 @@ class _AccountRow extends ConsumerWidget {
   const _AccountRow({required this.account});
   final Account account;
 
-  // Per the delivered accounts.jpeg mockup: each account type gets a
-  // distinct icon (bank building / piggy / wallet), not one icon for all.
+  // Per the Stitch Accounts mockup: each account type gets a distinct icon,
+  // not one icon for all. Mirrors backend `AccountType` (see models.py).
   IconData get _icon {
     switch (account.accountType) {
       case 'savings':
         return Icons.savings_outlined;
       case 'cash':
         return Icons.account_balance_wallet_outlined;
+      case 'investment':
+        return Icons.trending_up;
+      case 'credit_card':
+        return Icons.credit_card_outlined;
+      case 'loan':
+        return Icons.request_quote_outlined;
       default:
         return Icons.account_balance_outlined;
     }

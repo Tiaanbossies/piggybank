@@ -153,11 +153,49 @@ class TransactionsScreen extends ConsumerWidget {
   }
 
   String _formatGroupDate(DateTime date) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final yesterday = today.subtract(const Duration(days: 1));
+    if (date == today) return 'Today';
+    if (date == yesterday) return 'Yesterday';
     const months = [
       'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec', //
     ];
     return '${date.day} ${months[date.month - 1]} ${date.year}';
   }
+}
+
+/// Category → icon mapping per the Stitch Transactions mockup, which shows a
+/// distinct icon chip per merchant/category rather than one generic
+/// direction arrow for every row. Falls back to the expense/income arrow for
+/// categories not covered here.
+IconData _categoryIcon(Transaction transaction) {
+  switch (transaction.category) {
+    case 'Groceries':
+      return Icons.shopping_cart_outlined;
+    case 'Dining':
+    case 'Food':
+      return Icons.restaurant_outlined;
+    case 'Transport':
+    case 'Gas':
+      return Icons.directions_car_outlined;
+    case 'Utilities':
+      return Icons.bolt_outlined;
+    case 'Rent':
+      return Icons.home_outlined;
+    case 'Shopping':
+      return Icons.shopping_bag_outlined;
+    case 'Entertainment':
+      return Icons.movie_outlined;
+    case 'Gym':
+      return Icons.fitness_center_outlined;
+    case 'Healthcare':
+      return Icons.local_hospital_outlined;
+    case 'Insurance':
+      return Icons.shield_outlined;
+  }
+  if (transaction.transactionType == TransactionType.transfer) return Icons.swap_horiz;
+  return transaction.transactionType == TransactionType.expense ? Icons.arrow_upward : Icons.arrow_downward;
 }
 
 class _TransactionRow extends ConsumerWidget {
@@ -167,19 +205,17 @@ class _TransactionRow extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final isExpense = transaction.transactionType == TransactionType.expense;
-    final isIncome = transaction.transactionType == TransactionType.income;
     final signedAmount = isExpense ? -transaction.amount.toDouble() : transaction.amount.toDouble();
-    final semantic = Theme.of(context).extension<AppSemanticColors>();
 
-    // Per the delivered transactions.jpeg mockup: income amounts render in
-    // the success/accent colour, expense and transfer amounts stay plain ink.
+    // Per DESIGN.md § Transactions and the Stitch mockup: amount trailing in
+    // ordinary ink for every row — never red/green by direction.
     return GroupRow(
-      leadingIcon: isExpense ? Icons.arrow_upward : Icons.arrow_downward,
+      leadingIcon: _categoryIcon(transaction),
       title: transaction.merchantName ?? transaction.description ?? transaction.category,
       subtitle: transaction.category,
       trailing: Text(
         formatZAR(signedAmount),
-        style: moneyTextStyle(context, fontSize: 15, color: isIncome ? semantic?.success : null),
+        style: moneyTextStyle(context, fontSize: 15),
       ),
       onTap: () => showModalBottomSheet(
         context: context,
