@@ -86,6 +86,10 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
                 ],
               ),
               const SizedBox(height: 16),
+              Text('What Pro unlocks', style: Theme.of(context).textTheme.labelMedium),
+              const SizedBox(height: 8),
+              _FeatureComparisonCard(isPro: sub.tier == SubscriptionTier.pro),
+              const SizedBox(height: 16),
               if (_actionError != null) ...[
                 Text(_actionError!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
                 const SizedBox(height: 12),
@@ -142,6 +146,48 @@ class _TierBadge extends StatelessWidget {
           fontWeight: FontWeight.w700,
           letterSpacing: 0.4,
         ),
+      ),
+    );
+  }
+}
+
+/// Per §5.10's free-tier limits (3 accounts, 1 portfolio, zero AI features)
+/// vs. Pro (999 of each, AI unlocked). A muted checklist, not a full pricing
+/// table — the brief calls for "a generic 'Upgrade to PRO' prompt", not a
+/// categorized breakdown, so this stays illustrative rather than exhaustive.
+class _FeatureComparisonCard extends StatelessWidget {
+  const _FeatureComparisonCard({required this.isPro});
+  final bool isPro;
+
+  static const _features = [
+    'Unlimited accounts & portfolios',
+    'AI-powered Insights',
+    'AI Chatbot',
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final primary = Theme.of(context).colorScheme.primary;
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          for (final feature in _features) ...[
+            Row(
+              children: [
+                Icon(isPro ? Icons.check_circle : Icons.check_circle_outline, size: 18, color: primary),
+                const SizedBox(width: 10),
+                Expanded(child: Text(feature, style: Theme.of(context).textTheme.bodyMedium)),
+              ],
+            ),
+            if (feature != _features.last) const SizedBox(height: 10),
+          ],
+        ],
       ),
     );
   }

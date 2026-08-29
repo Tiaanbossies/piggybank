@@ -33,6 +33,7 @@ class ImportsScreen extends ConsumerStatefulWidget {
 
 class _ImportsScreenState extends ConsumerState<ImportsScreen> {
   // CSV import state
+  int _csvStep = 0; // 0 Configure, 1 Upload, 2 Review — per ui-ux-mockup-brief.md §13 item 3
   PlatformFile? _selectedFile;
   String? _selectedTemplate;
   String? _selectedAccountId;
@@ -107,6 +108,7 @@ class _ImportsScreenState extends ConsumerState<ImportsScreen> {
         _result = job;
         _selectedFile = null;
         _csvPreviewRows = null;
+        _csvStep = 2;
       });
       ref.invalidate(importHistoryProvider);
       ref.invalidate(transactionsProvider);
@@ -116,6 +118,16 @@ class _ImportsScreenState extends ConsumerState<ImportsScreen> {
     } finally {
       if (mounted) setState(() => _uploading = false);
     }
+  }
+
+  void _csvStartNewImport() {
+    setState(() {
+      _csvStep = 0;
+      _selectedFile = null;
+      _csvPreviewRows = null;
+      _result = null;
+      _uploadError = null;
+    });
   }
 
   Future<void> _runReceiptFlow(_ReceiptSource source) async {
@@ -352,85 +364,109 @@ class _ImportsScreenState extends ConsumerState<ImportsScreen> {
               ],
             ),
             const SizedBox(height: 12),
-            templatesAsync.when(
-              loading: () => const SizedBox.shrink(),
-              error: (_, _) => const SizedBox.shrink(),
-              data: (templates) => DropdownButtonFormField<String?>(
-                initialValue: _selectedTemplate,
-                decoration: const InputDecoration(labelText: 'Bank template'),
-                items: [
-                  const DropdownMenuItem(value: null, child: Text('None (generic)')),
-                  for (final t in templates) DropdownMenuItem(value: t.bankId, child: Text(t.displayName)),
-                ],
-                onChanged: (v) => setState(() => _selectedTemplate = v),
-              ),
-            ),
-            const SizedBox(height: 12),
-            accountsAsync.when(
-              loading: () => const SizedBox.shrink(),
-              error: (_, _) => const SizedBox.shrink(),
-              data: (accounts) => DropdownButtonFormField<String?>(
-                initialValue: _selectedAccountId,
-                decoration: const InputDecoration(labelText: 'Account (optional)'),
-                items: [
-                  const DropdownMenuItem(value: null, child: Text('No account')),
-                  for (final a in accounts.where((a) => a.isActive))
-                    DropdownMenuItem(value: a.id, child: Text(a.name)),
-                ],
-                onChanged: (v) => setState(() => _selectedAccountId = v),
-              ),
-            ),
+            _CsvStepIndicator(step: _csvStep),
             const SizedBox(height: 16),
-            OutlinedButton.icon(
-              onPressed: _pickCsvFile,
-              icon: const Icon(Icons.upload_file_outlined),
-              label: Text(_selectedFile == null ? 'Choose CSV file' : _selectedFile!.name),
-            ),
-            if (_csvPreviewRows != null && _csvPreviewRows!.isNotEmpty) ...[
-              const SizedBox(height: 12),
-              Text(
-                'Preview',
-                style: TextStyle(color: semantic?.textMuted, fontSize: 12, fontWeight: FontWeight.w600),
-              ),
-              const SizedBox(height: 4),
-              Card(
-                clipBehavior: Clip.antiAlias,
-                child: SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: DataTable(
-                    headingRowHeight: 32,
-                    dataRowMinHeight: 32,
-                    dataRowMaxHeight: 36,
-                    columnSpacing: 16,
-                    columns: [
-                      for (final header in _csvPreviewRows!.first)
-                        DataColumn(label: Text(header, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700))),
-                    ],
-                    rows: [
-                      for (final row in _csvPreviewRows!.skip(1))
-                        DataRow(cells: [
-                          for (var i = 0; i < _csvPreviewRows!.first.length; i++)
-                            DataCell(Text(i < row.length ? row[i] : '', style: const TextStyle(fontSize: 11))),
-                        ]),
-                    ],
-                  ),
+            if (_csvStep == 0) ...[
+              templatesAsync.when(
+                loading: () => const SizedBox.shrink(),
+                error: (_, _) => const SizedBox.shrink(),
+                data: (templates) => DropdownButtonFormField<String?>(
+                  initialValue: _selectedTemplate,
+                  decoration: const InputDecoration(labelText: 'Bank template'),
+                  items: [
+                    const DropdownMenuItem(value: null, child: Text('None (generic)')),
+                    for (final t in templates) DropdownMenuItem(value: t.bankId, child: Text(t.displayName)),
+                  ],
+                  onChanged: (v) => setState(() => _selectedTemplate = v),
                 ),
               ),
-            ],
-            const SizedBox(height: 12),
-            ElevatedButton(
-              onPressed: (_selectedFile == null || _uploading) ? null : _upload,
-              child: _uploading
-                  ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                  : const Text('Upload'),
-            ),
-            if (_uploadError != null) ...[
-              const SizedBox(height: 8),
-              Text(_uploadError!, style: TextStyle(color: semantic?.danger)),
-            ],
-            if (_result != null) ...[
+              const SizedBox(height: 12),
+              accountsAsync.when(
+                loading: () => const SizedBox.shrink(),
+                error: (_, _) => const SizedBox.shrink(),
+                data: (accounts) => DropdownButtonFormField<String?>(
+                  initialValue: _selectedAccountId,
+                  decoration: const InputDecoration(labelText: 'Account (optional)'),
+                  items: [
+                    const DropdownMenuItem(value: null, child: Text('No account')),
+                    for (final a in accounts.where((a) => a.isActive))
+                      DropdownMenuItem(value: a.id, child: Text(a.name)),
+                  ],
+                  onChanged: (v) => setState(() => _selectedAccountId = v),
+                ),
+              ),
               const SizedBox(height: 16),
-              _ResultCard(job: _result!),
+              ElevatedButton(
+                onPressed: () => setState(() => _csvStep = 1),
+                child: const Text('Continue'),
+              ),
+            ] else if (_csvStep == 1) ...[
+              OutlinedButton.icon(
+                onPressed: _pickCsvFile,
+                icon: const Icon(Icons.upload_file_outlined),
+                label: Text(_selectedFile == null ? 'Choose CSV file' : _selectedFile!.name),
+              ),
+              if (_csvPreviewRows != null && _csvPreviewRows!.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                Text(
+                  'Preview',
+                  style: TextStyle(color: semantic?.textMuted, fontSize: 12, fontWeight: FontWeight.w600),
+                ),
+                const SizedBox(height: 4),
+                Card(
+                  clipBehavior: Clip.antiAlias,
+                  child: SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: DataTable(
+                      headingRowHeight: 32,
+                      dataRowMinHeight: 32,
+                      dataRowMaxHeight: 36,
+                      columnSpacing: 16,
+                      columns: [
+                        for (final header in _csvPreviewRows!.first)
+                          DataColumn(
+                              label: Text(header, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700))),
+                      ],
+                      rows: [
+                        for (final row in _csvPreviewRows!.skip(1))
+                          DataRow(cells: [
+                            for (var i = 0; i < _csvPreviewRows!.first.length; i++)
+                              DataCell(Text(i < row.length ? row[i] : '', style: const TextStyle(fontSize: 11))),
+                          ]),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  OutlinedButton(
+                    onPressed: _uploading ? null : () => setState(() => _csvStep = 0),
+                    child: const Text('Back'),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: (_selectedFile == null || _uploading) ? null : _upload,
+                      child: _uploading
+                          ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                          : const Text('Upload'),
+                    ),
+                  ),
+                ],
+              ),
+              if (_uploadError != null) ...[
+                const SizedBox(height: 8),
+                Text(_uploadError!, style: TextStyle(color: semantic?.danger)),
+              ],
+            ] else ...[
+              if (_result != null) _ResultCard(job: _result!),
+              const SizedBox(height: 16),
+              OutlinedButton(
+                onPressed: _csvStartNewImport,
+                child: const Text('Start new import'),
+              ),
             ],
             const SizedBox(height: 32),
             Row(
@@ -478,6 +514,47 @@ class _ImportsScreenState extends ConsumerState<ImportsScreen> {
 }
 
 enum _ReceiptSource { camera, gallery, pdf }
+
+/// Three labeled pill segments (Configure / Upload / Review) instead of a
+/// generic progress-dots widget, per `stitch-design-brief.md` §8's ask for
+/// something that fits the app's row-card/pill language.
+class _CsvStepIndicator extends StatelessWidget {
+  const _CsvStepIndicator({required this.step});
+  final int step;
+
+  static const _labels = ['Configure', 'Upload', 'Review'];
+
+  @override
+  Widget build(BuildContext context) {
+    final semantic = Theme.of(context).extension<AppSemanticColors>();
+    final colorScheme = Theme.of(context).colorScheme;
+    return Row(
+      children: [
+        for (var i = 0; i < _labels.length; i++) ...[
+          if (i != 0) const SizedBox(width: 8),
+          Expanded(
+            child: Container(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              decoration: BoxDecoration(
+                color: i <= step ? colorScheme.primary : semantic?.accentChipBg,
+                borderRadius: BorderRadius.circular(999),
+              ),
+              child: Text(
+                '${i + 1}  ${_labels[i]}',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: i <= step ? colorScheme.onPrimary : semantic?.textMuted,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+}
 
 class _ConfidenceBadge extends StatelessWidget {
   const _ConfidenceBadge({required this.score});

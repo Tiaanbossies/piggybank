@@ -22,17 +22,19 @@ class MockAccountsApi extends Mock implements AccountsApi {}
 
 class MockTransactionsApi extends Mock implements TransactionsApi {}
 
-/// `ImportsScreen` combines the CSV import flow and the Scan Receipt (OCR)
-/// flow in one screen (see `imports_screen.dart`'s doc comment) — there is
-/// no multi-step "file select -> column mapping -> preview/confirm" wizard
-/// in this codebase; a single `uploadCsv` call does the whole parse+import
-/// server-side in one shot, and OCR's "review extracted fields, then Save"
-/// step is the closest thing to a confirm step. Both the CSV upload button
-/// and the OCR picker are gated behind native file_picker/image_picker
+/// `ImportsScreen` combines the CSV import wizard (Configure -> Upload ->
+/// Review, per `ui-ux-mockup-brief.md` §13 item 3) and the Scan Receipt (OCR)
+/// flow in one screen (see `imports_screen.dart`'s doc comment). A single
+/// `uploadCsv` call does the whole parse+import server-side in one shot —
+/// the 3 steps are a client-side staging UI around that one endpoint, not 3
+/// sequential backend calls — and OCR's "review extracted fields, then Save"
+/// step is the closest thing to a confirm step there. Both the CSV upload
+/// button and the OCR picker are gated behind native file_picker/image_picker
 /// plugins this harness cannot fake, so this covers what's reachable without
 /// picking a real file: initial button/empty states, the bank-template and
-/// account dropdowns sourced from their providers, and the import-history
-/// list's populated/empty/error rendering.
+/// account dropdowns sourced from their providers (step 0, Configure), the
+/// Upload step's gating (step 1, reached via Continue), and the
+/// import-history list's populated/empty/error rendering.
 void main() {
   late MockImportsApi mockImportsApi;
   late MockAccountsApi mockAccountsApi;
@@ -67,6 +69,11 @@ void main() {
     when(() => mockImportsApi.listImports()).thenAnswer((_) async => []);
 
     await pumpApp(tester, const ImportsScreen(), overrides: overrides());
+    await tester.pumpAndSettle();
+
+    // Step 0 (Configure) shows the bank-template/account dropdowns and a
+    // Continue button; the file picker only appears on step 1 (Upload).
+    await tester.tap(find.widgetWithText(ElevatedButton, 'Continue'));
     await tester.pumpAndSettle();
 
     expect(find.text('Choose CSV file'), findsOneWidget);

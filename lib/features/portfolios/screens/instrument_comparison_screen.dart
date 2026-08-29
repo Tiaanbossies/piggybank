@@ -5,7 +5,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/calc/chart_utils.dart';
 import '../../../core/calc/risk_metrics.dart' as risk;
 import '../../../core/theme/app_theme.dart';
+import '../../../shared/widgets/ticker_autocomplete_field.dart';
 import '../models/comparison_entry.dart';
+import '../models/ticker_search_result.dart';
 import '../providers/comparison_provider.dart';
 
 /// Power-user chart tool comparing up to 5 instruments by price, return,
@@ -41,6 +43,16 @@ class _InstrumentComparisonScreenState extends ConsumerState<InstrumentCompariso
     _tickerController.clear();
   }
 
+  /// Selecting a suggestion from [TickerAutocompleteField] adds it straight
+  /// away — unlike Add/Edit Holding, there's no separate Name/Price/Asset
+  /// class fields to conflict-resolve here, just the one ticker value, so
+  /// the field's autofill is a direct add rather than a banner-mediated one.
+  void _onTickerSelected(TickerSearchResult result) {
+    final comparison = ref.read(comparisonControllerProvider);
+    if (comparison.entries.length >= maxComparisonEntries) return;
+    _submitTicker();
+  }
+
   @override
   Widget build(BuildContext context) {
     final comparison = ref.watch(comparisonControllerProvider);
@@ -68,23 +80,18 @@ class _InstrumentComparisonScreenState extends ConsumerState<InstrumentCompariso
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
                 child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Expanded(
-                      child: TextField(
-                        controller: _tickerController,
-                        textCapitalization: TextCapitalization.characters,
-                        decoration: const InputDecoration(
-                          hintText: 'Add a ticker, e.g. STX40',
-                          isDense: true,
-                          border: OutlineInputBorder(),
-                        ),
-                        onSubmitted: (_) => _submitTicker(),
-                      ),
+                      child: TickerAutocompleteField(controller: _tickerController, onSelected: _onTickerSelected),
                     ),
                     const SizedBox(width: 8),
-                    FilledButton(
-                      onPressed: comparison.entries.length >= maxComparisonEntries ? null : _submitTicker,
-                      child: const Text('Add'),
+                    Padding(
+                      padding: const EdgeInsets.only(top: 4),
+                      child: FilledButton(
+                        onPressed: comparison.entries.length >= maxComparisonEntries ? null : _submitTicker,
+                        child: const Text('Add'),
+                      ),
                     ),
                   ],
                 ),
