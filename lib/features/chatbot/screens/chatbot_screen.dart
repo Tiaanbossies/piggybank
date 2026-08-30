@@ -101,7 +101,7 @@ class _ChatbotScreenState extends ConsumerState<ChatbotScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Text('Financial Assistant', style: TextStyle(fontSize: 16)),
+                const Text('Penny', style: TextStyle(fontSize: 16)),
                 Text(
                   'Ask me anything about your money',
                   style: TextStyle(fontSize: 11, color: semantic?.textMuted, fontWeight: FontWeight.normal),
@@ -125,7 +125,7 @@ class _ChatbotScreenState extends ConsumerState<ChatbotScreen> {
                             const IconChip(icon: Icons.savings, size: 56),
                             const SizedBox(height: 16),
                             Text(
-                              "Hi, I'm your financial assistant",
+                              "Hi, I'm Penny",
                               textAlign: TextAlign.center,
                               style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
                             ),

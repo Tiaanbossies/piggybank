@@ -53,23 +53,33 @@ provider anywhere in either repo. `subscriptions_router.upgrade()` just flips a 
 greenfield, and picking a provider is a business decision (fees, SA banking rails, compliance)
 as much as a technical one.
 
-**AI chatbot/insights — Step 2 (net-worth parity) resolved 2026-08-30; persona work (Step 3)
-still open.** `chat_with_ollama()`'s system prompt is generic ("You are a personal finance
-copilot...") with no name, no brand voice, and — per the 2026-08-28 QA pass — no guardrail
-against off-topic questions (it answered "capital of France" directly); that's still Step 3's
-job. The High-severity QA finding this paragraph originally described (Chatbot/Insights
-snapshots omitting Account/Portfolio balances, disagreeing with the Dashboard) turned out to
-already be fixed in the *live* code paths by the time Step 2 actually investigated it — commit
-`9c679a8` (2026-08-30 15:05, same day, before this plan's own grounding pass) had already added
-`shared/net_worth.py` and wired both `chatbot/service.py` and `services/ai_context.py` (the real
-insights path, via `insights/router.py`) to it. What Step 2 found instead: `insights/service.py`
-had its own separate, still-broken `build_snapshot()` with the old formula — but it was dead
-code, never imported by any router (confirmed via grep), which is exactly what made this
-paragraph's claim look true on a read-through despite the live path being correct. Step 2
-removed that dead code and added `tests/test_net_worth_parity.py`, the first test asserting
-Dashboard/Chatbot/Insights actually agree (they do). Manual live verification against the demo
-account (task 6) is still blocked on the backend host being reachable — same blocker as
-everything else needing a live server this week.
+**AI chatbot/insights — Step 2 (net-worth parity) resolved 2026-08-30; Step 3 (persona +
+guardrail) code-complete 2026-08-30, live verification still open.** The High-severity QA
+finding this paragraph originally described (Chatbot/Insights snapshots omitting Account/
+Portfolio balances, disagreeing with the Dashboard) turned out to already be fixed in the *live*
+code paths by the time Step 2 actually investigated it — commit `9c679a8` (2026-08-30 15:05,
+same day, before this plan's own grounding pass) had already added `shared/net_worth.py` and
+wired both `chatbot/service.py` and `services/ai_context.py` (the real insights path, via
+`insights/router.py`) to it. What Step 2 found instead: `insights/service.py` had its own
+separate, still-broken `build_snapshot()` with the old formula — but it was dead code, never
+imported by any router (confirmed via grep), which is exactly what made this paragraph's claim
+look true on a read-through despite the live path being correct. Step 2 removed that dead code
+and added `tests/test_net_worth_parity.py`, the first test asserting Dashboard/Chatbot/Insights
+actually agree (they do).
+
+Step 3 gave the Chatbot a named persona ("Penny", tied to the app's piggy-bank mascot — user
+decision, 2026-08-30) with a warm, conversational voice, rewrote the finance-topic guardrail to
+"politely redirect" per the plan's own task 2, and gave Insights' pre-existing (previously
+undocumented) "FinSight" persona a separate, more clinical/factual tone instead of sharing
+Penny's voice (also a user decision — Insights is a one-off Q&A surface, not a conversation, per
+`docs/chatbot-design-note.md`). Both prompts' persona/guardrail content is now unit-tested
+(`tests/test_chatbot.py::test_chat_system_prompt_has_persona_and_guardrail`,
+`tests/test_insights.py::test_prompt_builder_south_african_clinical_persona`), and the Flutter
+chat screen's "Financial Assistant" copy was updated to "Penny" to match
+(`chatbot_screen.dart`, `chatbot_screen_test.dart`). Full task list done except task 6's live
+model check: manual verification that the deployed Ollama model actually obeys the guardrail on
+a real off-topic question (e.g. "capital of France") is still blocked on the backend host being
+reachable — same blocker as everything else needing a live server this week.
 
 ---
 

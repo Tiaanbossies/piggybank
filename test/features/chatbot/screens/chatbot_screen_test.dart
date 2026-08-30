@@ -53,7 +53,7 @@ void main() {
       await tester.pumpWidget(_wrap(_apiWith(_FakeAdapter([]))));
       await tester.pumpAndSettle();
 
-      expect(find.text("Hi, I'm your financial assistant"), findsOneWidget);
+      expect(find.text("Hi, I'm Penny"), findsOneWidget);
     });
 
     testWidgets('sending a message shows both bubbles and clears the input', (tester) async {

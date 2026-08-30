@@ -46,3 +46,39 @@ and hitting Send is the moment eligibility is actually tested, exactly like
 every other paywall-gated action in this app (`accounts_screen.dart`,
 `portfolio_sheet.dart`). On a 402, the chat screen pops itself and shows the
 same generic `showPaywallPrompt` dialog used elsewhere.
+
+## Persona & guardrails (blueprint Step 3, 2026-08-30)
+
+**Chatbot is "Penny"** — named after and voiced as the app's piggy-bank mascot
+(the illustrated character used on Login/Create-account per `DESIGN.md`; no
+real asset exists yet, this names the *character*, not a new image). Tone is
+warm, encouraging, and conversational — a companion the user chats with
+regularly — while staying concise, factual, plain-text only (no markdown, no
+emoji, no roleplay actions). Implemented in `chat_with_ollama()`,
+`piggybank-backend/backend/app/chatbot/service.py`.
+
+**Insights keeps its existing "FinSight" persona but in a clinical register**,
+not Penny's — Insights is a one-off, non-conversational "ask a question about
+your finances" surface (see layout section above), so it was deliberately
+given a different voice: direct, factual, no small talk or encouragement,
+same SA-finance-concept grounding and FAIS guardrails as before. This persona
+already existed in code (`build_prompt()`,
+`piggybank-backend/backend/app/services/ai_context.py`) before this note was
+written — the original "no persona direction exists" framing at the top of
+this doc was true for the *UI*, not for the AI prompt layer underneath it.
+
+**Shared finance-topic guardrail**: both prompts decline off-topic questions
+(general knowledge, coding, entertainment, medical, relationship, or
+current-events questions unrelated to money) with the same fixed redirect
+sentence — "I can only help with questions about your finances here in
+Piggybank." — rather than a bare refusal, per the Step 3 plan's "politely
+redirect" requirement. This is enforced entirely at the prompt level (system
+prompt content is deterministic and unit-tested — see
+`tests/test_chatbot.py::test_chat_system_prompt_has_persona_and_guardrail` and
+`tests/test_insights.py::test_prompt_builder_refuses_off_topic_questions`);
+whether the live
+Ollama model actually *obeys* the guardrail on a given off-topic question is
+non-deterministic and was checked manually against the deployed model, not
+via an automated test (see `docs/qa/QA_LOG.md` for that transcript once the
+backend host is reachable again — blocked this session, see the
+launch-readiness plan's Step 3 verification note).
