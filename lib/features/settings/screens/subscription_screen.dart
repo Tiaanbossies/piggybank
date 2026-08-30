@@ -73,6 +73,14 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
           data: (sub) => ListView(
             padding: const EdgeInsets.all(16),
             children: [
+              Text(
+                'CURRENT PLAN',
+                style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                  color: Theme.of(context).extension<AppSemanticColors>()?.textMuted,
+                  letterSpacing: 0.8,
+                ),
+              ),
+              const SizedBox(height: 8),
               GroupCard(
                 children: [
                   GroupRow(
@@ -95,18 +103,25 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
                 const SizedBox(height: 12),
               ],
               if (sub.tier == SubscriptionTier.free)
-                ElevatedButton(
-                  onPressed: _submitting ? null : _upgrade,
-                  child: _submitting
-                      ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                      : const Text('Upgrade to Pro'),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: _submitting ? null : _upgrade,
+                    icon: _submitting ? null : const Icon(Icons.arrow_forward, size: 18),
+                    label: _submitting
+                        ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                        : const Text('Upgrade to Pro'),
+                  ),
                 )
               else
-                OutlinedButton(
-                  onPressed: _submitting ? null : _cancel,
-                  child: _submitting
-                      ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                      : const Text('Cancel subscription'),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton(
+                    onPressed: _submitting ? null : _cancel,
+                    child: _submitting
+                        ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                        : const Text('Cancel subscription'),
+                  ),
                 ),
             ],
           ),

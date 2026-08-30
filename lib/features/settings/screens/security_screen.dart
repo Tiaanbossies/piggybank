@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/api/api_error.dart';
 import '../../../core/auth/auth_controller.dart';
 import '../../../core/auth/biometric_preference.dart';
+import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/group_card.dart';
 import '../data/security_api.dart';
 
@@ -118,16 +119,12 @@ class _SecurityScreenState extends ConsumerState<SecurityScreen> {
                 GroupRow(
                   leadingIcon: Icons.fingerprint,
                   title: 'Biometric unlock',
+                  subtitle: 'Use Face ID or Fingerprint',
                   trailing: Switch(
                     value: biometricEnabled,
                     onChanged: _busy ? null : _toggleBiometric,
                   ),
                 ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            GroupCard(
-              children: [
                 GroupRow(
                   leadingIcon: Icons.pin_outlined,
                   title: hasPin ? 'Change PIN' : 'Set PIN',
@@ -141,6 +138,15 @@ class _SecurityScreenState extends ConsumerState<SecurityScreen> {
                     onTap: _busy ? null : _attemptRemovePin,
                   ),
               ],
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              child: Text(
+                'Your biometric data is encrypted and stored locally on your device. We never send it to our servers.',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: Theme.of(context).extension<AppSemanticColors>()?.textMuted,
+                ),
+              ),
             ),
             if (_busy) ...[const SizedBox(height: 16), const Center(child: CircularProgressIndicator())],
           ],
