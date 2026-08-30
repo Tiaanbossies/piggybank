@@ -7,6 +7,8 @@ import '../../../core/format/money.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/group_card.dart';
 import '../../../shared/widgets/hero_metric_card.dart';
+import '../../../shared/widgets/icon_chip.dart';
+import '../../../shared/widgets/percent_pill.dart';
 import '../models/liability.dart';
 import '../providers/liabilities_provider.dart';
 import 'liability_detail_screen.dart';
@@ -30,8 +32,12 @@ const _liabilityTypeIcons = {
 
 /// Grouped-list-cells pattern per DESIGN.md's reused component family, plus
 /// a "Total liabilities" hero card (client-side sum, same pattern as
-/// Accounts' "Total balance") and per-[LiabilityType] icon chips.
-/// Payment-log/progress tracking is a documented v1 gap, not built.
+/// Accounts' "Total balance") and per-[LiabilityType] icon chips. Each row
+/// also shows a small inline payoff-progress indicator ([_PayoffProgress])
+/// when [Liability.originalBalance] is set, per `stitch-design-brief.md`
+/// §8's "Liabilities additionally show a small amortisation/payoff progress
+/// indicator per row where relevant" — full payment-log detail still lives
+/// on [LiabilityDetailScreen], not duplicated here.
 class LiabilitiesScreen extends ConsumerWidget {
   const LiabilitiesScreen({super.key});
 
@@ -83,18 +89,96 @@ class _LiabilityRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final semantic = Theme.of(context).extension<AppSemanticColors>();
-    return GroupRow(
-      leadingIcon: _liabilityTypeIcons[liability.liabilityType],
-      leadingDanger: true,
-      title: liability.name,
-      subtitle: liabilityTypeLabels[liability.liabilityType],
-      trailing: Text(
-        formatZAR(liability.outstandingAmount),
-        style: moneyTextStyle(context, fontSize: 15, color: semantic?.danger),
-      ),
+    return InkWell(
       onTap: () => Navigator.of(context).push(
         MaterialPageRoute(builder: (_) => LiabilityDetailScreen(liability: liability)),
       ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                IconChip(icon: _liabilityTypeIcons[liability.liabilityType] ?? Icons.request_quote_outlined, danger: true),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        liability.name,
+                        style: Theme.of(context).textTheme.titleMedium,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      if (liabilityTypeLabels[liability.liabilityType] != null) ...[
+                        const SizedBox(height: 2),
+                        Text(
+                          liabilityTypeLabels[liability.liabilityType]!,
+                          style: TextStyle(color: semantic?.textMuted, fontSize: 13),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Text(
+                  formatZAR(liability.outstandingAmount),
+                  style: moneyTextStyle(context, fontSize: 15, color: semantic?.danger),
+                ),
+              ],
+            ),
+            if (liability.originalBalance != null) ...[
+              const SizedBox(height: 10),
+              _PayoffProgress(liabilityId: liability.id),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Small inline payoff-progress indicator for a liability row — reuses
+/// [liabilityProgressProvider] (already fetched/cached for
+/// [LiabilityDetailScreen]) rather than duplicating the payoff-percent math.
+/// Purely decorative, so loading/error states render nothing rather than a
+/// spinner or error text, never blocking the row.
+class _PayoffProgress extends ConsumerWidget {
+  const _PayoffProgress({required this.liabilityId});
+  final String liabilityId;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final progressAsync = ref.watch(liabilityProgressProvider(liabilityId));
+    final semantic = Theme.of(context).extension<AppSemanticColors>();
+
+    return progressAsync.when(
+      loading: () => const SizedBox.shrink(),
+      error: (_, _) => const SizedBox.shrink(),
+      data: (progress) {
+        final pct = progress.percentPaid.toDouble() / 100;
+        return Row(
+          children: [
+            Expanded(
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(6),
+                child: LinearProgressIndicator(
+                  value: pct.clamp(0.0, 1.0),
+                  minHeight: 6,
+                  backgroundColor: semantic?.accentChipBg,
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            PercentPill(pct: (pct * 100).round()),
+          ],
+        );
+      },
     );
   }
 }

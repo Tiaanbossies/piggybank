@@ -104,10 +104,9 @@ void main() {
       await tester.pumpAndSettle();
 
       final expected = calcAcceleratedPayoff(80000, 12, 48, 500);
-      expect(find.text('Months saved'), findsOneWidget);
-      expect(find.text('${expected.monthsSaved.round()}'), findsOneWidget);
       expect(find.text('Interest saved'), findsOneWidget);
       expect(find.text(formatZAR(expected.interestSaved)), findsOneWidget);
+      expect(find.text('${expected.monthsSaved.round()} months saved'), findsOneWidget);
     });
 
     testWidgets('rejects an empty outstanding balance', (tester) async {
@@ -122,7 +121,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Enter an outstanding balance greater than zero.'), findsOneWidget);
-      expect(find.text('Months saved'), findsNothing);
+      expect(find.text('Interest saved'), findsNothing);
     });
 
     testWidgets('rejects a negative outstanding balance', (tester) async {

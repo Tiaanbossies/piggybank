@@ -2,14 +2,17 @@ import 'package:flutter/material.dart';
 
 import '../../../core/calc/loan_calc.dart';
 import '../../../core/format/money.dart';
-import '../../../core/theme/app_theme.dart';
+import '../../../shared/widgets/hero_metric_card.dart';
 import '../../../shared/widgets/icon_chip.dart';
 
 /// Ports `CalculatorsPage.tsx`'s two forms (Loan Calculator + Loan
 /// Accelerator), grouped with Liabilities per the Phase 0 scoping note.
 /// Pure client-side math (`loan_calc.dart`), no backend calls. Uses the same
 /// `SegmentedButton` toggle pattern as `BudgetsHomeScreen`'s Budgets/Goals
-/// switch, in place of a plain `TabBar`.
+/// switch, in place of a plain `TabBar`. Results use [HeroMetricCard] — the
+/// same card language as Portfolio/Assets/Liabilities/Expenses — per
+/// `stitch-design-brief.md` §8's "Calculators" instruction not to give these
+/// screens a separate "tool" visual identity.
 class CalculatorsScreen extends StatefulWidget {
   const CalculatorsScreen({super.key});
 
@@ -157,18 +160,7 @@ class _LoanCalculatorTabState extends State<_LoanCalculatorTab> {
           ],
           if (_pmt != null) ...[
             const SizedBox(height: 24),
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('Monthly payment', style: Theme.of(context).textTheme.labelMedium),
-                    Text(formatZAR(_pmt), style: moneyTextStyle(context, fontSize: 28)),
-                  ],
-                ),
-              ),
-            ),
+            HeroMetricCard(label: 'Monthly payment', value: formatZAR(_pmt)),
           ],
         ],
       ),
@@ -296,20 +288,10 @@ class _LoanAcceleratorTabState extends State<_LoanAcceleratorTab> {
           ],
           if (result != null) ...[
             const SizedBox(height: 24),
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('Months saved', style: Theme.of(context).textTheme.labelMedium),
-                    Text('${result.monthsSaved.round()}', style: moneyTextStyle(context, fontSize: 22)),
-                    const SizedBox(height: 12),
-                    Text('Interest saved', style: Theme.of(context).textTheme.labelMedium),
-                    Text(formatZAR(result.interestSaved), style: moneyTextStyle(context, fontSize: 22)),
-                  ],
-                ),
-              ),
+            HeroMetricCard(
+              label: 'Interest saved',
+              value: formatZAR(result.interestSaved),
+              deltaText: '${result.monthsSaved.round()} months saved',
             ),
           ],
         ],

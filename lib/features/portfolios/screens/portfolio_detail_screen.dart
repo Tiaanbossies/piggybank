@@ -21,15 +21,15 @@ import 'add_edit_holding_sheet.dart';
 import 'holding_detail_sheet.dart';
 import 'portfolio_sheet.dart';
 
-/// The largest, most complex screen in the product per
-/// `ui-ux-mockup-brief.md` §5.3 — no mockup exists for it (DESIGN.md §9
-/// carries over the superseded spec's mobile direction: hero value, a
-/// stacked-bar allocation block, a row-card holdings list with a tap-to-open
-/// detail sheet, replacing the web's dense sortable table entirely). The
-/// Projected Income table at the bottom is undesigned in both docs; it's
-/// implemented as a compact, purely client-side what-if calculator (editing
-/// a yield here does not persist — use Edit Holding for that) rather than
-/// firing an update on every keystroke.
+/// The largest, most complex screen in the product — per
+/// `stitch-design-brief.md` §8's "Portfolio detail" (grounded, highest
+/// complexity): hero value card, a stacked-bar allocation block, a row-card
+/// holdings list (ticker/name, sparkline, value, day-change%) with a
+/// tap-to-open detail sheet, replacing the web's dense sortable table
+/// entirely. The Projected Income table at the bottom is undesigned in the
+/// brief; it's implemented as a compact, purely client-side what-if
+/// calculator (editing a yield here does not persist — use Edit Holding for
+/// that) rather than firing an update on every keystroke.
 class PortfolioDetailScreen extends ConsumerWidget {
   const PortfolioDetailScreen({required this.portfolio, super.key});
   final Portfolio portfolio;
@@ -188,7 +188,6 @@ class _HoldingRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final semantic = Theme.of(context).extension<AppSemanticColors>();
-    final plUp = holding.unrealizedPl >= Decimal.zero;
 
     return Opacity(
       opacity: holding.isClosed ? 0.5 : 1,
@@ -212,16 +211,49 @@ class _HoldingRow extends StatelessWidget {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Text(formatZAR(holding.marketValue), style: moneyTextStyle(context, fontSize: 14)),
-                      Text(
-                        formatZAR(holding.unrealizedPl),
-                        style: TextStyle(fontSize: 12, color: plUp ? semantic?.success : semantic?.danger),
-                      ),
+                      _DayChange(ticker: holding.ticker),
                     ],
                   ),
                 ],
               ),
         onTap: () => showHoldingDetailSheet(context, holding: holding),
       ),
+    );
+  }
+}
+
+/// Day-change percentage beneath the holding's value, per
+/// `stitch-design-brief.md` §8's "day-change as a small percentage beneath
+/// (green if up, red if down)" — the one place red/green on an ordinary
+/// figure is correct, since it's price direction, not a budget state.
+/// Derived from the same '1mo' [tickerHistoryProvider] key [_Sparkline]
+/// already watches (Riverpod shares the cached result — no extra request),
+/// comparing the last two closes rather than fetching a dedicated '1d'/'5d'
+/// period, since the backend's `VALID_PERIODS` doesn't offer one.
+class _DayChange extends ConsumerWidget {
+  const _DayChange({required this.ticker});
+  final String ticker;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final semantic = Theme.of(context).extension<AppSemanticColors>();
+    final historyAsync = ref.watch(tickerHistoryProvider((ticker: ticker, period: '1mo')));
+
+    return historyAsync.when(
+      loading: () => const SizedBox(height: 14),
+      error: (_, _) => const SizedBox(height: 14),
+      data: (history) {
+        if (history.data.length < 2) return const SizedBox(height: 14);
+        final prev = history.data[history.data.length - 2].close.toDouble();
+        final last = history.data.last.close.toDouble();
+        if (prev == 0) return const SizedBox(height: 14);
+        final pct = (last - prev) / prev * 100;
+        final up = pct >= 0;
+        return Text(
+          '${up ? '+' : ''}${pct.toStringAsFixed(2)}%',
+          style: TextStyle(fontSize: 12, color: up ? semantic?.success : semantic?.danger),
+        );
+      },
     );
   }
 }

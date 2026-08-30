@@ -15,12 +15,12 @@ import '../providers/ticker_provider.dart';
 import 'add_edit_holding_sheet.dart';
 import 'sell_holding_sheet.dart';
 
-/// Tapping a holding row opens this — per DESIGN.md §9: "price history as a
-/// single clean line chart..., then dividend history as a row-card list
-/// beneath it, then a Sell pill action." Edit/Delete are added alongside
-/// Sell since the mobile screen has no separate per-row action buttons the
-/// way the (unmocked, web-only) dense table in `ui-ux-mockup-brief.md` §5.3
-/// does.
+/// Tapping a holding row opens this — per `stitch-design-brief.md` §8's
+/// "Portfolio detail": "price history as a single clean line chart...,
+/// dividend history as a row-card list beneath it, then a 'Sell' pill
+/// action." Edit/Delete are added alongside Sell (as smaller, de-emphasized
+/// icon-label buttons beneath the Sell pill) since the mobile screen has no
+/// separate per-row action buttons the way a dense web table would.
 Future<void> showHoldingDetailSheet(BuildContext context, {required Holding holding}) {
   return showModalBottomSheet(
     context: context,
@@ -91,43 +91,57 @@ class _HoldingDetailSheet extends ConsumerWidget {
           _DividendSection(holding: holding),
           const SizedBox(height: 24),
           if (!holding.isClosed)
-            OutlinedButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-                showSellHoldingSheet(context, holding: holding);
-              },
-              child: const Text('Sell'),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  shape: const StadiumBorder(),
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                ),
+                onPressed: () {
+                  Navigator.of(context).pop();
+                  showSellHoldingSheet(context, holding: holding);
+                },
+                child: const Text('Sell'),
+              ),
             ),
           const SizedBox(height: 12),
-          OutlinedButton(
-            onPressed: () {
-              Navigator.of(context).pop();
-              showAddEditHoldingSheet(context, portfolioId: holding.portfolioId, existing: holding);
-            },
-            child: const Text('Edit'),
-          ),
-          const SizedBox(height: 12),
-          TextButton(
-            onPressed: () async {
-              final confirmed = await confirmDestroy(
-                context,
-                title: 'Delete holding?',
-                message: 'This removes "${holding.ticker}" and its trade/dividend history. This cannot be undone.',
-              );
-              if (!confirmed || !context.mounted) return;
-              try {
-                await ref.read(portfoliosApiProvider).deleteHolding(holding.id);
-                ref.invalidate(portfolioHoldingsProvider(holding.portfolioId));
-                ref.invalidate(portfolioValueProvider(holding.portfolioId));
-                ref.invalidate(investmentOverviewProvider);
-                if (context.mounted) Navigator.of(context).pop();
-              } on ApiError catch (e) {
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
-                }
-              }
-            },
-            child: Text('Delete holding', style: TextStyle(color: Theme.of(context).colorScheme.error)),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              TextButton.icon(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                  showAddEditHoldingSheet(context, portfolioId: holding.portfolioId, existing: holding);
+                },
+                icon: const Icon(Icons.edit_outlined, size: 18),
+                label: const Text('Edit'),
+              ),
+              const SizedBox(width: 8),
+              TextButton.icon(
+                onPressed: () async {
+                  final confirmed = await confirmDestroy(
+                    context,
+                    title: 'Delete holding?',
+                    message: 'This removes "${holding.ticker}" and its trade/dividend history. This cannot be undone.',
+                  );
+                  if (!confirmed || !context.mounted) return;
+                  try {
+                    await ref.read(portfoliosApiProvider).deleteHolding(holding.id);
+                    ref.invalidate(portfolioHoldingsProvider(holding.portfolioId));
+                    ref.invalidate(portfolioValueProvider(holding.portfolioId));
+                    ref.invalidate(investmentOverviewProvider);
+                    if (context.mounted) Navigator.of(context).pop();
+                  } on ApiError catch (e) {
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+                    }
+                  }
+                },
+                icon: Icon(Icons.delete_outline, size: 18, color: Theme.of(context).colorScheme.error),
+                label: Text('Delete', style: TextStyle(color: Theme.of(context).colorScheme.error)),
+              ),
+            ],
           ),
         ],
       ),

@@ -1,4 +1,3 @@
-import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -10,7 +9,11 @@ import '../../../shared/widgets/hero_metric_card.dart';
 import '../providers/expenses_provider.dart';
 
 /// Read-model over transactions per the parity matrix — category/total
-/// breakdown, with a date-range filter, no CRUD of its own.
+/// breakdown, with a date-range filter, no CRUD of its own. Uses a
+/// horizontal stacked bar (not a donut) per `stitch-design-brief.md` §8's
+/// "Expenses summary" — resolving its open donut-vs-bar question in favour
+/// of the bar, consistent with Portfolio detail's own allocation treatment
+/// ("not a donut, for mobile-width legibility").
 class ExpensesSummaryScreen extends ConsumerWidget {
   const ExpensesSummaryScreen({super.key});
 
@@ -50,16 +53,7 @@ class ExpensesSummaryScreen extends ConsumerWidget {
               children: [
                 HeroMetricCard(label: 'Total', value: formatZAR(summary.total)),
                 const SizedBox(height: 24),
-                SizedBox(
-                  height: 300,
-                  child: PieChart(
-                    PieChartData(
-                      sections: _buildPieChartSections(summary.byCategory),
-                      centerSpaceRadius: 50,
-                      sectionsSpace: 2,
-                    ),
-                  ),
-                ),
+                _ExpenseAllocationBar(categories: summary.byCategory, colors: _chartColors(summary.byCategory.length)),
                 const SizedBox(height: 24),
                 const SizedBox(height: 12),
                 Text('By category', style: Theme.of(context).textTheme.labelMedium),
@@ -97,23 +91,41 @@ class ExpensesSummaryScreen extends ConsumerWidget {
         ..setDateTo(picked.end);
     }
   }
+}
 
-  List<PieChartSectionData> _buildPieChartSections(List<dynamic> categories) {
-    if (categories.isEmpty) return [];
+/// Horizontal stacked-bar allocation view for expense categories — the
+/// same visual language as Portfolio detail's `AllocationBar`, but built
+/// inline here since categories are freeform user text (no fixed enum like
+/// [AssetClass] for `AllocationBar` to key off), sized by each category's
+/// share of the period total. The "By category" [GroupCard] list beneath
+/// already carries the per-category legend (colour dot, name, amount), so
+/// this bar has no legend of its own.
+class _ExpenseAllocationBar extends StatelessWidget {
+  const _ExpenseAllocationBar({required this.categories, required this.colors});
+  final List<dynamic> categories;
+  final List<Color> colors;
 
-    final colors = _chartColors(categories.length);
+  @override
+  Widget build(BuildContext context) {
+    if (categories.isEmpty) return const SizedBox.shrink();
+    final total = categories.fold(0.0, (sum, bucket) => sum + bucket.total.toDouble());
+    if (total == 0) return const SizedBox.shrink();
 
-    return List.generate(categories.length, (index) {
-      final bucket = categories[index];
-      final value = bucket.total.toDouble();
-
-      return PieChartSectionData(
-        value: value,
-        color: colors[index],
-        radius: 80,
-        showTitle: false,
-      );
-    });
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(6),
+      child: SizedBox(
+        height: 12,
+        child: Row(
+          children: [
+            for (var i = 0; i < categories.length; i++)
+              Expanded(
+                flex: (categories[i].total.toDouble() / total * 1000).round().clamp(1, 100000),
+                child: Container(color: colors[i]),
+              ),
+          ],
+        ),
+      ),
+    );
   }
 }
 
