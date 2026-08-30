@@ -10,6 +10,7 @@ import '../../../shared/widgets/group_card.dart';
 import '../../../shared/widgets/hero_metric_card.dart';
 import '../models/portfolio.dart';
 import '../providers/portfolios_provider.dart';
+import 'all_holdings_screen.dart';
 import 'instrument_comparison_screen.dart';
 import 'portfolio_detail_screen.dart';
 import 'portfolio_sheet.dart';
@@ -167,7 +168,18 @@ class _OverviewSection extends ConsumerWidget {
             ],
             if (overview.topHoldings.isNotEmpty) ...[
               const SizedBox(height: 24),
-              Text('Top holdings', style: Theme.of(context).textTheme.titleMedium),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text('Top holdings', style: Theme.of(context).textTheme.titleMedium),
+                  TextButton(
+                    onPressed: () => Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const AllHoldingsScreen()),
+                    ),
+                    child: const Text('See all'),
+                  ),
+                ],
+              ),
               GroupCard(
                 children: [
                   for (final holding in overview.topHoldings.take(3))

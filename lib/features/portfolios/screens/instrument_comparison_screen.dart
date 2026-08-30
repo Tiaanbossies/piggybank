@@ -49,12 +49,27 @@ class _InstrumentComparisonScreenState extends ConsumerState<InstrumentCompariso
   /// the field's autofill is a direct add rather than a banner-mediated one.
   void _onTickerSelected(TickerSearchResult result) {
     final comparison = ref.read(comparisonControllerProvider);
-    if (comparison.entries.length >= maxComparisonEntries) return;
+    if (comparison.entries.length >= maxComparisonEntries) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('You can compare up to 5 instruments at once.')),
+      );
+      return;
+    }
     _submitTicker();
   }
 
   @override
   Widget build(BuildContext context) {
+    ref.listen<ComparisonState>(comparisonControllerProvider, (previous, next) {
+      final previousErrors = {for (final e in previous?.entries ?? const []) e.id: e.error};
+      for (final entry in next.entries) {
+        if (entry.error != null && previousErrors[entry.id] != entry.error) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('${entry.ticker}: ${entry.error}')),
+          );
+        }
+      }
+    });
     final comparison = ref.watch(comparisonControllerProvider);
     final controller = ref.read(comparisonControllerProvider.notifier);
     final semantic = Theme.of(context).extension<AppSemanticColors>();
@@ -83,7 +98,11 @@ class _InstrumentComparisonScreenState extends ConsumerState<InstrumentCompariso
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Expanded(
-                      child: TickerAutocompleteField(controller: _tickerController, onSelected: _onTickerSelected),
+                      child: TickerAutocompleteField(
+                        controller: _tickerController,
+                        onSelected: _onTickerSelected,
+                        onSubmitted: _submitTicker,
+                      ),
                     ),
                     const SizedBox(width: 8),
                     Padding(
@@ -104,12 +123,16 @@ class _InstrumentComparisonScreenState extends ConsumerState<InstrumentCompariso
                     runSpacing: 8,
                     children: [
                       for (final entry in comparison.entries)
-                        InputChip(
-                          avatar: CircleAvatar(backgroundColor: entry.color, radius: 6),
-                          label: Text(
-                            entry.loading ? '${entry.ticker} …' : (entry.error != null ? '${entry.ticker} ⚠' : entry.ticker),
+                        Tooltip(
+                          message: entry.error ?? '',
+                          triggerMode: entry.error == null ? TooltipTriggerMode.manual : null,
+                          child: InputChip(
+                            avatar: CircleAvatar(backgroundColor: entry.color, radius: 6),
+                            label: Text(
+                              entry.loading ? '${entry.ticker} …' : (entry.error != null ? '${entry.ticker} ⚠' : entry.ticker),
+                            ),
+                            onDeleted: () => controller.removeTicker(entry.id),
                           ),
-                          onDeleted: () => controller.removeTicker(entry.id),
                         ),
                     ],
                   ),

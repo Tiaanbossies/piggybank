@@ -24,6 +24,23 @@ final portfolioHoldingsProvider = FutureProvider.autoDispose.family<List<Holding
   return ref.watch(portfoliosApiProvider).listHoldings(portfolioId);
 });
 
+/// Every holding across every portfolio, paired with its owning portfolio —
+/// the All Holdings screen's data source (Invest's "Top holdings" preview
+/// "See all" destination). No dedicated backend endpoint for this; fans out
+/// the existing per-portfolio [PortfoliosApi.listHoldings] the same way
+/// [portfolioHoldingsProvider] already does, one call per portfolio.
+final allHoldingsProvider = FutureProvider.autoDispose<List<(Portfolio, Holding)>>((ref) async {
+  final portfolios = await ref.watch(portfoliosProvider.future);
+  final api = ref.watch(portfoliosApiProvider);
+  final holdingLists = await Future.wait(portfolios.map((p) => api.listHoldings(p.id)));
+  final combined = [
+    for (var i = 0; i < portfolios.length; i++)
+      for (final holding in holdingLists[i]) (portfolios[i], holding),
+  ];
+  combined.sort((a, b) => b.$2.marketValue.compareTo(a.$2.marketValue));
+  return combined;
+});
+
 /// Keyed by portfolioId — Portfolio Detail's value-summary tiles.
 final portfolioValueProvider = FutureProvider.autoDispose.family<PortfolioValue, String>((ref, portfolioId) {
   return ref.watch(portfoliosApiProvider).getPortfolioValue(portfolioId);

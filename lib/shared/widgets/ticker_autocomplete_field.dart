@@ -18,11 +18,19 @@ class TickerAutocompleteField extends ConsumerStatefulWidget {
   const TickerAutocompleteField({
     required this.controller,
     required this.onSelected,
+    this.onSubmitted,
     super.key,
   });
 
   final TextEditingController controller;
   final ValueChanged<TickerSearchResult> onSelected;
+
+  /// Fired when the user presses Enter/Done on a manually typed ticker
+  /// (i.e. not chosen from the suggestions dropdown). Optional and unused
+  /// by existing callers (Add/Edit Holding) — added for Instrument
+  /// Comparison, which lost this keyboard-submit path when this field
+  /// replaced its plain `TextField` (commit `dba7b14`).
+  final VoidCallback? onSubmitted;
 
   @override
   ConsumerState<TickerAutocompleteField> createState() => _TickerAutocompleteFieldState();
@@ -71,6 +79,7 @@ class _TickerAutocompleteFieldState extends ConsumerState<TickerAutocompleteFiel
           textCapitalization: TextCapitalization.characters,
           decoration: const InputDecoration(labelText: 'Ticker', prefixIcon: Icon(Icons.search)),
           onChanged: _onChanged,
+          onSubmitted: widget.onSubmitted == null ? null : (_) => widget.onSubmitted!(),
         ),
         if (showSuggestions) _Suggestions(query: query, onSelected: _select),
       ],

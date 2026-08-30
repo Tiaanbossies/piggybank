@@ -54,16 +54,22 @@ class _GoalRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final targetDate = goal.targetDate;
+    final footnote = '${formatZAR(goal.currentAmount)} saved / ${formatZAR(goal.targetAmount)} goal'
+        '${targetDate == null ? '' : ' / by ${_formatDate(targetDate)}'}';
     return InkWell(
       onTap: () => showEditGoalSheet(context, goal),
       child: ProgressCard(
         title: goal.name,
         pct: goal.progressPct / 100,
-        footnote: '${formatZAR(goal.currentAmount)} saved / ${formatZAR(goal.targetAmount)} goal',
+        footnote: footnote,
       ),
     );
   }
 }
+
+String _formatDate(DateTime date) =>
+    '${date.year.toString().padLeft(4, '0')}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
 
 Future<void> showAddGoalSheet(BuildContext context) {
   return showModalBottomSheet(context: context, isScrollControlled: true, builder: (_) => const _GoalSheet());
@@ -81,6 +87,7 @@ class _GoalSheetState extends ConsumerState<_GoalSheet> {
   late final TextEditingController _nameController;
   late final TextEditingController _targetController;
   late final TextEditingController _currentController;
+  DateTime? _targetDate;
   bool _submitting = false;
   bool _deleting = false;
   String? _error;
@@ -92,6 +99,18 @@ class _GoalSheetState extends ConsumerState<_GoalSheet> {
     _nameController = TextEditingController(text: existing?.name ?? '');
     _targetController = TextEditingController(text: existing != null ? existing.targetAmount.toString() : '');
     _currentController = TextEditingController(text: existing != null ? existing.currentAmount.toString() : '0');
+    _targetDate = existing?.targetDate;
+  }
+
+  Future<void> _pickDate() async {
+    final now = DateTime.now();
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _targetDate ?? now,
+      firstDate: now,
+      lastDate: DateTime(now.year + 50),
+    );
+    if (picked != null) setState(() => _targetDate = picked);
   }
 
   @override
@@ -116,6 +135,7 @@ class _GoalSheetState extends ConsumerState<_GoalSheet> {
               name: name,
               targetAmount: targetAmount,
               currentAmount: currentAmount,
+              targetDate: _targetDate,
             );
       } else {
         await ref.read(goalsApiProvider).update(
@@ -123,6 +143,7 @@ class _GoalSheetState extends ConsumerState<_GoalSheet> {
               name: name,
               targetAmount: targetAmount,
               currentAmount: currentAmount,
+              targetDate: _targetDate,
             );
       }
       ref.invalidate(goalsProvider);
@@ -176,6 +197,13 @@ class _GoalSheetState extends ConsumerState<_GoalSheet> {
             controller: _currentController,
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
             decoration: const InputDecoration(labelText: 'Starting amount (ZAR)'),
+          ),
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            title: const Text('Target date (optional)'),
+            subtitle: Text(_targetDate == null ? 'None set' : _formatDate(_targetDate!)),
+            trailing: const Icon(Icons.calendar_today),
+            onTap: _pickDate,
           ),
           if (_error != null) ...[
             const SizedBox(height: 12),

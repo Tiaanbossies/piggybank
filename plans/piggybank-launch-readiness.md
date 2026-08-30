@@ -300,6 +300,36 @@ and the resumed-session notes from earlier today:
    attempts on backend reachability; check `tailscale status` / reach the real
    `piggybank-backend` host before attempting again).
 
+**Status (2026-08-30): tasks 1–3 done, task 4 still deferred.**
+
+- **Task 1** landed as described — `_GoalSheet` (`lib/features/goals/screens/goals_screen.dart`)
+  now has a "Target date (optional)" `ListTile`/`showDatePicker` field, wired through to
+  `GoalsApi.create`/`.update`'s existing `targetDate` param, and `_GoalRow`'s footnote now shows
+  it (`'... / by 2027-03-01'`) — previously nothing in the UI displayed `Goal.targetDate` at all.
+- **Task 2's literal premise was wrong**: no "See all" text exists anywhere in the Invest
+  feature today (the only "See all" in the app is Dashboard's Recent Transactions preview,
+  already working). User decided to build the real thing rather than mark it resolved: a new
+  `allHoldingsProvider` (fans out the existing per-portfolio `listHoldings()`, no new backend
+  endpoint) and `AllHoldingsScreen` (`lib/features/portfolios/screens/all_holdings_screen.dart`),
+  linked from Invest's "Top holdings" section header, matching Dashboard's existing "See all"
+  pattern exactly.
+- **Task 3's literal premise was also wrong**: the note's implied gap (missing ticker
+  autocomplete) was already fixed the day after the note was written (commit `dba7b14`,
+  2026-08-29). Re-investigation found a real, narrower gap instead — failed ticker lookups
+  showed only a bare "⚠" with no visible reason, plus two small regressions from that same
+  commit (lost Enter-to-submit; a selection silently dropped at the 5-ticker cap with no
+  feedback). Fixed: `TickerAutocompleteField` gained an optional `onSubmitted` callback (used
+  only by Comparison; Add/Edit Holding's usage is unaffected), the cap now shows a `SnackBar`,
+  and failed lookups now surface via both a `Tooltip` on the chip and an immediate `SnackBar`
+  (`ref.listen` on `comparisonControllerProvider`).
+- **Task 4 stays blocked** — `ssh -o ConnectTimeout=6 mcp@100.121.165.7` timed out again during
+  this step (same as every attempt since Step 1), so this is explicitly re-scoped as deferred
+  per this step's own exit criteria, not silently dropped.
+
+New/extended tests: `test/features/goals/screens/goal_sheet_test.dart`,
+`test/features/portfolios/screens/all_holdings_screen_test.dart`,
+`test/features/portfolios/screens/instrument_comparison_screen_test.dart`.
+
 **Verification:**
 ```bash
 flutter analyze
