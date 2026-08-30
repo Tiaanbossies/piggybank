@@ -59,22 +59,19 @@ void main() {
       expect(adapter.requestLog.single.method, 'GET');
     });
 
-    test('upgrade POSTs /subscription/upgrade and parses the pro-tier response', () async {
+    test('startCheckout POSTs /subscription/checkout and resolves the absolute checkout URL', () async {
       final adapter = _FakeAdapter([
         () => _json(200, {
-              'tier': 'pro',
-              'status': 'active',
-              'current_period_end': '2026-09-22T00:00:00Z',
-              'message': 'Subscription upgraded to PRO.',
+              'm_payment_id': 'abc-123',
+              'checkout_page_url': '/subscription/checkout/abc-123',
             }),
       ]);
       final api = SubscriptionApi(_clientWith(adapter));
 
-      final result = await api.upgrade();
+      final result = await api.startCheckout();
 
-      expect(result.tier, SubscriptionTier.pro);
-      expect(result.message, 'Subscription upgraded to PRO.');
-      expect(adapter.requestLog.single.path, '/subscription/upgrade');
+      expect(result, Uri.parse('http://100.121.165.7:8000/api/subscription/checkout/abc-123'));
+      expect(adapter.requestLog.single.path, '/subscription/checkout');
       expect(adapter.requestLog.single.method, 'POST');
     });
 

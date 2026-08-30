@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/api/api_error.dart';
 import '../../../core/theme/app_theme.dart';
@@ -11,10 +12,12 @@ final _subscriptionProvider = FutureProvider.autoDispose<Subscription>((ref) {
   return ref.watch(subscriptionApiProvider).fetch();
 });
 
-/// Per `stitch-design-brief.md` §8: "plan/tier display, upgrade CTA". No real
-/// payment flow exists yet — `upgrade`/`cancel` are backend-mocked (30-day
-/// grant / instant revert), matching `paywall_dialog.dart`'s own
-/// "currently mocked" note.
+/// Per `stitch-design-brief.md` §8: "plan/tier display, upgrade CTA". As of
+/// Step 6 of `piggybank-launch-readiness.md`, upgrade opens a real PayFast
+/// checkout in the system browser rather than instantly flipping the tier —
+/// Pro is granted asynchronously once PayFast's ITN webhook confirms the
+/// payment, so this screen shows a "waiting" state and lets the user
+/// manually refresh rather than assuming success on browser return.
 class SubscriptionScreen extends ConsumerStatefulWidget {
   const SubscriptionScreen({super.key});
 
@@ -25,8 +28,32 @@ class SubscriptionScreen extends ConsumerStatefulWidget {
 class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
   bool _submitting = false;
   String? _actionError;
+  bool _awaitingConfirmation = false;
 
-  Future<void> _upgrade() => _runAction(() => ref.read(subscriptionApiProvider).upgrade());
+  Future<void> _upgrade() async {
+    setState(() {
+      _submitting = true;
+      _actionError = null;
+    });
+    try {
+      final url = await ref.read(subscriptionApiProvider).startCheckout();
+      final opened = await launchUrl(url, mode: LaunchMode.externalApplication);
+      if (opened && mounted) {
+        setState(() => _awaitingConfirmation = true);
+      } else if (!opened && mounted) {
+        setState(() => _actionError = 'Could not open the checkout page.');
+      }
+    } on ApiError catch (e) {
+      if (mounted) setState(() => _actionError = e.message);
+    } finally {
+      if (mounted) setState(() => _submitting = false);
+    }
+  }
+
+  Future<void> _refreshStatus() async {
+    setState(() => _awaitingConfirmation = false);
+    ref.invalidate(_subscriptionProvider);
+  }
 
   Future<void> _cancel() => _runAction(() => ref.read(subscriptionApiProvider).cancel());
 
@@ -102,7 +129,22 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
                 Text(_actionError!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
                 const SizedBox(height: 12),
               ],
-              if (sub.tier == SubscriptionTier.free)
+              if (_awaitingConfirmation) ...[
+                Text(
+                  'Waiting for PayFast to confirm your payment. Complete checkout in the '
+                  'browser, then refresh here.',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: _refreshStatus,
+                    icon: const Icon(Icons.refresh, size: 18),
+                    label: const Text('Refresh status'),
+                  ),
+                ),
+              ] else if (sub.tier == SubscriptionTier.free)
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton.icon(

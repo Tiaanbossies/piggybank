@@ -47,6 +47,7 @@ dependencies:
   file_picker: ^10.3.9
   image_picker: ^1.1.2
   shared_preferences: ^2.5.5
+  url_launcher: ^6.3.2
 
 dev_dependencies:
   flutter_test:
@@ -60,6 +61,7 @@ dev_dependencies:
   # rules and activating additional ones.
   flutter_lints: ^6.0.0
   flutter_launcher_icons: ^0.14.4
+  url_launcher_platform_interface: ^2.3.2
 
 # flutter_launcher_icons config — source art cropped from the Stitch-generated
 # "Piggybank app logo.jpeg" mascot comp (assets/icon/app_icon.png, see Step 9b
