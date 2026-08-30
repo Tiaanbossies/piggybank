@@ -53,16 +53,23 @@ provider anywhere in either repo. `subscriptions_router.upgrade()` just flips a 
 greenfield, and picking a provider is a business decision (fees, SA banking rails, compliance)
 as much as a technical one.
 
-**AI chatbot/insights — functional but has one known correctness bug and no persona.**
-`chat_with_ollama()`'s system prompt is generic ("You are a personal finance copilot...") with
-no name, no brand voice, and — per the 2026-08-28 QA pass — no guardrail against off-topic
-questions (it answered "capital of France" directly). More importantly, the **High-severity QA
-finding is still open**: Chatbot and Insights both build their context snapshot from
-Assets/Liabilities/Transactions only, never Accounts or Portfolio balances — so the Dashboard
-shows one net-worth figure and the AI features show a different, wrong one for the same account
-at the same moment, and the Chatbot's own answer text incorrectly claims investments are
-included when asked. Any "refine the persona" work should not ship on top of this — the numbers
-have to be right before the voice matters.
+**AI chatbot/insights — Step 2 (net-worth parity) resolved 2026-08-30; persona work (Step 3)
+still open.** `chat_with_ollama()`'s system prompt is generic ("You are a personal finance
+copilot...") with no name, no brand voice, and — per the 2026-08-28 QA pass — no guardrail
+against off-topic questions (it answered "capital of France" directly); that's still Step 3's
+job. The High-severity QA finding this paragraph originally described (Chatbot/Insights
+snapshots omitting Account/Portfolio balances, disagreeing with the Dashboard) turned out to
+already be fixed in the *live* code paths by the time Step 2 actually investigated it — commit
+`9c679a8` (2026-08-30 15:05, same day, before this plan's own grounding pass) had already added
+`shared/net_worth.py` and wired both `chatbot/service.py` and `services/ai_context.py` (the real
+insights path, via `insights/router.py`) to it. What Step 2 found instead: `insights/service.py`
+had its own separate, still-broken `build_snapshot()` with the old formula — but it was dead
+code, never imported by any router (confirmed via grep), which is exactly what made this
+paragraph's claim look true on a read-through despite the live path being correct. Step 2
+removed that dead code and added `tests/test_net_worth_parity.py`, the first test asserting
+Dashboard/Chatbot/Insights actually agree (they do). Manual live verification against the demo
+account (task 6) is still blocked on the backend host being reachable — same blocker as
+everything else needing a live server this week.
 
 ---
 
