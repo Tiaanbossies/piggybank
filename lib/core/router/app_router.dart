@@ -2,14 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../features/auth/screens/forgot_password_screen.dart';
 import '../../features/auth/screens/lock_screen.dart';
 import '../../features/auth/screens/login_screen.dart';
 import '../../features/auth/screens/register_screen.dart';
+import '../../features/auth/screens/reset_password_screen.dart';
 import '../../features/budgets/screens/budgets_home_screen.dart';
 import '../../features/consent/screens/consent_screen.dart';
 import '../../features/dashboard/screens/dashboard_screen.dart';
 import '../../features/insights/screens/insights_screen.dart';
 import '../../features/portfolios/screens/invest_screen.dart';
+import '../../features/settings/screens/data_export_screen.dart';
 import '../auth/auth_controller.dart';
 import '../auth/auth_state.dart';
 import 'app_shell.dart';
@@ -28,8 +31,14 @@ final appRouterProvider = Provider<GoRouter>((ref) {
     routes: [
       GoRoute(path: '/login', builder: (context, state) => const LoginScreen()),
       GoRoute(path: '/register', builder: (context, state) => const RegisterScreen()),
+      GoRoute(path: '/forgot-password', builder: (context, state) => const ForgotPasswordScreen()),
+      GoRoute(
+        path: '/reset-password',
+        builder: (context, state) => ResetPasswordScreen(email: state.extra as String? ?? ''),
+      ),
       GoRoute(path: '/lock', builder: (context, state) => const LockScreen()),
       GoRoute(path: '/consent', builder: (context, state) => const ConsentScreen()),
+      GoRoute(path: '/settings/data-export', builder: (context, state) => const DataExportScreen()),
       StatefulShellRoute.indexedStack(
         builder: (context, state, navigationShell) => AppShell(navigationShell: navigationShell),
         branches: [
@@ -61,7 +70,10 @@ class _RouterRefreshListenable extends ChangeNotifier {
 /// doesn't re-navigate when the redirect target equals the current
 /// location (the same property `/lock` already relies on).
 String? computeRedirect(AuthState auth, String matchedLocation) {
-  final loggingIn = matchedLocation == '/login' || matchedLocation == '/register';
+  final loggingIn = matchedLocation == '/login' ||
+      matchedLocation == '/register' ||
+      matchedLocation == '/forgot-password' ||
+      matchedLocation == '/reset-password';
 
   if (auth.status == AuthStatus.unknown) return null;
   if (!auth.isAuthenticated) return loggingIn ? null : '/login';

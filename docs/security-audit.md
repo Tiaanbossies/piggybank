@@ -19,7 +19,15 @@ machine (`ssh ... Connection timed out`, port 22) — same carried-over blocker 
 
 ## Critical
 
-1. **The app talks to the backend over plain HTTP by default, not HTTPS — contradicts the
+1. **DEFERRED 2026-08-30, user-acknowledged — accepting Tailscale-as-transport-security rather
+   than routing through Caddy.** Routing through Caddy for a real Let's Encrypt cert requires a
+   public DNS hostname pointed at the server's real public IP; the user confirmed no domain is
+   available right now (`api_config.dart`'s Tailscale-IP default and `docker-compose.yml`'s
+   `DOMAIN` bare-IP default are therefore staying as-is). The mitigating factor below still
+   applies — traffic never leaves the WireGuard-encrypted tailnet — and this is being tracked as
+   a conscious deferral, not a silent gap: revisit once a domain exists, per the recommendation
+   below.
+   **The app talks to the backend over plain HTTP by default, not HTTPS — contradicts the
    project's own compliance doc.** `Piggybank/lib/core/api/api_config.dart:9` hardcodes
    `defaultValue: 'http://100.121.165.7:8000/api'`. `piggybank-backend/docker-compose.yml:30-31`
    publishes the `backend` service's port 8000 directly on the host
@@ -52,7 +60,21 @@ machine (`ssh ... Connection timed out`, port 22) — same carried-over blocker 
 
 ## High
 
-1. **No password-reset / account-recovery flow exists at all.** Grepped
+1. **RESOLVED 2026-08-30 — self-service password-reset flow added.** Backend:
+   `POST /auth/password-reset/request` (always 204, no email enumeration; generates an 8-digit
+   code via `security.generate_reset_code()`, stores its SHA-256 hash in a new
+   `password_reset_tokens` table with a 30-minute expiry, delivers it via a new stdlib-`smtplib`
+   `services/email_client.py`) and `POST /auth/password-reset/confirm` (validates the code,
+   updates `password_hash`, revokes every existing refresh token for the user so a reset also
+   forces re-login everywhere). Flutter: new `ForgotPasswordScreen` and `ResetPasswordScreen`,
+   linked from a "Forgot password?" link on the login screen. **Caveat:** SMTP is not yet
+   configured anywhere (`SMTP_HOST` defaults empty, so sends are only logged) — the flow is fully
+   built and tested, but won't actually deliver an email until real SMTP credentials are set in
+   `.env.docker`. **Verified:** 9 new backend tests (happy path, wrong/reused/expired code,
+   rate limiting, revokes-all-sessions) plus 6 new Flutter tests (API request-shape + error
+   handling); full backend suite 1034/1035 passing (1 pre-existing unrelated failure), full
+   Flutter suite 411/412 passing (1 pre-existing unrelated failure).
+   **Originally:** No password-reset / account-recovery flow existed at all. Grepped
    `piggybank-backend/backend/app/` for `password.?reset|forgot.?password|reset_password` (case
    insensitive) — zero matches. `auth/router.py` has `register`, `login`, `refresh`, `logout`,
    `me`, PIN set/verify/remove — no "forgot password" endpoint, no email-based reset token flow.
@@ -62,9 +84,22 @@ machine (`ssh ... Connection timed out`, port 22) — same carried-over blocker 
    blocker for a consumer app) — flagged High because it blocks real users, not because it's an
    active vulnerability.
 
-2. **No user-initiated data export or self-service account deletion exists — POPIA
-   access/erasure rights have no implementation path, contradicting the compliance doc's own
-   checklist.** `docs/compliance-foundation.md:59-63` ("Access And Correction Rights": users
+2. **RESOLVED 2026-08-30 — self-service data export and account deletion added.**
+   `GET /auth/me/export` returns everything the user owns (profile, accounts, transactions,
+   assets, liabilities, budgets, goals, portfolios+holdings, imports, category rules, TFSA/RA
+   contributions, net-worth snapshots, consents, subscription) as JSON, via a new
+   `auth/data_export.py` that reflects each model's columns and redacts hash/secret fields by
+   name. `DELETE /auth/me` (requires current-password re-auth) hard-deletes the user, relying on
+   the cascades already documented in `docs/delete-policy.md`. Flutter: new "Export my data" /
+   "Delete my account" rows on the Security screen — export shows pretty-printed JSON with a
+   copy-to-clipboard action (no new `share_plus`/`path_provider` dependency added for a
+   rarely-used flow); delete requires a confirmation dialog then the current password. **Verified:**
+   4 new backend tests (export includes owned data + excludes secrets, requires auth, delete
+   removes the row and rejects a wrong password) plus the same full-suite pass counts as finding
+   #1 above.
+   **Originally:** No user-initiated data export or self-service account deletion existed — POPIA
+   access/erasure rights had no implementation path, contradicting the compliance doc's own
+   checklist. `docs/compliance-foundation.md:59-63` ("Access And Correction Rights": users
    must be able to access their own data; "deletion or restriction workflows where legally
    appropriate") and its build-time checklist item 8 ("How will we delete or retain it?") are
    unimplemented. `auth/router.py` has no `DELETE /me` or `GET /me/export` endpoint. Per
@@ -75,7 +110,18 @@ machine (`ssh ... Connection timed out`, port 22) — same carried-over blocker 
    Consent-versioning itself (`require_current_consents`) is correctly implemented and out of
    scope for this finding.
 
-3. **Refresh-token rotation exists, but there is no reuse-detection response.**
+3. **RESOLVED 2026-08-30 — refresh-token reuse detection added.** A new `family_id` column on
+   `RefreshToken` threads a login's token lineage through every rotation (same family_id carried
+   forward on each rotate, fresh one per login). `/auth/refresh` now branches on `row.revoked`
+   specifically: presenting an already-revoked token revokes every row sharing its `family_id`
+   (including the token the legitimate rotation just produced) before returning 401 — forcing a
+   real re-login rather than trusting either party. Plain expiry (never revoked) does not trigger
+   this — only actual reuse does. Also applied proactively on password reset (finding #1): a
+   reset revokes every existing refresh token for the user. **Verified:** 3 new backend tests
+   (reuse kills the whole family including the legitimately-rotated token, normal rotation keeps
+   the same family_id, plain expiry does not trigger a family-wide kill) plus a new Alembic
+   migration (`d6e7f8a9b0c1`) backfilling `family_id = id` for every pre-existing row.
+   **Originally:** Refresh-token rotation existed, but there was no reuse-detection response.
    `auth/router.py:171-179`'s `/auth/refresh` correctly rotates on every use (marks the old
    `RefreshToken` row `revoked = True`, issues a new pair) — this is good practice, better than
    many apps do. However, if a refresh token is ever stolen and used by an attacker, the
@@ -214,16 +260,25 @@ machine (`ssh ... Connection timed out`, port 22) — same carried-over blocker 
 
 | Severity | Count | Resolved |
 |---|---|---|
-| Critical | 1 | 0 |
-| High | 4 | 1 (dependency CVEs) |
+| Critical | 1 | 0 (deferred 2026-08-30, user-acknowledged) |
+| High | 4 | 4 |
 | Medium | 2 | 1 (`/ai/web-search` auth, reclassified from Medium) |
 | Low | 6 | 0 |
 
-**Step 1's remediation scope should prioritize, in order:** (1) the Critical HTTP-vs-HTTPS
-transport gap — this needs an explicit decision (fix the routing so Caddy is actually in the
-path, or consciously document "Tailscale IS the transport security" as the accepted model), (2)
-password-reset flow (High #1) since it's a real launch blocker independent of any vulnerability,
-(3) resolve the `/ai/web-search` auth question (Medium #2) since it's cheap to check and could
-reclassify to High, (4) the refresh-token reuse-detection gap (High #3) and release-build
-obfuscation (Medium #1) as concrete, scoped fixes, (5) POPIA export/erasure self-service (High
-#2) as a larger feature that may deserve its own scoping conversation similar to Admin/Payments.
+**Step 1 status (updated 2026-08-30): exit criteria met.** Every Critical/High finding is either
+fixed or has a written, user-acknowledged deferral reason, matching
+`plans/piggybank-launch-readiness.md`'s Step 1 exit criteria exactly:
+- Critical #1 (HTTP-vs-HTTPS transport) — **deferred**, user confirmed no domain is available for
+  a real Let's Encrypt cert; Tailscale-as-transport accepted as the model for now.
+- High #1 (password-reset), #2 (POPIA export/deletion), #3 (refresh-token reuse detection), #4
+  (dependency CVEs) — **all resolved**, see each finding above for what shipped and how it was
+  verified.
+- Medium #1 (Android release-build obfuscation) remains open — Medium severity, outside Step 1's
+  fixed exit criteria (Critical/High only), can be picked up separately.
+- Two real gaps surfaced *while implementing* Step 1, unrelated to any specific finding above but
+  worth flagging: `docker-compose.yml`'s `backend` service never forwarded the PayFast env vars
+  added last session (`PAYFAST_*`), so a production deploy would silently run on PayFast's
+  sandbox test credentials instead of real ones — not fixed here (out of Step 1's scope, and not
+  something this session introduced), but SMTP's own passthrough was added correctly this session
+  so as not to repeat the mistake. Real SMTP credentials also still need to be set in
+  `.env.docker` before password-reset emails actually deliver (currently only logged).

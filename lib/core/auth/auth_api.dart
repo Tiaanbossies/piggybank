@@ -47,6 +47,34 @@ class AuthApi {
     }
   }
 
+  /// Always succeeds (204) whether or not the email is registered — the
+  /// backend deliberately doesn't leak account existence. `_post` isn't used
+  /// since the endpoint returns an empty 204 body, same as [logout].
+  Future<void> requestPasswordReset(String email) async {
+    try {
+      await _dio.post('/auth/password-reset/request', data: {'email': email});
+    } on DioException catch (e) {
+      throw ApiClient.errorFrom(e);
+    }
+  }
+
+  /// Throws [ApiError] with statusCode 400 on an invalid/expired/reused code.
+  Future<void> confirmPasswordReset({
+    required String email,
+    required String code,
+    required String newPassword,
+  }) async {
+    try {
+      await _dio.post('/auth/password-reset/confirm', data: {
+        'email': email,
+        'code': code,
+        'new_password': newPassword,
+      });
+    } on DioException catch (e) {
+      throw ApiClient.errorFrom(e);
+    }
+  }
+
   Future<void> logout(String? refreshToken) async {
     try {
       // Doesn't go through [_post]: the endpoint responds 204 No Content

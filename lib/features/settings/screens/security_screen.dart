@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../core/api/api_error.dart';
 import '../../../core/auth/auth_controller.dart';
 import '../../../core/auth/biometric_preference.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/group_card.dart';
+import '../data/account_api.dart';
 import '../data/security_api.dart';
 
 /// Settings > Security (blueprint Step 5a). Enforces the never-zero-unlock-
@@ -85,6 +87,36 @@ class _SecurityScreenState extends ConsumerState<SecurityScreen> {
     );
   }
 
+  void _openDataExport() => context.push('/settings/data-export');
+
+  Future<void> _attemptDeleteAccount() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete your account?'),
+        content: const Text(
+          'This permanently deletes your account and all your data — accounts, transactions, '
+          'budgets, goals, everything. This cannot be undone.',
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Cancel')),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: Theme.of(context).colorScheme.error),
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Delete everything'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    final password = await _promptForPassword(title: 'Confirm your password', confirmLabel: 'Delete account');
+    if (password == null) return;
+    await _run(() async {
+      await ref.read(accountApiProvider).deleteAccount(password);
+      await ref.read(authControllerProvider.notifier).logout();
+    });
+  }
+
   Future<void> _run(Future<void> Function() action) async {
     setState(() {
       _busy = true;
@@ -147,6 +179,24 @@ class _SecurityScreenState extends ConsumerState<SecurityScreen> {
                   color: Theme.of(context).extension<AppSemanticColors>()?.textMuted,
                 ),
               ),
+            ),
+            const SizedBox(height: 24),
+            GroupCard(
+              children: [
+                GroupRow(
+                  leadingIcon: Icons.download_outlined,
+                  title: 'Export my data',
+                  subtitle: 'Download a copy of everything in your account',
+                  onTap: _busy ? null : _openDataExport,
+                ),
+                GroupRow(
+                  leadingIcon: Icons.delete_forever_outlined,
+                  leadingDanger: true,
+                  title: 'Delete my account',
+                  subtitle: 'Permanently erase your account and all your data',
+                  onTap: _busy ? null : _attemptDeleteAccount,
+                ),
+              ],
             ),
             if (_busy) ...[const SizedBox(height: 16), const Center(child: CircularProgressIndicator())],
           ],
