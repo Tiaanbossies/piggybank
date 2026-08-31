@@ -57,6 +57,20 @@ regularly — while staying concise, factual, plain-text only (no markdown, no
 emoji, no roleplay actions). Implemented in `chat_with_ollama()`,
 `piggybank-backend/backend/app/chatbot/service.py`.
 
+**Penny's one teachable habit: "Zoom out first"** (added 2026-08-31, per the
+Piggybank competitive-analysis report's finding that a strong AI persona needs
+a repeatable principle, not just a warm tone — YNAB's "give every dollar a
+job" was the reference point, though Penny's rule is its own, grounded in
+Piggybank's actual differentiator). Whenever relevant, Penny connects an
+answer back to the user's overall net worth or goal progress from the
+snapshot, not just the isolated figure asked about — reinforcing the "all
+your wealth in one place" positioning in behavior, not just copy. Skipped
+when the question is narrow enough that it would feel forced (e.g. "what
+category is this transaction"). Covered by the same deterministic system-
+prompt assertion test as the rest of the persona (`test_chatbot.py`'s
+`test_chat_system_prompt_has_persona_and_guardrail`, now also asserting
+`"Zoom out first"` is present).
+
 **Insights keeps its existing "FinSight" persona but in a clinical register**,
 not Penny's — Insights is a one-off, non-conversational "ask a question about
 your finances" surface (see layout section above), so it was deliberately

@@ -13,9 +13,9 @@ Piggybank
 ## Short description (80 char max)
 
 ```
-Track accounts, budgets, goals & investments — all your wealth in one place.
+Net worth, budgets & goals — plus TFSA/RA tracking against your real limits.
 ```
-(75 characters)
+(76 characters)
 
 ## Full description (4000 char max)
 
@@ -23,6 +23,15 @@ Track accounts, budgets, goals & investments — all your wealth in one place.
 Piggybank gives you one clear view of your entire financial life — built for
 South Africans who are done juggling spreadsheets and bank apps that only show
 half the picture.
+
+The only app that does both: full net worth AND real TFSA/RA tracking
+Most budgeting apps show you the big picture but skip South African
+tax-advantaged accounts entirely. Most investment apps do the opposite —
+deep TFSA support, but no view of your everyday money. Piggybank tracks your
+Tax-Free Savings Account and Retirement Annuity contributions against the
+official annual and lifetime limits, right alongside every other account you
+own — so you never have to choose between breadth and the detail that
+actually matters for South African tax rules.
 
 See where you stand
 Your net worth, monthly cashflow, and goal progress on one dashboard — no
@@ -47,18 +56,14 @@ Track what you own — property, vehicles, investments, cash — and what you
 owe, so your net worth reflects your real financial position, not just your
 bank balance.
 
-Investing, the South African way
-Track your investment portfolios, including Tax-Free Savings Accounts (TFSA)
-and Retirement Annuities (RA), with contribution tracking against the
-official annual and lifetime TFSA limits.
-
 Built-in calculators
 Work out loan repayments and see how extra payments accelerate paying off
 debt, without leaving the app.
 
 AI-powered insights (Pro)
 Get a plain-language read on your spending patterns and recurring expenses,
-and chat with an AI assistant about your own financial data.
+and chat with Penny, your AI finance companion, about your own financial
+data.
 
 Private and secure
 Lock the app behind your fingerprint, face, or a PIN. Your financial data
@@ -71,10 +76,21 @@ features.
 All your wealth in one place. Download Piggybank and see where you really
 stand.
 ```
-(~1,750 characters — well under the 4,000 limit, room to expand later)
+(~2,000 characters — well under the 4,000 limit, room to expand later)
 
 ## Notes
 
+- **Revised 2026-08-31, per the Piggybank competitive-analysis report's #1
+  recommendation** ("make the TFSA/RA claim loud, specific, and first").
+  Research against 6 live competitors (Vault22, FinWise, Money Tracker SA,
+  EasyEquities, Monarch Money, YNAB) found none combine full net-worth breadth
+  with real TFSA/RA depth — Piggybank is the only one that does, per that
+  session's research. The former standalone "Investing, the South African way"
+  paragraph became a new opening claim instead, moved ahead of every other
+  feature section; the short description was rewritten to name TFSA/RA
+  directly rather than the generic "investments." No feature claims were
+  added — this is a hierarchy and emphasis change on capabilities that
+  already ship, not new copy for unbuilt functionality.
 - Tagline ("All your wealth in one place") is reused verbatim from the app's own
   login screen (`lib/features/auth/screens/login_screen.dart`) and the feature
   graphic, for consistency across every touchpoint.
