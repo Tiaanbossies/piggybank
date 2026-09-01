@@ -6,7 +6,7 @@ import '../models/account.dart';
 import '../providers/accounts_mutation_provider.dart';
 
 class AccountContextMenu extends ConsumerWidget {
-  const AccountContextMenu({required this.account});
+  const AccountContextMenu({required this.account, super.key});
   final Account account;
 
   @override

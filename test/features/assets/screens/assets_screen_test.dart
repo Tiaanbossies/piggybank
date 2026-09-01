@@ -38,7 +38,7 @@ void main() {
   group('AssetsScreen', () {
     testWidgets('renders a row per asset returned by the API', (tester) async {
       final mockApi = _MockAssetsApi();
-      when(() => mockApi.list()).thenAnswer((_) async => [
+      when(mockApi.list).thenAnswer((_) async => [
             _asset(id: 'a1', assetType: AssetType.cash, name: 'Wallet', value: Decimal.fromInt(500)),
             _asset(id: 'a2', assetType: AssetType.property, name: 'Home', value: Decimal.fromInt(1500000)),
           ]);
@@ -58,7 +58,7 @@ void main() {
 
     testWidgets('shows a Total assets hero card summing all asset values', (tester) async {
       final mockApi = _MockAssetsApi();
-      when(() => mockApi.list()).thenAnswer((_) async => [
+      when(mockApi.list).thenAnswer((_) async => [
             _asset(id: 'a1', assetType: AssetType.cash, name: 'Wallet', value: Decimal.fromInt(500)),
             _asset(id: 'a2', assetType: AssetType.investment, name: 'Shares', value: Decimal.fromInt(1500)),
           ]);
@@ -77,7 +77,7 @@ void main() {
 
     testWidgets('shows the empty state and no hero card when the API returns no assets', (tester) async {
       final mockApi = _MockAssetsApi();
-      when(() => mockApi.list()).thenAnswer((_) async => []);
+      when(mockApi.list).thenAnswer((_) async => []);
 
       await pumpApp(
         tester,
@@ -93,7 +93,7 @@ void main() {
 
     testWidgets('shows the error message when the API call fails', (tester) async {
       final mockApi = _MockAssetsApi();
-      when(() => mockApi.list()).thenThrow(Exception('boom'));
+      when(mockApi.list).thenThrow(Exception('boom'));
 
       await pumpApp(
         tester,
@@ -108,7 +108,7 @@ void main() {
 
     testWidgets('row subtitle includes the institution name only when present', (tester) async {
       final mockApi = _MockAssetsApi();
-      when(() => mockApi.list()).thenAnswer((_) async => [
+      when(mockApi.list).thenAnswer((_) async => [
             _asset(id: 'a1', assetType: AssetType.savingsAccount, name: 'Notice deposit', value: Decimal.fromInt(50000), institutionName: 'Capitec'),
             _asset(id: 'a2', assetType: AssetType.cash, name: 'Wallet', value: Decimal.fromInt(500)),
           ]);
@@ -133,7 +133,7 @@ void main() {
     for (final type in AssetType.values) {
       testWidgets('offers "${assetTypeLabels[type]}" as a selectable option for $type', (tester) async {
         final mockApi = _MockAssetsApi();
-        when(() => mockApi.list()).thenAnswer((_) async => []);
+        when(mockApi.list).thenAnswer((_) async => []);
 
         await pumpApp(
           tester,
@@ -155,7 +155,7 @@ void main() {
 
     testWidgets('every AssetType.values entry is represented in the dropdown menu items', (tester) async {
       final mockApi = _MockAssetsApi();
-      when(() => mockApi.list()).thenAnswer((_) async => []);
+      when(mockApi.list).thenAnswer((_) async => []);
 
       await pumpApp(
         tester,

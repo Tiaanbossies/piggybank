@@ -35,7 +35,7 @@ void main() {
   group('GoalsBody', () {
     testWidgets('renders a row per goal returned by the API', (tester) async {
       final mockApi = _MockGoalsApi();
-      when(() => mockApi.list()).thenAnswer((_) async => [
+      when(mockApi.list).thenAnswer((_) async => [
             _goal(id: 'g1', name: 'Emergency fund', target: Decimal.fromInt(10000), current: Decimal.fromInt(2500), progressPct: 25.0),
             _goal(id: 'g2', name: 'New laptop', target: Decimal.fromInt(20000), current: Decimal.fromInt(20000), progressPct: 100.0),
           ]);
@@ -55,7 +55,7 @@ void main() {
 
     testWidgets('shows the empty state when the API returns no goals', (tester) async {
       final mockApi = _MockGoalsApi();
-      when(() => mockApi.list()).thenAnswer((_) async => []);
+      when(mockApi.list).thenAnswer((_) async => []);
 
       await pumpApp(
         tester,
@@ -71,7 +71,7 @@ void main() {
 
     testWidgets('shows the error message when the API call fails', (tester) async {
       final mockApi = _MockGoalsApi();
-      when(() => mockApi.list()).thenThrow(Exception('boom'));
+      when(mockApi.list).thenThrow(Exception('boom'));
 
       await pumpApp(
         tester,
@@ -86,7 +86,7 @@ void main() {
 
     testWidgets('passes progressPct/100 as the ProgressCard pct (saved/target percentage)', (tester) async {
       final mockApi = _MockGoalsApi();
-      when(() => mockApi.list()).thenAnswer((_) async => [
+      when(mockApi.list).thenAnswer((_) async => [
             _goal(id: 'g1', name: 'Car', target: Decimal.fromInt(100000), current: Decimal.fromInt(37000), progressPct: 37.0),
           ]);
 
@@ -104,7 +104,7 @@ void main() {
 
     testWidgets('a completed goal (100% progress) renders a full progress bar', (tester) async {
       final mockApi = _MockGoalsApi();
-      when(() => mockApi.list()).thenAnswer((_) async => [
+      when(mockApi.list).thenAnswer((_) async => [
             _goal(id: 'g1', name: 'Holiday', target: Decimal.fromInt(5000), current: Decimal.fromInt(5000), progressPct: 100.0),
           ]);
 

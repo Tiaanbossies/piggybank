@@ -506,17 +506,28 @@ These QA findings are not code fixes — bring them back to the user rather than
 silently dropping them:
 
 - **L3 (stale DNS record)** — `piggybank.fynboscreative.co.za` → `102.214.9.185`, which serves
-  nothing for that name. Not a code fix; needs whoever owns DNS for `fynboscreative.co.za` to
-  either repoint it to `100.121.165.7` (once/if that host goes public again) or remove the record
-  entirely while Tailscale-only. Flag, don't touch DNS without being asked.
+  nothing for that name. **User decision (2026-09-01): remove the record.** Not a code fix and no
+  DNS/registrar tool access from this session — flagged as a manual action item for the user
+  (whoever manages DNS for `fynboscreative.co.za`) to delete the stale A record while the backend
+  stays Tailscale-only. Not yet done.
 - **L4 (account row tap → Edit mode)** — explicitly framed in the QA report as "may be
-  intentional... flagged for product-owner judgment call," not a defect. Ask whether a read-only
-  detail/transaction-history view is wanted before building one.
-- **L5 (41 info-level lints)** — trivial and non-blocking; batch-fix only if the user wants lint
-  cleanup as its own pass, not folded silently into unrelated commits from Steps 0-5.
+  intentional... flagged for product-owner judgment call," not a defect. **User decision
+  (2026-09-01): build a read-only detail view** — tapping an account row should open a new
+  read-only detail/transaction-history screen instead of Edit mode directly; Edit becomes a
+  separate explicit action. Not yet implemented — needs its own scoped build.
+- **L5 (41 info-level lints)** — **User decision (2026-09-01): batch-fix now as its own pass.**
+  **Status: DONE.** All 41 `flutter analyze` info-lints fixed across 12 files (mechanical fixes:
+  `use_key_in_widget_constructors`, `prefer_const_literals_to_create_immutables`,
+  `prefer_const_constructors`, `eol_at_end_of_file`, `unnecessary_lambdas` → tearoffs,
+  `cast_nullable_to_non_nullable`, `directives_ordering`). Fixing some `prefer_const_constructors`
+  cases (adding `const` to an outer `AuthState`/widget-tree constructor) surfaced two follow-on
+  lints from the outer `const` making an inner one redundant/misordered
+  (`always_put_required_named_parameters_first` on `AccountContextMenu`'s new `super.key` param,
+  `unnecessary_const` on nested `User(...)` literals in `lock_screen_test.dart`) — both fixed in
+  the same pass. `flutter analyze` → "No issues found!"; full 422-test suite passes.
 - **L6 (Admin has no client UI)** — `docs/admin-scope.md` describes a feature that was never
-  built client-side. This is a scoping/roadmap question (build it? remove the backend route and
-  the doc? leave both as-is for now?), not a bug — do not build an Admin screen speculatively.
+  built client-side. **User decision (2026-09-01): leave both as-is** — backend route and doc stay
+  untouched, client UI remains unbuilt. Closed, no further action.
 
 ---
 

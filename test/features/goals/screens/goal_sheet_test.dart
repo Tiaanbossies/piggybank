@@ -109,7 +109,7 @@ void main() {
   group('_GoalRow footnote', () {
     testWidgets('includes the target date when the goal has one', (tester) async {
       final mockApi = _MockGoalsApi();
-      when(() => mockApi.list()).thenAnswer((_) async => [_goal(targetDate: DateTime(2027, 3, 1))]);
+      when(mockApi.list).thenAnswer((_) async => [_goal(targetDate: DateTime(2027, 3, 1))]);
 
       await pumpApp(
         tester,
@@ -124,7 +124,7 @@ void main() {
 
     testWidgets('omits the "by" suffix when the goal has no target date', (tester) async {
       final mockApi = _MockGoalsApi();
-      when(() => mockApi.list()).thenAnswer((_) async => [_goal()]);
+      when(mockApi.list).thenAnswer((_) async => [_goal()]);
 
       await pumpApp(
         tester,

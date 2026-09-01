@@ -90,11 +90,11 @@ void main() {
 
   group('LockScreen', () {
     testWidgets('biometric enabled + PIN set: auto-prompts biometric, offers "Use PIN instead"', (tester) async {
-      authController.state = AuthState(
+      authController.state = const AuthState(
         status: AuthStatus.authenticated,
         accessToken: 'token',
         locked: true,
-        user: const User(id: 'u1', email: 'a@b.com', fullName: null, role: 'user', isActive: true, hasPin: true),
+        user: User(id: 'u1', email: 'a@b.com', fullName: null, role: 'user', isActive: true, hasPin: true),
       );
       when(() => mockLocalAuth.canCheckBiometrics).thenAnswer((_) async => true);
       when(() => mockLocalAuth.authenticate(
@@ -110,11 +110,11 @@ void main() {
     });
 
     testWidgets('biometric disabled preference: goes straight to PIN entry, no biometric prompt', (tester) async {
-      authController.state = AuthState(
+      authController.state = const AuthState(
         status: AuthStatus.authenticated,
         accessToken: 'token',
         locked: true,
-        user: const User(id: 'u1', email: 'a@b.com', fullName: null, role: 'user', isActive: true, hasPin: true),
+        user: User(id: 'u1', email: 'a@b.com', fullName: null, role: 'user', isActive: true, hasPin: true),
       );
       await prefs.setBool('biometric_enabled', false);
 
@@ -129,11 +129,11 @@ void main() {
     });
 
     testWidgets('entering the correct PIN unlocks the app', (tester) async {
-      authController.state = AuthState(
+      authController.state = const AuthState(
         status: AuthStatus.authenticated,
         accessToken: 'token',
         locked: true,
-        user: const User(id: 'u1', email: 'a@b.com', fullName: null, role: 'user', isActive: true, hasPin: true),
+        user: User(id: 'u1', email: 'a@b.com', fullName: null, role: 'user', isActive: true, hasPin: true),
       );
       await prefs.setBool('biometric_enabled', false);
       final adapter = _FakeAdapter([() => _empty(204)]);
@@ -150,11 +150,11 @@ void main() {
     });
 
     testWidgets('a wrong PIN shows an error and stays locked', (tester) async {
-      authController.state = AuthState(
+      authController.state = const AuthState(
         status: AuthStatus.authenticated,
         accessToken: 'token',
         locked: true,
-        user: const User(id: 'u1', email: 'a@b.com', fullName: null, role: 'user', isActive: true, hasPin: true),
+        user: User(id: 'u1', email: 'a@b.com', fullName: null, role: 'user', isActive: true, hasPin: true),
       );
       await prefs.setBool('biometric_enabled', false);
       final adapter = _FakeAdapter([() => _empty(401)]);
@@ -171,11 +171,11 @@ void main() {
     });
 
     testWidgets('no biometric hardware and no PIN set: never silently unlocks', (tester) async {
-      authController.state = AuthState(
+      authController.state = const AuthState(
         status: AuthStatus.authenticated,
         accessToken: 'token',
         locked: true,
-        user: const User(id: 'u1', email: 'a@b.com', fullName: null, role: 'user', isActive: true, hasPin: false),
+        user: User(id: 'u1', email: 'a@b.com', fullName: null, role: 'user', isActive: true, hasPin: false),
       );
       when(() => mockLocalAuth.canCheckBiometrics).thenAnswer((_) async => false);
       when(() => mockLocalAuth.isDeviceSupported()).thenAnswer((_) async => false);

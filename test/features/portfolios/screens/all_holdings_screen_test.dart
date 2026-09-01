@@ -46,7 +46,7 @@ void main() {
       final mockApi = _MockPortfoliosApi();
       final growth = _portfolio('p1', 'Growth');
       final tfsa = _portfolio('p2', 'TFSA');
-      when(() => mockApi.listPortfolios()).thenAnswer((_) async => [growth, tfsa]);
+      when(mockApi.listPortfolios).thenAnswer((_) async => [growth, tfsa]);
       when(() => mockApi.listHoldings('p1')).thenAnswer((_) async => [_holding('h1', 'p1', 'AAA', price: Decimal.fromInt(50))]);
       when(() => mockApi.listHoldings('p2')).thenAnswer((_) async => [_holding('h2', 'p2', 'BBB', price: Decimal.fromInt(500))]);
 
@@ -71,7 +71,7 @@ void main() {
 
     testWidgets('shows an empty state when no portfolio has any holdings', (tester) async {
       final mockApi = _MockPortfoliosApi();
-      when(() => mockApi.listPortfolios()).thenAnswer((_) async => [_portfolio('p1', 'Growth')]);
+      when(mockApi.listPortfolios).thenAnswer((_) async => [_portfolio('p1', 'Growth')]);
       when(() => mockApi.listHoldings('p1')).thenAnswer((_) async => []);
 
       await pumpApp(

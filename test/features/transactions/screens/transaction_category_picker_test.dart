@@ -7,9 +7,9 @@ void main() {
   group('Transaction Category Picker Widget', () {
     testWidgets('DropdownButtonFormField renders on transactions screen', (WidgetTester tester) async {
       await tester.pumpWidget(
-        ProviderScope(
+        const ProviderScope(
           child: MaterialApp(
-            home: const TransactionsScreen(),
+            home: TransactionsScreen(),
           ),
         ),
       );
@@ -27,9 +27,9 @@ void main() {
 
     testWidgets('Category dropdown has label "Category"', (WidgetTester tester) async {
       await tester.pumpWidget(
-        ProviderScope(
+        const ProviderScope(
           child: MaterialApp(
-            home: const TransactionsScreen(),
+            home: TransactionsScreen(),
           ),
         ),
       );
@@ -46,9 +46,9 @@ void main() {
 
     testWidgets('Dropdown is decorated with outline border', (WidgetTester tester) async {
       await tester.pumpWidget(
-        ProviderScope(
+        const ProviderScope(
           child: MaterialApp(
-            home: const TransactionsScreen(),
+            home: TransactionsScreen(),
           ),
         ),
       );

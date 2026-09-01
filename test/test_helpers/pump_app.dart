@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-
 import 'package:piggybank/core/theme/app_theme.dart';
 import 'package:piggybank/core/theme/shared_preferences_provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 /// Pumps [child] inside a [ProviderScope] + [MaterialApp], with
 /// [sharedPreferencesProvider] pre-overridden to an in-memory instance (most

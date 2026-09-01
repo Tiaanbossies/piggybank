@@ -79,7 +79,7 @@ void main() {
     );
 
     final card = tester.widget<Card>(find.byType(Card));
-    final margin = card.margin as EdgeInsets;
+    final margin = card.margin! as EdgeInsets;
     expect(margin.left, 24);
   });
 }

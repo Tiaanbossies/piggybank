@@ -84,7 +84,7 @@ void main() {
       test('successful login stores refresh token and updates state', () async {
         const email = 'test@example.com';
         const password = 'password123';
-        final tokenPair = TokenPair(
+        const tokenPair = TokenPair(
           accessToken: 'access_token_123',
           refreshToken: 'refresh_token_456',
         );
@@ -112,7 +112,7 @@ void main() {
         const password = 'wrong';
 
         when(() => mockAuthApi.login(email: email, password: password))
-            .thenThrow(ApiError(statusCode: 401, message: 'Invalid credentials'));
+            .thenThrow(const ApiError(statusCode: 401, message: 'Invalid credentials'));
 
         expect(
           () => authController.login(email: email, password: password),
@@ -124,7 +124,7 @@ void main() {
 
     group('refresh token', () {
       test('successful refresh updates access token', () async {
-        final newTokenPair = TokenPair(
+        const newTokenPair = TokenPair(
           accessToken: 'new_access_token',
           refreshToken: 'new_refresh_token',
         );
@@ -168,7 +168,7 @@ void main() {
 
     group('session restore', () {
       test('restoreSession with valid refresh token authenticates', () async {
-        final tokenPair = TokenPair(
+        const tokenPair = TokenPair(
           accessToken: 'restored_access_token',
           refreshToken: 'restored_refresh_token',
         );
@@ -277,7 +277,7 @@ void main() {
       test('re-fetches /me and replaces state.user', () async {
         const email = 'test@example.com';
         const password = 'password123';
-        final tokenPair = TokenPair(accessToken: 'access_token_123', refreshToken: 'refresh_token_456');
+        const tokenPair = TokenPair(accessToken: 'access_token_123', refreshToken: 'refresh_token_456');
         when(() => mockAuthApi.login(email: email, password: password)).thenAnswer((_) async => tokenPair);
         when(() => mockSecureStorage.writeRefreshToken(any())).thenAnswer((_) async {});
         when(() => mockAuthApi.me('access_token_123')).thenAnswer((_) async => FakeUser());
@@ -302,7 +302,7 @@ void main() {
       test('logout clears refresh token and unauthenticates', () async {
         const email = 'test@example.com';
         const password = 'pass';
-        final tokenPair = TokenPair(accessToken: 'token', refreshToken: 'refresh');
+        const tokenPair = TokenPair(accessToken: 'token', refreshToken: 'refresh');
         final user = FakeUser();
 
         when(() => mockAuthApi.login(email: email, password: password))

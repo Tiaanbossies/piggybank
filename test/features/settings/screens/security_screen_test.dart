@@ -68,7 +68,7 @@ void main() {
 
     authController = AuthController(authApi: mockAuthApi, secureStorage: mockSecureStorage, localAuth: mockLocalAuth);
     await Future<void>.delayed(Duration.zero);
-    authController.state = AuthState(status: AuthStatus.authenticated, accessToken: 'token', user: _user, locked: false);
+    authController.state = const AuthState(status: AuthStatus.authenticated, accessToken: 'token', user: _user, locked: false);
 
     SharedPreferences.setMockInitialValues({});
     prefs = await SharedPreferences.getInstance();
