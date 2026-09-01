@@ -423,6 +423,36 @@ decision, tracked separately if the user doesn't resolve it in this pass.
 
 ## Step 5 — Seed data corrections
 
+**Status (2026-09-01): Code DONE, live-verified against a scratch account. User explicitly
+declined re-seeding the real shared demo account for now ("Not now") — leaving its existing
+cost-basis/budget data as-is. Revisit if/when the user wants it refreshed; note the fixed script
+is additive/idempotent, so a future re-seed run alone won't retroactively correct the demo
+account's already-existing bad holdings or stale budget months — those would need explicit
+deletion first (via the API) before re-running the script, same choice offered and declined here.**
+H1: `HOLDINGS`' `cost_basis` values divided by `quantity` per the QA report's own math
+(AAPL 2800.00, MSFT 10500.00, NPN.JO 3200.00, GLD 320.00, SBK.JO 210.00). L1:
+`create_budgets()`'s hardcoded `["2026-04-01", "2026-05-01"]` replaced with
+`date.today().replace(day=1)` and the month before it via `dateutil.relativedelta`, so the seed
+script always produces budget rows for "this month" regardless of when it's run. Live-verified by
+seeding a throwaway scratch account (`scratch-fixit-verify@financeapp.co.za`, not the shared demo
+login) against the production Tailscale backend: holdings' `cost_basis` came back per-unit exactly
+as expected via `GET /portfolios/{id}/holdings`; budgets came back correctly dated `2026-09-01`
+(today's actual month, the script having run on 2026-09-01) via
+`GET /budgets/?month=2026-09-01` — 8 rows for Sept, 8 for Aug. Scratch account deleted afterward
+(`DELETE /auth/me`, `204`). Full 1090-test backend suite still passes (the seed script isn't
+test-covered directly, so this confirms no regression elsewhere).
+
+**Scope note on Transactions' matching staleness:** `TRANSACTIONS` (Step 4 of the script, Jan–Jun
+2026 hardcoded) has the same kind of fixed-year staleness as the Budgets bug did, and is now
+several months in the past relative to any real seeding date — but the QA report's L1 finding was
+scoped to Budgets only, and Transactions carries hand-authored narrative content tied to specific
+months (a May "intentionally exceeds budget" scenario cross-referenced against the old Apr/May
+budget window, a Feb 14 "Valentine's" flavor description) that a relative-date rewrite would need
+to preserve deliberately, not just shift mechanically. Left out of this pass as a genuine scope
+call, not an oversight — flagging here per the plan's own instruction to "consider... before
+considering this step fully done." A future pass could shift the whole 6-month block by a
+computed offset (preserving month-to-month relative narrative) if this is judged worth fixing.
+
 **Fixes:** H1 (portfolio cost-basis), L1 (budget dates).
 
 **Type:** Backend seed script only (`backend/scripts/seed_test_user.py`). **Depends on:**
