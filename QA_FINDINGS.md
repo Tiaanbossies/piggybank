@@ -1,5 +1,82 @@
 # Piggybank QA Findings & Feature Completeness Audit
 
+## Update — 2026-09-01 (fix-it blueprint close-out; supersedes the status update below)
+
+See **`plans/piggybank-fix-it.md`** for the full record of what was done and
+why — this section summarizes it. That plan addressed every finding from
+`docs/qa/QA_FULL_SUITE_2026-08-31.md` (18 findings: 0 Critical, 6 High, 6
+Medium, 6 Low) across 8 steps (0–7), executed and live-verified across
+several sessions ending 2026-09-01.
+
+**Shipped and live-verified (Steps 0–6):**
+- **H1, H2, H3, H4, H5, H6** — all six High findings fixed: chatbot currency
+  guardrail (ZAR/`R`, never `$`), `/ai/chat` deleted (dead/duplicate surface,
+  per user decision, rather than secured), chatbot topic-guardrail
+  reliability (prompt reordering + explicit examples — a keyword pre-filter
+  was tried and reverted, see the plan's Step 1 for why), CSV import silent
+  failure UI, per-unit portfolio cost-basis, and a Dio client timeout.
+- **M1, M2, M3, M4, M5, M6** — all six Medium findings fixed: Transactions
+  income/expense colour convention unified to green/red everywhere (user
+  chose this over "ordinary ink everywhere"), a confirm dialog before
+  uploading a CSV with "No account" selected, a category-overwrite bug in
+  templated CSV imports, the Compare Instruments ticker-autocomplete
+  overflow (rebuilt on `OverlayEntry`/`CompositedTransformFollower`), the
+  stale `LoginScreen` widget test, and the chatbot's `$`→`R` fix (shared
+  with H2).
+- **L1, L2, L5** — three Low findings fixed: relative (non-hardcoded) budget
+  seed dates, the Compare Instruments chart's Y-axis exact-max-label
+  overlap, and all 41 `flutter analyze` info-lints (batch-fixed as their own
+  pass per user decision).
+- **L4** — read-only account detail view built (user decision): tapping an
+  account row now opens balance/type/institution/currency plus the
+  account's last 20 transactions read-only; the existing edit screen is now
+  a separate, explicit AppBar action instead of the default tap target.
+- **L3** — DNS decision made (remove the stale
+  `piggybank.fynboscreative.co.za` → `102.214.9.185` record) but **not
+  executed** — no DNS/registrar access from within these sessions; flagged
+  as a manual follow-up for whoever manages DNS for `fynboscreative.co.za`.
+- **L6** — closed with no code change, per user decision ("leave both as
+  is"): the Admin backend route and `docs/admin-scope.md` stay as
+  undocumented, unbuilt scope.
+
+**New finding surfaced and fixed during Step 1's live verification (not in
+the original QA report):** the chatbot's net-worth *figure* (not just its
+currency symbol) was wrong by ~10x in roughly 2/3 of repeated identical
+queries, root-caused to the small local model (`qwen2.5:3b-instruct-q4_K_M`)
+dropping a digit when copying a long unbroken number string verbatim — fixed
+by pre-formatting every money amount in the chatbot's context with
+space-thousands separators before it reaches the model. Confirmed still
+holding during this Step 7 pass: 1/1 live re-test of "Show my net worth
+trend" returned the exact figure (`R 1 808 030.50`), matching the Dashboard.
+
+**Step 7 regression results (2026-09-01):** backend `pytest` — 1090 passed,
+6 deselected (live-only), 0 failures. `flutter analyze` — no issues found.
+`flutter test` — 425/425 passing. Live re-verification against the
+Tailscale backend and a fresh emulator install (demo login) re-confirmed,
+with fresh screenshots/chat transcripts this session: M1's green/red
+convention (Dashboard + Transactions), L4's new detail view (including its
+edit-icon handoff to the existing edit screen), M4's autocomplete overlay
+(no overflow with keyboard open — the screen's separate, pre-existing,
+unrelated 1.9px bottom overflow was also re-observed, unchanged, confirming
+it's not a regression from any of these fixes), L2's chart label fix in Abs
+mode, H2/H4's currency-and-guardrail fixes (both refusal and answer
+directions, plus the net-worth figure above), and H1/L1's seed-data fixes
+indirectly (the real demo account's Accounts/Budgets screens still show its
+known pre-fix state, exactly as documented in Step 5 — re-seeding was
+declined and nothing since has changed that). H3/H5/H6/M2/M3/M5/M6 were not
+independently re-exercised live this pass (backend-only, or code unchanged
+since their own step's live verification) but are covered by the automated
+regression above.
+
+**Still open:**
+- **L3** — DNS record removal, pending manual action by whoever manages
+  `fynboscreative.co.za`'s DNS.
+- **Re-seeding the real `demo@financeapp.co.za` account** — still not done;
+  its cost-basis and budget-month data remain pre-fix. The fixed seed
+  script is additive, so a future re-seed alone won't correct existing bad
+  rows — see `plans/piggybank-fix-it.md` Step 5 for the deletion-first
+  procedure if this is revisited.
+
 ## Update — 2026-09-01 (current status; supersedes the 2026-08-28 update below)
 
 See **`docs/qa/QA_FULL_SUITE_2026-08-31.md`** for the current findings list — a

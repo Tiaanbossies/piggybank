@@ -522,9 +522,11 @@ silently dropping them:
   (deactivate context menu) unchanged. Verified via a new automated widget test suite
   (`test/features/accounts/screens/account_detail_screen_test.dart`, 3 tests: read-only fields
   render with no editable `TextField`, empty state, transactions correctly scoped to the account
-  via a mocked `TransactionsApi`) rather than manual emulator/adb verification, given this
-  session's tight remaining context budget — a live-device pass is still recommended before this
-  is considered fully closed out, consistent with Step 7's live re-verification task.
+  via a mocked `TransactionsApi`) rather than manual emulator/adb verification at the time, given
+  that session's tight remaining context budget. **Live-verified in Step 7 (2026-09-01):**
+  tapped the FNB Cheque Account row on the emulator against the Tailscale backend — read-only
+  balance/type/currency plus 5 scoped, correctly-tinted recent transactions rendered, no editable
+  fields; the AppBar edit-pencil icon correctly opened the existing `AccountEditScreen`.
   `flutter analyze`: No issues found. Full suite: 425/425 passing (422 prior + 3 new).
 - **L5 (41 info-level lints)** — **User decision (2026-09-01): batch-fix now as its own pass.**
   **Status: DONE.** All 41 `flutter analyze` info-lints fixed across 12 files (mechanical fixes:
@@ -543,6 +545,25 @@ silently dropping them:
 ---
 
 ## Step 7 — Regression + live re-verification, update QA docs
+
+**Status (2026-09-01): DONE.** Automated regression: backend `pytest` 1090 passed / 6 deselected
+(live-only) / 0 failures; `flutter analyze` no issues found; `flutter test` 425/425 passing. Live
+re-verification against the Tailscale backend on a freshly-booted emulator (clean `pm clear`,
+fresh debug APK build reflecting Steps 0-6, demo login): M1 (green/red convention, confirmed on
+both Dashboard and Transactions), L4 (new detail view + its edit-icon handoff, see Step 6 above),
+M4 (ticker-autocomplete overlay, no overflow with keyboard open — the pre-existing, unrelated
+1.9px bottom overflow re-observed unchanged, confirming it's not a regression), L2 (chart label
+fix, Abs mode's non-round 798.8 max), H2+H4 (chatbot currency + topic guardrail, both refusal and
+answer directions live-tested via "What is the capital of France" and "Am I on track with my
+budget?"), and the Step 1 net-worth digit-dropping fix (1/1 re-test exact: `R 1 808 030.50`).
+H1/L1 confirmed indirectly — the real demo account's Accounts/Budgets screens still show the
+documented pre-fix state (re-seed declined, nothing since has changed that). H3/H5/H6/M2/M3/M5/M6
+not independently re-exercised live this pass (backend-only, or code unchanged since their own
+step's live verification) but covered by the automated regression. `QA_FINDINGS.md` updated with
+a new 2026-09-01 top section summarizing this whole blueprint and pointing back here; the Step 1
+net-worth finding is now folded in there (not into the frozen `QA_FULL_SUITE_2026-08-31.md`, per
+that file's own historical-snapshot convention). Still open: L3 (DNS removal, needs manual
+registrar access) and the real demo account re-seed (still declined/pending).
 
 **Depends on:** Steps 0-5 all being done (whichever subset the user chose to run — this step
 re-verifies whatever was actually shipped, not a fixed list).
