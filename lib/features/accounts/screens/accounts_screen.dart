@@ -13,7 +13,7 @@ import '../../../shared/widgets/paywall_dialog.dart';
 import '../../transactions/screens/transactions_screen.dart';
 import '../models/account.dart';
 import '../providers/accounts_provider.dart';
-import 'account_edit_screen.dart';
+import 'account_detail_screen.dart';
 import 'accounts_context_menu.dart';
 
 /// Grouped-card pattern per DESIGN.md § Accounts: a "Total balance" hero card
@@ -149,7 +149,7 @@ class _AccountRow extends ConsumerWidget {
     final semantic = Theme.of(context).extension<AppSemanticColors>();
     return GestureDetector(
       onTap: () => Navigator.of(context).push(
-        MaterialPageRoute(builder: (_) => AccountEditScreen(account: account)),
+        MaterialPageRoute(builder: (_) => AccountDetailScreen(account: account)),
       ),
       onLongPress: () => showModalBottomSheet(
         context: context,

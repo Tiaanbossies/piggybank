@@ -91,6 +91,14 @@ final recentTransactionsProvider = FutureProvider.autoDispose<TransactionsPage>(
   return ref.watch(transactionsApiProvider).list(limit: 5);
 });
 
+/// One account's recent transactions, for the read-only Account detail
+/// screen (fix-it Step 6, L4). Independent of [transactionFiltersProvider]
+/// for the same reason as [recentTransactionsProvider] — this screen's own
+/// scoped fetch, not a reflection of whatever filters are set elsewhere.
+final accountTransactionsProvider = FutureProvider.autoDispose.family<TransactionsPage, String>((ref, accountId) {
+  return ref.watch(transactionsApiProvider).list(accountId: accountId, limit: 20);
+});
+
 /// Accumulated transactions: holds all transactions loaded so far across pages.
 /// This is a StateNotifier that accumulates items as the user loads more.
 ///

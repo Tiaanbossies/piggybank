@@ -512,9 +512,20 @@ silently dropping them:
   stays Tailscale-only. Not yet done.
 - **L4 (account row tap → Edit mode)** — explicitly framed in the QA report as "may be
   intentional... flagged for product-owner judgment call," not a defect. **User decision
-  (2026-09-01): build a read-only detail view** — tapping an account row should open a new
-  read-only detail/transaction-history screen instead of Edit mode directly; Edit becomes a
-  separate explicit action. Not yet implemented — needs its own scoped build.
+  (2026-09-01): build a read-only detail view.** **Status: DONE.** New
+  `lib/features/accounts/screens/account_detail_screen.dart` (`AccountDetailScreen`) shows the
+  account's balance/type/institution/currency read-only plus its 20 most recent transactions (new
+  `accountTransactionsProvider` family in `transactions_provider.dart`, scoped via
+  `TransactionsApi.list(accountId: ...)`); an AppBar edit icon opens the existing
+  `AccountEditScreen` as the now-separate explicit edit action. `accounts_screen.dart`'s
+  `_AccountRow.onTap` repointed from `AccountEditScreen` to `AccountDetailScreen`; `onLongPress`
+  (deactivate context menu) unchanged. Verified via a new automated widget test suite
+  (`test/features/accounts/screens/account_detail_screen_test.dart`, 3 tests: read-only fields
+  render with no editable `TextField`, empty state, transactions correctly scoped to the account
+  via a mocked `TransactionsApi`) rather than manual emulator/adb verification, given this
+  session's tight remaining context budget — a live-device pass is still recommended before this
+  is considered fully closed out, consistent with Step 7's live re-verification task.
+  `flutter analyze`: No issues found. Full suite: 425/425 passing (422 prior + 3 new).
 - **L5 (41 info-level lints)** — **User decision (2026-09-01): batch-fix now as its own pass.**
   **Status: DONE.** All 41 `flutter analyze` info-lints fixed across 12 files (mechanical fixes:
   `use_key_in_widget_constructors`, `prefer_const_literals_to_create_immutables`,
