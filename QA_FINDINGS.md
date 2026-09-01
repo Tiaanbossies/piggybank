@@ -1,6 +1,19 @@
 # Piggybank QA Findings & Feature Completeness Audit
 
-## Update — 2026-08-28 (current status; supersedes the 2026-08-21 audit below)
+## Update — 2026-09-01 (current status; supersedes the 2026-08-28 update below)
+
+See **`docs/qa/QA_FULL_SUITE_2026-08-31.md`** for the current findings list — a
+full-suite pass (`plans/piggybank-full-suite-qa-v2.md`, Steps 0–4) covering a
+Tailscale-only network lockdown, an automated regression baseline, an API
+performance/error-response audit, a database integrity audit, and a live
+full-app exploratory walkthrough (including the CSV import wizard and, newly,
+the TFSA/Retirement Annuity ledgers). 19 findings (0 Critical, 6 High, 7
+Medium, 6 Low), plus an explicit "confirmed working" list of areas re-checked
+and found clean. That report is self-contained (repro steps, severity
+justification, and originating step for every entry) — go there directly
+rather than re-deriving from this section or `docs/qa/QA_LOG.md`.
+
+## Update — 2026-08-28 (superseded by the 2026-09-01 update above; preserved as history)
 
 The 2026-08-21 audit below is preserved as history but is **stale** — it
 predates Insights, Chatbot, and Imports being built, and several of its

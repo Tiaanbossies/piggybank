@@ -300,7 +300,7 @@ and the resumed-session notes from earlier today:
    attempts on backend reachability; check `tailscale status` / reach the real
    `piggybank-backend` host before attempting again).
 
-**Status (2026-08-30): tasks 1–3 done, task 4 still deferred.**
+**Status (2026-08-31): all 4 tasks done.**
 
 - **Task 1** landed as described — `_GoalSheet` (`lib/features/goals/screens/goals_screen.dart`)
   now has a "Target date (optional)" `ListTile`/`showDatePicker` field, wired through to
@@ -322,9 +322,14 @@ and the resumed-session notes from earlier today:
   only by Comparison; Add/Edit Holding's usage is unaffected), the cap now shows a `SnackBar`,
   and failed lookups now surface via both a `Tooltip` on the chip and an immediate `SnackBar`
   (`ref.listen` on `comparisonControllerProvider`).
-- **Task 4 stays blocked** — `ssh -o ConnectTimeout=6 mcp@100.121.165.7` timed out again during
-  this step (same as every attempt since Step 1), so this is explicitly re-scoped as deferred
-  per this step's own exit criteria, not silently dropped.
+- **Task 4 done (2026-08-31)** — backend reachability blocker resolved (see the crash-loop
+  incident writeup in that day's session file). Found the stray portfolio: a `Test` portfolio
+  (id `0a8f4f1c-036d-4e2a-96b6-357e1aff5970`) on the demo account (`demo@financeapp.co.za`),
+  confirmed empty (zero holdings, verified against `Holding.portfolio_id` in `models.py`) before
+  deletion. User chose delete over retype, since it was empty and literally named "Test" — no
+  data worth preserving. Deleted directly via SQL (`DELETE FROM portfolios WHERE id = ... AND
+  name = 'Test'` — scoped by both id and name as a safety check); verified the demo account now
+  has exactly one portfolio (`Growth Portfolio`).
 
 New/extended tests: `test/features/goals/screens/goal_sheet_test.dart`,
 `test/features/portfolios/screens/all_holdings_screen_test.dart`,
