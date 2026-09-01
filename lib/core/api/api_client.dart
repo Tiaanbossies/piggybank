@@ -19,7 +19,17 @@ class ApiClient {
     Dio? dio,
     // ignore: prefer_initializing_formals
   })  : _onConsentsRequired = onConsentsRequired,
-        dio = dio ?? Dio(BaseOptions(baseUrl: baseUrl)) {
+        // Short global defaults so a genuinely hung request fails fast; the
+        // two AI-backed endpoints (chatbot, insights `ask`) that legitimately
+        // take 10-26s+ override receiveTimeout per-request instead of raising
+        // this default for every call (see fix-it plan Step 3 / QA H6).
+        dio = dio ??
+            Dio(BaseOptions(
+              baseUrl: baseUrl,
+              connectTimeout: const Duration(seconds: 8),
+              sendTimeout: const Duration(seconds: 15),
+              receiveTimeout: const Duration(seconds: 15),
+            )) {
     this.dio.interceptors.add(InterceptorsWrapper(onRequest: _onRequest, onError: _onError));
   }
 

@@ -17,7 +17,13 @@ class InsightsApi {
 
   Future<InsightAskResult> ask(String question) async {
     try {
-      final response = await _client.dio.post('/insights', data: {'question': question});
+      final response = await _client.dio.post(
+        '/insights',
+        data: {'question': question},
+        // AI-generated insights observed up to ~26s in QA — see fix-it plan
+        // Step 3 / QA H6.
+        options: Options(receiveTimeout: const Duration(seconds: 60)),
+      );
       return InsightAskResult.fromJson(response.data as Map<String, dynamic>);
     } on DioException catch (e) {
       throw ApiClient.errorFrom(e);

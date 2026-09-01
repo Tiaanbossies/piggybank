@@ -288,6 +288,20 @@ UI, not just unit-tested.
 
 ## Step 3 — Client network resilience: Dio timeout
 
+**Status (2026-09-01): DONE, live-verified.** `ApiClient`'s shared `Dio` now sets
+`connectTimeout: 8s`, `sendTimeout: 15s`, `receiveTimeout: 15s` as global defaults;
+`chatbot_api.dart`'s `sendMessage` and `insights_api.dart`'s `ask` each override
+`receiveTimeout: 60s` per-request via `Options(...)`, per the plan's own preference for a
+short global default over a blanket 45-60s receive timeout. Live-verified both halves: (1)
+normal-latency path — asked Insights a real question against the Tailscale backend, got a
+correct answer back in a few seconds, no spurious timeout; (2) fast-fail path — built a
+throwaway debug APK with `--dart-define=API_BASE_URL=http://10.255.255.1:8000/api` (a
+non-routable black-hole address), attempted login, got "Network error. Check your connection
+and try again." instead of an indefinite hang, consistent with the 8s `connectTimeout`. The
+throwaway build was discarded and the real backend build reinstalled afterward. `flutter
+analyze` clean; all 14 existing tests across `api_client_test.dart`, `chatbot_api_test.dart`,
+and `insights_api_test.dart` still pass unmodified.
+
 **Fixes:** H6.
 
 **Type:** Flutter client only. **Depends on:** nothing.

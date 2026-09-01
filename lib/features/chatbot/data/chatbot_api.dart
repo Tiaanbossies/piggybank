@@ -18,6 +18,9 @@ class ChatbotApi {
       final response = await _client.dio.post(
         '/chatbot/chat',
         data: {'messages': [for (final m in history) m.toJson()]},
+        // Real Ollama inference can take well beyond the client's short
+        // global default — see fix-it plan Step 3 / QA H6.
+        options: Options(receiveTimeout: const Duration(seconds: 60)),
       );
       return ChatReply.fromJson(response.data as Map<String, dynamic>);
     } on DioException catch (e) {
