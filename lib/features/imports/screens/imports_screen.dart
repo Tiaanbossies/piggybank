@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
@@ -87,6 +88,24 @@ class _ImportsScreenState extends ConsumerState<ImportsScreen> {
       _result = null;
       _csvPreviewRows = preview;
     });
+  }
+
+  Future<void> _onUploadPressed() async {
+    if (_selectedAccountId == null) {
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('No account selected'),
+          content: const Text("Transactions won't be linked to any account. Continue?"),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+            TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('Continue')),
+          ],
+        ),
+      );
+      if (confirmed != true) return;
+    }
+    await _upload();
   }
 
   Future<void> _upload() async {
@@ -448,7 +467,7 @@ class _ImportsScreenState extends ConsumerState<ImportsScreen> {
                   const SizedBox(width: 8),
                   Expanded(
                     child: ElevatedButton(
-                      onPressed: (_selectedFile == null || _uploading) ? null : _upload,
+                      onPressed: (_selectedFile == null || _uploading) ? null : _onUploadPressed,
                       child: _uploading
                           ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2))
                           : const Text('Upload'),
@@ -637,6 +656,7 @@ class _ResultCardState extends ConsumerState<_ResultCard> {
             Text('Failed rows: ${job.failedRows}'),
             Text('Auto-categorized: ${job.autoCategorizedRows}'),
             if (job.duplicateRows > 0) Text('Duplicates skipped: ${job.duplicateRows}'),
+            if (job.errorMessage != null) ..._buildRowErrors(context, job.errorMessage!),
             if (job.importedBalance != null) ...[
               const SizedBox(height: 8),
               Text(
@@ -659,4 +679,30 @@ class _ResultCardState extends ConsumerState<_ResultCard> {
       ),
     );
   }
+}
+
+/// [errorMessage] is a JSON-encoded list of `{"row": int, "error": string}`
+/// (see `backend/app/imports/router.py`). Falls back to the raw string if it
+/// doesn't decode as expected, rather than crashing the result screen.
+List<Widget> _buildRowErrors(BuildContext context, String errorMessage) {
+  final mutedStyle =
+      TextStyle(color: Theme.of(context).extension<AppSemanticColors>()?.textMuted, fontSize: 12);
+  List<String> lines;
+  try {
+    final decoded = jsonDecode(errorMessage) as List<dynamic>;
+    lines = decoded
+        .map((e) => e is Map ? 'Row ${e['row']}: ${e['error']}' : e.toString())
+        .toList();
+  } catch (_) {
+    lines = [errorMessage];
+  }
+  return [
+    const SizedBox(height: 8),
+    Text('Row errors', style: mutedStyle),
+    const SizedBox(height: 4),
+    ...lines.map((line) => Padding(
+          padding: const EdgeInsets.only(bottom: 2),
+          child: Text(line, style: const TextStyle(fontSize: 13)),
+        )),
+  ];
 }

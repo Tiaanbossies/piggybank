@@ -217,6 +217,22 @@ still-flaky guardrail as "fixed."
 
 ## Step 2 — CSV import wizard fixes
 
+**Status (2026-09-01): DONE, live-verified.** All three fixes shipped and confirmed on the
+Tailscale backend + emulator, not just unit-tested. H5: `_buildRowErrors()` added to
+`imports_screen.dart`, decodes `errorMessage`'s JSON list and renders `Row N: <error>` lines
+under a "Row errors" label (falls back to the raw string on a decode failure). M2: `_upload()`
+split into `_onUploadPressed()` (shows an `AlertDialog` confirm when `_selectedAccountId == null`)
++ the original `_upload()`, wired to the Upload button. M3: root-caused by reading
+`app/imports/router.py` directly — `category` is always non-blank (required field), so the
+originally-hypothesized "blank check" fix doesn't apply as literally stated; the real fix gates
+the learned-rule override on `template is not None`, since `category` only holds untrustworthy
+raw-bank-description text for templated imports (`templates.py` maps `category: "Description"`
+for most banks) — a generic/direct upload's `category` is real user intent and is now always
+preserved. New regression test added
+(`test_generic_upload_never_overwrites_explicit_category_with_learned_rule`); templated imports
+still auto-categorize correctly (spot-checked live: FNB-template upload still returned
+`auto_categorized_rows: 1`). All 1090 local backend tests + `flutter analyze` pass.
+
 **Fixes:** H5 (silent failure UI), M2 (silent account-orphaning), M3 (category overwrite).
 
 **Type:** Flutter client (H5, M2) + backend (M3 investigation). **Depends on:** nothing.
