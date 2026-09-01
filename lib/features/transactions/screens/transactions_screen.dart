@@ -205,17 +205,23 @@ class _TransactionRow extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final isExpense = transaction.transactionType == TransactionType.expense;
+    final isIncome = transaction.transactionType == TransactionType.income;
     final signedAmount = isExpense ? -transaction.amount.toDouble() : transaction.amount.toDouble();
 
-    // Per DESIGN.md § Transactions and the Stitch mockup: amount trailing in
-    // ordinary ink for every row — never red/green by direction.
+    // Per DESIGN.md § Transactions (superseded 2026-09-01): amount trailing
+    // tinted success/danger by direction, matching the Dashboard preview.
+    final semantic = Theme.of(context).extension<AppSemanticColors>();
     return GroupRow(
       leadingIcon: _categoryIcon(transaction),
       title: transaction.merchantName ?? transaction.description ?? transaction.category,
       subtitle: transaction.category,
       trailing: Text(
         formatZAR(signedAmount),
-        style: moneyTextStyle(context, fontSize: 15),
+        style: moneyTextStyle(
+          context,
+          fontSize: 15,
+          color: isIncome ? semantic?.success : (isExpense ? semantic?.danger : null),
+        ),
       ),
       onTap: () => showModalBottomSheet(
         context: context,

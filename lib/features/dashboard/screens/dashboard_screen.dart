@@ -268,7 +268,9 @@ class _RecentTransactionsPreview extends ConsumerWidget {
                       style: moneyTextStyle(
                         context,
                         fontSize: 14,
-                        color: t.transactionType.name == 'income' ? semantic?.success : null,
+                        color: t.transactionType.name == 'income'
+                            ? semantic?.success
+                            : (t.transactionType.name == 'expense' ? semantic?.danger : null),
                       ),
                     ),
                   ),

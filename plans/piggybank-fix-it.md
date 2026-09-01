@@ -336,6 +336,27 @@ and the AI endpoints' normal-latency path verified live.
 
 ## Step 4 — UI/test polish (4 independent small fixes)
 
+**Status (2026-09-01): DONE, live-verified.** All four tasks shipped. M1: the user chose
+"green/red everywhere" over "ordinary ink everywhere" — `_TransactionRow` in
+`transactions_screen.dart` now tints income `semantic?.success` and expense `semantic?.danger`
+(previously plain ink for both), and `dashboard_screen.dart`'s `_RecentTransactionsPreview` was
+extended to also tint expenses `danger` (it previously only tinted income `success`, leaving
+expenses in plain ink — the actual source of the QA report's "inconsistent styling" observation).
+`DESIGN.md` §5 updated to match, noting the 2026-09-01 supersession. M4: `TickerAutocompleteField`
+rewritten to render its suggestions via `OverlayEntry`/`CompositedTransformFollower` instead of
+inline in the parent `Column`, so it can never overflow the parent's layout constraints regardless
+of keyboard state — live-verified on the emulator: typed "GLD" into Compare Instruments' ticker
+field with the keyboard open, suggestions floated correctly with no debug overflow banner. M5:
+one-line fix, `test/widget_test.dart`'s expected label changed from `'Email'` to `'Email address'`;
+`Password`/`Log in` were already exact matches (re-verified). L2: `_ComparisonLineChart`'s
+`leftTitles` given an explicit `getTitlesWidget` that suppresses fl_chart's auto-added exact-max
+label whenever it falls within 15% of an interval-below it (fl_chart always draws that label in
+addition to the regular interval-spaced ones, which is what caused the overlap) — live-verified in
+both percent and Abs mode on the 1-year GLD chart; Abs mode's non-round max (`798.8`) rendered
+cleanly above the `750` gridline label with no overlap. All 422 Flutter tests pass; `flutter
+analyze` clean on every modified file (one pre-existing, unrelated info-lint at
+`dashboard_screen.dart:60` noted but out of scope, deferred to Step 6's L5).
+
 **Fixes:** M1 (income color), M4 (Compare Instruments overflow), M5 (LoginScreen test), L2
 (chart Y-axis label overlap).
 

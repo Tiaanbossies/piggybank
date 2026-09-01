@@ -254,10 +254,32 @@ class _ComparisonLineChart extends StatelessWidget {
 
     return LineChart(
       LineChartData(
-        titlesData: const FlTitlesData(
-          topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
-          rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
-          bottomTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+        titlesData: FlTitlesData(
+          topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          bottomTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          leftTitles: AxisTitles(
+            sideTitles: SideTitles(
+              showTitles: true,
+              reservedSize: 44,
+              getTitlesWidget: (value, meta) {
+                // fl_chart always draws a title at the exact axis max in
+                // addition to its regular interval-spaced ones — when the
+                // data's real max isn't already a multiple of that interval
+                // (the common case), the two labels land within a few
+                // pixels of each other and overlap (L2). Drop the exact-max
+                // label whenever it's this close to the interval-derived
+                // one just below it.
+                final nearestBelow = (meta.max / meta.appliedInterval).floor() * meta.appliedInterval;
+                final tooCloseToGridline = value == meta.max && (meta.max - nearestBelow) < meta.appliedInterval * 0.15;
+                if (tooCloseToGridline) return const SizedBox.shrink();
+                return SideTitleWidget(
+                  axisSide: meta.axisSide,
+                  child: Text(meta.formattedValue, style: const TextStyle(fontSize: 10)),
+                );
+              },
+            ),
+          ),
         ),
         lineTouchData: const LineTouchData(enabled: true),
         lineBarsData: [

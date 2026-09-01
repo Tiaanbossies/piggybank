@@ -188,9 +188,10 @@ Confirmed directly by mockup. List: filter chip row (All/Income/Expense/Transfer
 only for now, matching the mockup; wiring it to the existing-but-unused filter provider is
 a separate, already-tracked gap, not part of this visual pass) then row cards grouped by
 date (day headers as muted small-caps labels), each row: merchant-icon chip + merchant/
-description, category as muted subtext, amount trailing (plain text colour, not
-success/danger-tinted — the mockup renders ordinary expense/income amounts in the same
-ink colour, reserving green/red for goal/budget progress and destructive actions only).
+description, category as muted subtext, amount trailing (success/danger-tinted by
+direction — income green, expense red — matching the Dashboard's recent-transactions
+preview; superseded 2026-09-01, the mockup's plain-ink rendering was the outlier, not the
+intended convention).
 Tapping a row opens the existing detail/edit bottom sheet, restyled to the new field
 theme, fields unchanged. Reimbursement-linking and transfer-pair badges (small pill tags)
 sit just below the amount row on both list and detail views, unchanged from the

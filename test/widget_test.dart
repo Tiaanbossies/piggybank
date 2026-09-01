@@ -13,7 +13,7 @@ void main() {
     );
 
     expect(find.text('Piggybank'), findsOneWidget);
-    expect(find.widgetWithText(TextField, 'Email'), findsOneWidget);
+    expect(find.widgetWithText(TextField, 'Email address'), findsOneWidget);
     expect(find.widgetWithText(TextField, 'Password'), findsOneWidget);
     expect(find.widgetWithText(ElevatedButton, 'Log in'), findsOneWidget);
   });
