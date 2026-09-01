@@ -60,9 +60,12 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // Placeholder for the mockups' 3D piggy-bank mascot illustration —
-              // no real asset exists yet, see DESIGN.md's revision note.
-              Icon(Icons.savings, size: 56, color: Theme.of(context).colorScheme.primary),
+              Center(
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(20),
+                  child: Image.asset('assets/mascot.jpg', width: 100, height: 100, fit: BoxFit.cover),
+                ),
+              ),
               const SizedBox(height: 16),
               Text(
                 "Let's get you started",

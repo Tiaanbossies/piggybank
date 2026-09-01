@@ -55,9 +55,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 const SizedBox(height: 48),
-                // Placeholder for the mockups' 3D piggy-bank mascot illustration —
-                // no real asset exists yet, see DESIGN.md's revision note.
-                Icon(Icons.savings, size: 72, color: Theme.of(context).colorScheme.primary),
+                Center(
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(24),
+                    child: Image.asset('assets/mascot.jpg', width: 120, height: 120, fit: BoxFit.cover),
+                  ),
+                ),
                 const SizedBox(height: 16),
                 Text(
                   'Piggybank',
