@@ -1,5 +1,33 @@
 # Piggybank QA Findings & Feature Completeness Audit
 
+## Update — 2026-09-01, later same day (L3 + demo re-seed closed; supersedes the "Still open" list below)
+
+The two items the fix-it blueprint's close-out (below) left open are now both done:
+
+- **L3 (DNS record)** — removed. User confirmed the stale
+  `piggybank.fynboscreative.co.za` → `102.214.9.185` A record was deleted
+  (done manually, outside any session).
+- **Real demo account re-seeded** — `demo@financeapp.co.za` on the live
+  Tailscale backend now has correct data: 5 holdings with per-unit
+  `cost_basis` (portfolio `total_cost` = `227000.00`, matching the QA
+  report's math), 16 budgets dated `2026-08-01`/`2026-09-01` (current +
+  previous month). Deletion-first procedure per `plans/piggybank-fix-it.md`
+  Step 5: deleted all pre-existing budgets and holdings via the API, then
+  re-ran `seed_test_user.py` against the live backend.
+- **New finding, fixed same pass:** re-running `seed_test_user.py` against an
+  account that already has transactions duplicates all 73 hardcoded
+  transaction rows — `create_transactions()` has no existing-row check
+  (unlike accounts/goals), and its dates are hardcoded absolute, not
+  relative, so a re-run produces byte-identical duplicates. Transaction count
+  went 79 → 152 immediately after this re-seed. Fixed by a one-off dedupe
+  (grouped by account/type/category/amount/date/description, kept the
+  earliest row per group, hard-deleted the rest) — back to 79. **Not fixed in
+  the seed script itself** — low risk given demo re-seeds are expected to be
+  rare, but worth a follow-up idempotency check if re-seeding becomes
+  routine. Full detail in `plans/piggybank-fix-it.md` Step 5.
+
+The fix-it blueprint (all 8 steps) is now fully closed with no open items.
+
 ## Update — 2026-09-01 (fix-it blueprint close-out; supersedes the status update below)
 
 See **`plans/piggybank-fix-it.md`** for the full record of what was done and

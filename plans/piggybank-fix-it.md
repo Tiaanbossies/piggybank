@@ -423,12 +423,32 @@ decision, tracked separately if the user doesn't resolve it in this pass.
 
 ## Step 5 — Seed data corrections
 
-**Status (2026-09-01): Code DONE, live-verified against a scratch account. User explicitly
-declined re-seeding the real shared demo account for now ("Not now") — leaving its existing
-cost-basis/budget data as-is. Revisit if/when the user wants it refreshed; note the fixed script
-is additive/idempotent, so a future re-seed run alone won't retroactively correct the demo
-account's already-existing bad holdings or stale budget months — those would need explicit
-deletion first (via the API) before re-running the script, same choice offered and declined here.**
+**Status (2026-09-01): Code DONE, live-verified against a scratch account, and now also applied to
+the real shared demo account.** User confirmed the re-seed. Deletion-first procedure executed via
+one-off scratch scripts (not committed to either repo): logged into `demo@financeapp.co.za` on the
+live Tailscale backend, deleted all pre-existing budgets (16 rows, stale Apr/May 2026) and holdings
+(0 existed at that point) via `DELETE /api/budgets/{id}` / `DELETE /api/holdings/{id}`, then
+re-ran `seed_test_user.py` with `SEED_BASE_URL=http://100.121.165.7:8000`. Post-reseed the demo
+account has: 5 holdings with correct per-unit `cost_basis` (portfolio `total_cost` = `227000.00`,
+matching the QA report's math exactly), 16 budgets dated `2026-08-01`/`2026-09-01` (current +
+previous month, confirming L1's relative-date fix holds against real wall-clock time), 3 accounts,
+6 assets, 3 liabilities, 3 goals — all reused/skipped as "already exists" per the script's
+idempotency checks, so untouched.
+
+**New finding surfaced during this re-seed, fixed same session:** the script's
+`create_transactions()` step has **no existing-row idempotency check at all** (unlike
+`create_accounts`/`create_goals`, which print "already exists" and skip) — re-running it against an
+account that already has transactions appends a second copy of all 73 hardcoded rows rather than
+skipping them, since `TRANSACTIONS`' dates are hardcoded absolute dates, not relative, so every
+re-run produces byte-identical rows. This wasn't caught by the scratch-account verification above
+because that was a fresh account's *first* seed run, not a *re-run* against existing data — the
+duplication bug only manifests on re-seed. Confirmed: transaction count went 79 → 152 immediately
+after the re-seed ran. Fixed by writing a one-off dedupe script (grouped by account/type/category/
+amount/date/description, kept the earliest-`created_at` row per group, hard-deleted the rest via
+`DELETE /api/transactions/{id}`) — brought the count back to 79 exactly. **Not fixed in
+`seed_test_user.py` itself** — the script's transaction-seeding step still lacks an idempotency
+check; low risk in practice since a demo account is not expected to be re-seeded often, but worth
+a follow-up if re-seeding becomes routine.
 H1: `HOLDINGS`' `cost_basis` values divided by `quantity` per the QA report's own math
 (AAPL 2800.00, MSFT 10500.00, NPN.JO 3200.00, GLD 320.00, SBK.JO 210.00). L1:
 `create_budgets()`'s hardcoded `["2026-04-01", "2026-05-01"]` replaced with
@@ -507,9 +527,10 @@ silently dropping them:
 
 - **L3 (stale DNS record)** — `piggybank.fynboscreative.co.za` → `102.214.9.185`, which serves
   nothing for that name. **User decision (2026-09-01): remove the record.** Not a code fix and no
-  DNS/registrar tool access from this session — flagged as a manual action item for the user
+  DNS/registrar tool access from any session — flagged as a manual action item for the user
   (whoever manages DNS for `fynboscreative.co.za`) to delete the stale A record while the backend
-  stays Tailscale-only. Not yet done.
+  stays Tailscale-only. **Status: DONE** — user confirmed the record removal complete (2026-09-01),
+  done manually outside any session.
 - **L4 (account row tap → Edit mode)** — explicitly framed in the QA report as "may be
   intentional... flagged for product-owner judgment call," not a defect. **User decision
   (2026-09-01): build a read-only detail view.** **Status: DONE.** New
@@ -556,14 +577,17 @@ M4 (ticker-autocomplete overlay, no overflow with keyboard open — the pre-exis
 fix, Abs mode's non-round 798.8 max), H2+H4 (chatbot currency + topic guardrail, both refusal and
 answer directions live-tested via "What is the capital of France" and "Am I on track with my
 budget?"), and the Step 1 net-worth digit-dropping fix (1/1 re-test exact: `R 1 808 030.50`).
-H1/L1 confirmed indirectly — the real demo account's Accounts/Budgets screens still show the
-documented pre-fix state (re-seed declined, nothing since has changed that). H3/H5/H6/M2/M3/M5/M6
-not independently re-exercised live this pass (backend-only, or code unchanged since their own
-step's live verification) but covered by the automated regression. `QA_FINDINGS.md` updated with
-a new 2026-09-01 top section summarizing this whole blueprint and pointing back here; the Step 1
-net-worth finding is now folded in there (not into the frozen `QA_FULL_SUITE_2026-08-31.md`, per
-that file's own historical-snapshot convention). Still open: L3 (DNS removal, needs manual
-registrar access) and the real demo account re-seed (still declined/pending).
+H1/L1 confirmed indirectly at the time of this Step 7 pass — the real demo account's Accounts/
+Budgets screens still showed the documented pre-fix state (re-seed hadn't happened yet). **Update
+(2026-09-01, later same day): the real demo account has since been re-seeded** — see Step 5's
+status section above for the deletion-first procedure and the transaction-duplication finding it
+surfaced and fixed. H3/H5/H6/M2/M3/M5/M6 not independently re-exercised live this pass
+(backend-only, or code unchanged since their own step's live verification) but covered by the
+automated regression. `QA_FINDINGS.md` updated with a new 2026-09-01 top section summarizing this
+whole blueprint and pointing back here; the Step 1 net-worth finding is now folded in there (not
+into the frozen `QA_FULL_SUITE_2026-08-31.md`, per that file's own historical-snapshot convention).
+**Both items once open here are now closed:** L3 (DNS record removed, confirmed by the user) and
+the real demo account re-seed (done, deletion-first procedure executed and verified).
 
 **Depends on:** Steps 0-5 all being done (whichever subset the user chose to run — this step
 re-verifies whatever was actually shipped, not a fixed list).
