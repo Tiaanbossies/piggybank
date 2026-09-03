@@ -3,9 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../features/chatbot/screens/chatbot_screen.dart';
 import '../../features/consent/screens/consent_screen.dart';
+import '../../features/settings/screens/about_screen.dart';
 import '../../features/settings/screens/appearance_screen.dart';
 import '../../features/settings/screens/import_history_screen.dart';
 import '../../features/settings/screens/notifications_screen.dart';
+import '../../features/settings/screens/profile_screen.dart';
 import '../../features/settings/screens/security_screen.dart';
 import '../../features/settings/screens/subscription_screen.dart';
 import '../../shared/widgets/group_card.dart';
@@ -57,6 +59,9 @@ class SettingsScreen extends ConsumerWidget {
                     leadingIcon: Icons.person_outline,
                     title: user.fullName ?? user.email,
                     subtitle: user.email,
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const ProfileScreen()),
+                    ),
                   ),
                 ],
               ),
@@ -115,6 +120,18 @@ class SettingsScreen extends ConsumerWidget {
                   title: 'AI Assistant',
                   onTap: () => Navigator.of(context).push(
                     MaterialPageRoute(builder: (_) => const ChatbotScreen()),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            GroupCard(
+              children: [
+                GroupRow(
+                  leadingIcon: Icons.info_outline,
+                  title: 'About',
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const AboutScreen()),
                   ),
                 ),
               ],
