@@ -305,6 +305,15 @@ couldn't have seen since the host was down that day.
   passthrough lines added (same fix already applied for `SMTP_*` in Step 1, just never mirrored
   for PayFast).
 
+**User decisions, 2026-09-03 (both re-confirmed with the changed facts above):**
+- **Critical #1 (HTTP transport) — deferral stands.** User re-confirmed plain HTTP over the
+  Tailscale tunnel is acceptable for now despite the domain now existing; the Caddy
+  routing/staging-ACME issue is not being fixed at this time. Revisit once public HTTPS is
+  actually wanted.
+- **PayFast sandbox — deferral confirmed, by design pre-launch.** No real users are being
+  incorrectly charged since the app isn't live-marketed yet. Leave on sandbox credentials until
+  ready to accept real payments and a real PayFast merchant account exists.
+
 ---
 
 ## Summary
