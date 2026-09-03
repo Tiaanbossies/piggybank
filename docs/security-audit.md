@@ -256,6 +256,57 @@ machine (`ssh ... Connection timed out`, port 22) — same carried-over blocker 
 
 ---
 
+## Live verification follow-up — 2026-09-03
+
+The backend host (`100.121.165.7`) is reachable this session (direct SSH + HTTP both confirmed).
+Closing out the "[needs live verification]" items above, plus one thing the original audit
+couldn't have seen since the host was down that day.
+
+- **Low #1 (JWT secret) — CONFIRMED GOOD.** `.env.docker`'s `JWT_SECRET_KEY` is overridden from
+  the dev default (64 hex chars = 32 bytes, correct length for HS256) and `docker-compose.yml`
+  hardcodes `APP_ENV: production` directly (not read from `.env.docker`), so the fail-fast guard
+  is armed and passing. No action needed — this finding is now fully closed, not just
+  "correct by inspection."
+
+- **Critical #1 (HTTP-vs-HTTPS transport) — still open, and the original deferral reasoning is
+  now stale.** The audit's deferral said "no domain is available right now." That's no longer
+  true: `.env.docker`'s `DOMAIN=piggybank.fynboscreative.co.za`, and that hostname **does**
+  resolve (to `102.214.9.185`). But Caddy has been failing to obtain a cert for it on every retry
+  since at least two cycles ago (`docker compose logs caddy`, 6-hourly retry loop): both the
+  `tls-alpn-01` and `http-01` ACME challenges fail with `102.214.9.185: remote error: tls:
+  internal error` — meaning that IP either isn't routing inbound :80/:443 traffic to this Caddy
+  container, or something in front of it (another Caddy/nginx instance, a firewall, a different
+  physical box) is answering instead. **Separately, and worth fixing regardless of the DNS/routing
+  issue:** Caddy's ACME client is pointed at `acme-staging-v02.api.letsencrypt.org` — Let's
+  Encrypt's **staging** directory, which by design never issues browser-trusted certificates. Even
+  if the routing problem were fixed today, this domain would still not get a real cert until the
+  Caddyfile/compose config is switched to the production ACME directory. The app's actual live
+  traffic still goes over plain HTTP to the Tailscale IP (`api_config.dart`'s default), so this
+  doesn't change the current risk picture from the original mitigating-factor analysis — but the
+  deferral's stated reason for accepting it ("no domain available") no longer matches reality, and
+  should be re-confirmed with the user rather than left standing on outdated grounds.
+
+- **New finding — PayFast is running on sandbox credentials in production.** `.env.docker` has
+  zero `PAYFAST_*` entries (`grep -c '^PAYFAST_' .env.docker` → 0), and `docker-compose.yml`'s
+  `backend` service environment block doesn't forward any `PAYFAST_*` vars even if they were set —
+  confirming the gap flagged but not verified in the Step 1 status notes below. This means
+  `config.py`'s hardcoded PayFast **sandbox** defaults (`payfast_sandbox: true`, test
+  `merchant_id`/`merchant_key`, published PayFast test credentials) are silently active on the
+  live server right now. Practical effect: every "Upgrade to Pro" checkout in production today
+  goes through PayFast's sandbox — no real card is charged — while `subscriptions_router` grants
+  real Pro-tier access on a successful sandbox ITN callback, same as it would for a real payment.
+  This is a business-correctness gap, not just a security one: real users can currently get Pro
+  access without PayFast ever processing real money, and once real credentials are wired in this
+  same misconfiguration would do the opposite (fail to bill anyone, or charge against the wrong
+  merchant account) if not deliberately fixed. **Requires a user decision, not a unilateral code
+  fix** — same pattern as the original payment-gateway scoping gate: real PayFast merchant
+  credentials (from `docs/payment-gateway-scope.md`'s "PayFast merchant account signup" step) need
+  to actually exist before this can be closed, and `docker-compose.yml` needs the `PAYFAST_*`
+  passthrough lines added (same fix already applied for `SMTP_*` in Step 1, just never mirrored
+  for PayFast).
+
+---
+
 ## Summary
 
 | Severity | Count | Resolved |
