@@ -58,6 +58,13 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                Center(
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(24),
+                    child: Image.asset('assets/mascot.jpg', width: 96, height: 96, fit: BoxFit.cover),
+                  ),
+                ),
+                const SizedBox(height: 24),
                 if (!_sent) ...[
                   Text(
                     "Enter your account's email address and we'll send you a code to reset your password.",

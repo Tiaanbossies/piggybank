@@ -67,6 +67,13 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                Center(
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(24),
+                    child: Image.asset('assets/mascot.jpg', width: 96, height: 96, fit: BoxFit.cover),
+                  ),
+                ),
+                const SizedBox(height: 24),
                 Text(
                   'Enter the 8-digit code sent to ${widget.email} and choose a new password.',
                   style: Theme.of(context).textTheme.bodyMedium,
