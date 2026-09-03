@@ -166,18 +166,28 @@ machine (`ssh ... Connection timed out`, port 22) — same carried-over blocker 
 
 ## Medium
 
-1. **Android release build has no confirmed code obfuscation/shrinking.**
-   `Piggybank/android/app/build.gradle.kts:50-54`'s `release` build type sets only
-   `signingConfig` — no `isMinifyEnabled = true`, no `isShrinkResources = true`, no ProGuard/R8
-   rules file reference. Flutter's own `--obfuscate --split-debug-info=<dir>` build flags (which
-   obfuscate the *Dart* code, separate from R8/ProGuard which only covers the Kotlin/Java
-   Android-embedding layer) were not found referenced in any build script, `Makefile`, or CI
-   workflow in this repo — meaning `flutter build appbundle --release` (the exact command used
-   for Step 9a's Play Store build) almost certainly ships without Dart obfuscation. For a
-   financial app, decompiling the release APK/AAB would currently expose readable Dart symbol
-   names and business logic more easily than necessary. Not Critical because the actual secrets
-   (JWT signing, password hashing) live server-side, not in the client binary — but still worth
-   closing before a real public Play Store release.
+1. **RESOLVED 2026-09-03 — Android release build now has both R8 shrinking and Dart
+   obfuscation.** `android/app/build.gradle.kts`'s `release` build type gained
+   `isMinifyEnabled = true`, `isShrinkResources = true`, and a `proguard-rules.pro` (new file,
+   keep-rules for `local_auth`'s biometric reflection path and `flutter_secure_storage`'s
+   AndroidX Security Crypto classes — the two plugins most likely to break under aggressive R8
+   stripping). New `scripts/build_release.sh` wraps `flutter build appbundle`/`apk --release`
+   with `--obfuscate --split-debug-info=build/symbols/<version>`, replacing the previously
+   undocumented bare command. **Verified:** both `bundleRelease` and `assembleRelease` succeeded
+   with no R8 "missing classes" errors (AAB 56.2MB → 53.1MB, APK 57.7MB → 54.6MB vs. the Step 9a
+   unobfuscated build); `apksigner verify --print-certs` on the new APK reports the identical
+   SHA-256/SHA-1 fingerprint as Step 9a's original verification, confirming it's still signed
+   with the real backed-up release key, not a debug cert. **Not verified this session:** no
+   Android device was connected to run the obfuscated build on real hardware — R8 shrinking is
+   the one change here with real regression risk (over-aggressive stripping can silently break a
+   reflection-based plugin at runtime without a build-time error). Exercise biometric/PIN unlock
+   (`local_auth`) and the secure-storage-backed login/refresh-token flow specifically before
+   trusting this build for a real Play Store release.
+   **Originally:** `build.gradle.kts`'s `release` build type set only `signingConfig` — no
+   minify/shrink, no ProGuard/R8 rules file, and no `--obfuscate`/`--split-debug-info` referenced
+   anywhere in the repo, meaning the Step 9a Play Store build shipped with fully readable Dart
+   symbol names and business logic in the decompiled binary. Not Critical because the actual
+   secrets (JWT signing, password hashing) live server-side, not in the client binary.
 
 2. **RESOLVED 2026-08-30 — `/ai/web-search` had no auth dependency at all, confirming the worse
    of the two suspected outcomes.** `backend/app/routes/ai.py`'s `web_search_endpoint` took only
@@ -320,10 +330,10 @@ couldn't have seen since the host was down that day.
 
 | Severity | Count | Resolved |
 |---|---|---|
-| Critical | 1 | 0 (deferred 2026-08-30, user-acknowledged) |
+| Critical | 1 | 0 (deferred 2026-08-30, re-confirmed 2026-09-03) |
 | High | 4 | 4 |
-| Medium | 2 | 1 (`/ai/web-search` auth, reclassified from Medium) |
-| Low | 6 | 0 |
+| Medium | 2 | 2 (`/ai/web-search` auth; Android obfuscation resolved 2026-09-03) |
+| Low | 6 | 1 (JWT secret confirmed 2026-09-03) |
 
 **Step 1 status (updated 2026-08-30): exit criteria met.** Every Critical/High finding is either
 fixed or has a written, user-acknowledged deferral reason, matching

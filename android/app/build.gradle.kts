@@ -50,6 +50,15 @@ android {
     buildTypes {
         release {
             signingConfig = signingConfigs.getByName("release")
+            // R8 minify/shrink for the Kotlin/Java Android-embedding layer. Dart code has its
+            // own separate obfuscation step — see scripts/build_release.sh, which also passes
+            // --obfuscate --split-debug-info to `flutter build`.
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro",
+            )
         }
     }
 }
