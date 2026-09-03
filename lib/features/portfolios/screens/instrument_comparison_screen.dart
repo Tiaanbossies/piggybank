@@ -73,6 +73,11 @@ class _InstrumentComparisonScreenState extends ConsumerState<InstrumentCompariso
     final comparison = ref.watch(comparisonControllerProvider);
     final controller = ref.read(comparisonControllerProvider.notifier);
     final semantic = Theme.of(context).extension<AppSemanticColors>();
+    // The chart isn't useful while the ticker keyboard is up, and its fixed
+    // 220px height is what pushes the non-scrollable Column into overflow
+    // once chips wrap to a second line with the keyboard open. Collapsing
+    // it while typing frees that space back up.
+    final keyboardOpen = MediaQuery.of(context).viewInsets.bottom > 0;
 
     return DefaultTabController(
       length: 4,
@@ -165,21 +170,23 @@ class _InstrumentComparisonScreenState extends ConsumerState<InstrumentCompariso
                   ],
                 ),
               ),
-              const SizedBox(height: 8),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: SizedBox(
-                  height: 220,
-                  child: comparison.entries.isEmpty
-                      ? Center(
-                          child: Text(
-                            'Add up to $maxComparisonEntries tickers to compare',
-                            style: TextStyle(color: semantic?.textMuted),
-                          ),
-                        )
-                      : _ComparisonLineChart(entries: comparison.entries, percentMode: comparison.percentMode),
+              if (!keyboardOpen) ...[
+                const SizedBox(height: 8),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: SizedBox(
+                    height: 220,
+                    child: comparison.entries.isEmpty
+                        ? Center(
+                            child: Text(
+                              'Add up to $maxComparisonEntries tickers to compare',
+                              style: TextStyle(color: semantic?.textMuted),
+                            ),
+                          )
+                        : _ComparisonLineChart(entries: comparison.entries, percentMode: comparison.percentMode),
+                  ),
                 ),
-              ),
+              ],
               const SizedBox(height: 8),
               Expanded(
                 child: TabBarView(
