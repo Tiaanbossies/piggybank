@@ -1,9 +1,11 @@
+import 'package:decimal/decimal.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/api/api_error.dart';
 import '../../../core/format/money.dart';
 import '../../../shared/widgets/progress_card.dart';
+import '../../transactions/category_icons.dart';
 import '../models/budget.dart';
 import '../providers/budgets_provider.dart';
 
@@ -67,6 +69,8 @@ class BudgetsBody extends ConsumerWidget {
                 return ListView(
                   padding: const EdgeInsets.all(16),
                   children: [
+                    _TotalSpentSummary(budgets: budgets),
+                    const SizedBox(height: 4),
                     for (final budget in budgets) ...[
                       _BudgetProgressRow(progress: budget),
                       for (final child in budget.children) _BudgetProgressRow(progress: child, indented: true),
@@ -97,10 +101,50 @@ class _BudgetProgressRow extends StatelessWidget {
         pct: pct,
         overBudget: progress.overBudget,
         indented: indented,
+        icon: progress.category == null ? null : categoryIcon(progress.category),
         footnote: progress.overBudget
             ? '${formatZAR(progress.remaining.abs())} over budget'
             : '${formatZAR(progress.spent)} / ${formatZAR(progress.budgetAmount)}',
       ),
+    );
+  }
+}
+
+/// "Total spent" summary card per the Stitch Budgets mockup, shown above the
+/// per-category list. If the user has an explicit overall budget (a
+/// category-null top-level entry, whose `spent` already equals total spend
+/// across every category — see `budgets/router.py`'s `_make_progress`),
+/// that row is used directly; otherwise this sums the top-level categories'
+/// own figures, which don't overlap each other (only a parent + its own
+/// children overlap, and that's not being double-summed here — each
+/// top-level entry's `spent` already folds its children in).
+class _TotalSpentSummary extends StatelessWidget {
+  const _TotalSpentSummary({required this.budgets});
+  final List<BudgetProgress> budgets;
+
+  @override
+  Widget build(BuildContext context) {
+    final explicitTotal = budgets.where((b) => b.category == null).firstOrNull;
+    final Decimal spent;
+    final Decimal budgetAmount;
+    if (explicitTotal != null) {
+      spent = explicitTotal.spent;
+      budgetAmount = explicitTotal.budgetAmount;
+    } else {
+      spent = budgets.fold(Decimal.zero, (sum, b) => sum + b.spent);
+      budgetAmount = budgets.fold(Decimal.zero, (sum, b) => sum + b.budgetAmount);
+    }
+    final overBudget = budgetAmount > Decimal.zero && spent > budgetAmount;
+    final pct = budgetAmount > Decimal.zero ? (spent / budgetAmount).toDouble() : 0.0;
+
+    return ProgressCard(
+      title: 'Total spent',
+      pct: pct,
+      overBudget: overBudget,
+      icon: Icons.account_balance_wallet_outlined,
+      footnote: overBudget
+          ? '${formatZAR(spent - budgetAmount)} over budget'
+          : '${formatZAR(spent)} / ${formatZAR(budgetAmount)}',
     );
   }
 }

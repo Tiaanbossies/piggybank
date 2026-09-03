@@ -26,4 +26,17 @@ class SummariesApi {
       throw ApiClient.errorFrom(e);
     }
   }
+
+  /// Snapshots are written by the backend's daily scheduled job
+  /// (`summaries/snapshot_job.py`) — the client only ever reads history,
+  /// it never triggers `POST /net-worth-snapshot` itself.
+  Future<List<NetWorthSnapshot>> netWorthHistory({int months = 2}) async {
+    try {
+      final response = await _client.dio.get('/summaries/net-worth-history', queryParameters: {'months': months});
+      final data = response.data as Map<String, dynamic>;
+      return (data['snapshots'] as List).map((e) => NetWorthSnapshot.fromJson(e as Map<String, dynamic>)).toList();
+    } on DioException catch (e) {
+      throw ApiClient.errorFrom(e);
+    }
+  }
 }

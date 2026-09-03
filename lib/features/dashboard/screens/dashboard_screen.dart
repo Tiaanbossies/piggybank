@@ -1,3 +1,4 @@
+import 'package:decimal/decimal.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -15,6 +16,7 @@ import '../../calculators/screens/calculators_screen.dart';
 import '../../goals/providers/goals_provider.dart';
 import '../../liabilities/screens/liabilities_screen.dart';
 import '../../summaries/providers/summaries_provider.dart';
+import '../../transactions/category_icons.dart';
 import '../../transactions/providers/transactions_provider.dart';
 import '../../transactions/screens/transactions_screen.dart';
 
@@ -84,8 +86,41 @@ class _NetWorthHero extends ConsumerWidget {
     return netWorthAsync.when(
       loading: () => const SizedBox(height: 64, child: Center(child: CircularProgressIndicator())),
       error: (err, _) => Text(err is ApiError ? err.message : 'Failed to load net worth'),
-      data: (netWorth) => HeroMetricCard(label: 'Net worth', value: formatZAR(netWorth.netWorth)),
+      data: (netWorth) => HeroMetricCard(
+        label: 'Net worth',
+        value: formatZAR(netWorth.netWorth),
+        deltaText: _NetWorthTrend.of(ref),
+      ),
     );
+  }
+}
+
+/// "+2.4% this month"-style trend pill per the Stitch Dashboard mockup —
+/// backed by real data (the daily snapshot job, `summaries/snapshot_job.py`),
+/// not a fabricated number. Omitted entirely (returns null, no pill shown)
+/// until at least ~25 days of snapshot history exist for this account, since
+/// there's no meaningful "this month" comparison before then.
+class _NetWorthTrend {
+  static const _minDaysForComparison = 25;
+
+  static String? of(WidgetRef ref) {
+    final historyAsync = ref.watch(netWorthHistoryProvider);
+    final snapshots = historyAsync.valueOrNull;
+    if (snapshots == null || snapshots.length < 2) return null;
+
+    final sorted = [...snapshots]..sort((a, b) => a.snapshotDate.compareTo(b.snapshotDate));
+    final latest = sorted.last;
+    final comparison = sorted.firstWhere(
+      (s) => latest.snapshotDate.difference(s.snapshotDate).inDays >= _minDaysForComparison,
+      orElse: () => sorted.first,
+    );
+    final daysSpanned = latest.snapshotDate.difference(comparison.snapshotDate).inDays;
+    if (daysSpanned < _minDaysForComparison || comparison.netWorth == Decimal.zero) return null;
+
+    final change = (latest.netWorth - comparison.netWorth).toDouble();
+    final pct = change / comparison.netWorth.abs().toDouble() * 100;
+    final up = pct >= 0;
+    return '${up ? '+' : ''}${pct.toStringAsFixed(1)}% this month';
   }
 }
 
@@ -260,7 +295,11 @@ class _RecentTransactionsPreview extends ConsumerWidget {
               children: [
                 for (final t in page.items)
                   GroupRow(
-                    leadingIcon: t.transactionType.name == 'expense' ? Icons.arrow_upward : Icons.arrow_downward,
+                    leadingIcon: categoryIcon(
+                      t.category,
+                      isExpense: t.transactionType.name == 'expense',
+                      isTransfer: t.transactionType.name == 'transfer',
+                    ),
                     title: t.merchantName ?? t.description ?? t.category,
                     subtitle: t.category,
                     trailing: Text(

@@ -8,6 +8,7 @@ import '../../../shared/widgets/group_card.dart';
 import '../../accounts/providers/accounts_provider.dart';
 import '../../expenses/screens/expenses_summary_screen.dart';
 import '../../imports/screens/imports_screen.dart';
+import '../category_icons.dart';
 import '../models/transaction.dart';
 import '../providers/transactions_provider.dart';
 
@@ -165,39 +166,6 @@ class TransactionsScreen extends ConsumerWidget {
   }
 }
 
-/// Category → icon mapping per the Stitch Transactions mockup, which shows a
-/// distinct icon chip per merchant/category rather than one generic
-/// direction arrow for every row. Falls back to the expense/income arrow for
-/// categories not covered here.
-IconData _categoryIcon(Transaction transaction) {
-  switch (transaction.category) {
-    case 'Groceries':
-      return Icons.shopping_cart_outlined;
-    case 'Dining':
-    case 'Food':
-      return Icons.restaurant_outlined;
-    case 'Transport':
-    case 'Gas':
-      return Icons.directions_car_outlined;
-    case 'Utilities':
-      return Icons.bolt_outlined;
-    case 'Rent':
-      return Icons.home_outlined;
-    case 'Shopping':
-      return Icons.shopping_bag_outlined;
-    case 'Entertainment':
-      return Icons.movie_outlined;
-    case 'Gym':
-      return Icons.fitness_center_outlined;
-    case 'Healthcare':
-      return Icons.local_hospital_outlined;
-    case 'Insurance':
-      return Icons.shield_outlined;
-  }
-  if (transaction.transactionType == TransactionType.transfer) return Icons.swap_horiz;
-  return transaction.transactionType == TransactionType.expense ? Icons.arrow_upward : Icons.arrow_downward;
-}
-
 class _TransactionRow extends ConsumerWidget {
   const _TransactionRow({required this.transaction});
   final Transaction transaction;
@@ -212,7 +180,11 @@ class _TransactionRow extends ConsumerWidget {
     // tinted success/danger by direction, matching the Dashboard preview.
     final semantic = Theme.of(context).extension<AppSemanticColors>();
     return GroupRow(
-      leadingIcon: _categoryIcon(transaction),
+      leadingIcon: categoryIcon(
+        transaction.category,
+        isExpense: isExpense,
+        isTransfer: transaction.transactionType == TransactionType.transfer,
+      ),
       title: transaction.merchantName ?? transaction.description ?? transaction.category,
       subtitle: transaction.category,
       trailing: Text(

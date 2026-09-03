@@ -51,7 +51,9 @@ void main() {
 
       expect(find.text('Groceries'), findsOneWidget);
       expect(find.text('Fuel'), findsOneWidget);
-      expect(find.byType(ProgressCard), findsNWidgets(2));
+      // +1 for the "Total spent" summary card shown above the category list.
+      expect(find.text('Total spent'), findsOneWidget);
+      expect(find.byType(ProgressCard), findsNWidgets(3));
     });
 
     testWidgets('shows the empty state when the API returns no budgets', (tester) async {

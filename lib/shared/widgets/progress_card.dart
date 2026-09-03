@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/theme/app_theme.dart';
+import 'icon_chip.dart';
 import 'percent_pill.dart';
 
 /// Budget/goal progress row per DESIGN.md § Signature components — a
@@ -14,6 +15,7 @@ class ProgressCard extends StatelessWidget {
     required this.footnote,
     this.overBudget = false,
     this.indented = false,
+    this.icon,
     super.key,
   });
 
@@ -24,6 +26,12 @@ class ProgressCard extends StatelessWidget {
   final String footnote;
   final bool overBudget;
   final bool indented;
+
+  /// Optional leading category icon per the Stitch Budgets mockup, which
+  /// gives each category row a distinct icon rather than none at all. Null
+  /// for rows with no natural category (e.g. Goals, the "Total" fallback
+  /// row) — omitted rather than shown as a generic placeholder.
+  final IconData? icon;
 
   @override
   Widget build(BuildContext context) {
@@ -38,6 +46,7 @@ class ProgressCard extends StatelessWidget {
           children: [
             Row(
               children: [
+                if (icon != null) ...[IconChip(icon: icon!, danger: overBudget), const SizedBox(width: 12)],
                 Expanded(child: Text(title, style: Theme.of(context).textTheme.titleMedium)),
                 PercentPill(pct: (pct * 100).round(), danger: overBudget),
               ],

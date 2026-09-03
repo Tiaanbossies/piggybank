@@ -27,3 +27,17 @@ class CashflowSummary {
         netCashflow: Decimal.parse(json['net_cashflow'].toString()),
       );
 }
+
+/// Mirrors `backend/app/summaries/schemas.py`'s `NetWorthSnapshotOut` — one
+/// day's stored net-worth figure, written by the daily scheduled job
+/// (`summaries/snapshot_job.py`).
+class NetWorthSnapshot {
+  const NetWorthSnapshot({required this.snapshotDate, required this.netWorth});
+  final DateTime snapshotDate;
+  final Decimal netWorth;
+
+  factory NetWorthSnapshot.fromJson(Map<String, dynamic> json) => NetWorthSnapshot(
+        snapshotDate: DateTime.parse(json['snapshot_date'] as String),
+        netWorth: Decimal.parse(json['net_worth'].toString()),
+      );
+}
