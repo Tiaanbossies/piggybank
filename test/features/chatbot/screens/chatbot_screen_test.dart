@@ -72,26 +72,13 @@ void main() {
       expect(tester.widget<TextField>(find.byType(TextField)).controller!.text, '');
     });
 
-    testWidgets('a paywall error pops the screen and shows the upgrade dialog', (tester) async {
+    testWidgets('a paywall error shows the upgrade dialog without popping the screen', (tester) async {
+      // ChatbotScreen is the '/assistant' bottom-nav tab root (see app_router.dart),
+      // not a pushed screen — there is nothing to pop when a paywall error fires, so
+      // this pumps it directly rather than via a manual Navigator.push wrapper.
       final adapter = _FakeAdapter([() => _json(402, {'detail': 'Pro subscription required'})]);
 
-      await tester.pumpWidget(
-        MaterialApp(
-          home: Builder(
-            builder: (context) => Scaffold(
-              body: Center(
-                child: ElevatedButton(
-                  onPressed: () => Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => _wrap(_apiWith(adapter))),
-                  ),
-                  child: const Text('Open chat'),
-                ),
-              ),
-            ),
-          ),
-        ),
-      );
-      await tester.tap(find.text('Open chat'));
+      await tester.pumpWidget(_wrap(_apiWith(adapter)));
       await tester.pumpAndSettle();
 
       await tester.enterText(find.byType(TextField), 'hi');
@@ -100,7 +87,7 @@ void main() {
 
       expect(find.text('Upgrade to PRO'), findsOneWidget);
       expect(find.text('Pro subscription required'), findsOneWidget);
-      expect(find.byType(ChatbotScreen), findsNothing);
+      expect(find.byType(ChatbotScreen), findsOneWidget);
     });
   });
 }

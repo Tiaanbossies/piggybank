@@ -76,7 +76,6 @@ class _ChatbotScreenState extends ConsumerState<ChatbotScreen> {
     } on ApiError catch (e) {
       if (e.isPaywall) {
         if (mounted) {
-          Navigator.of(context).pop();
           unawaited(showPaywallPrompt(context, message: e.message));
         }
       } else if (mounted) {
