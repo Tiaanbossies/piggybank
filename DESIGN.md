@@ -114,7 +114,7 @@ in any of the 9 mockups.
 
 ## Navigation
 
-Material 3 `NavigationBar` (bottom, 5 tabs: Home, Invest, Budgets, Insights, Settings),
+Material 3 `NavigationBar` (bottom, 5 tabs: Home, Invest, Budgets, Assistant, Settings),
 unchanged — confirmed directly by every mockup that shows the tab bar. Active tab renders
 in the accent green (icon + label), inactive tabs in muted grey/outline.
 

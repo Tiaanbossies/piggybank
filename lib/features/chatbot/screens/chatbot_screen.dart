@@ -17,11 +17,13 @@ import '../providers/chatbot_provider.dart';
 /// (`ChatbotApi` docs), so a send shows a single typing-indicator bubble
 /// then the complete reply, never token-by-token.
 ///
-/// Entry point: pushed from Settings (`GroupRow` alongside Subscription,
-/// Security, etc.), not from the Insights tab — Insights is still Step 7's
-/// bare "coming soon" placeholder with no real navigation surface to push
-/// from, whereas Settings already lists every other real, gated feature the
-/// same way. Revisit if/when Step 7 gives Insights its own real screen.
+/// Entry point: the bottom nav's "Assistant" tab (see `app_router.dart`'s
+/// `/assistant` branch and `app_shell.dart`'s destinations list). Previously
+/// reached only via a Settings row (`GroupRow`, `Navigator.push`); that row
+/// was removed once this became a primary tab, to avoid two navigation
+/// paths to the same screen. Formerly sat alongside Insights' one-off
+/// Q&A-history screen at the 4th tab slot; Insights' code is unrouted but
+/// still present under `lib/features/insights/` if ever revisited.
 class ChatbotScreen extends ConsumerStatefulWidget {
   const ChatbotScreen({super.key});
 
@@ -74,7 +76,6 @@ class _ChatbotScreenState extends ConsumerState<ChatbotScreen> {
     } on ApiError catch (e) {
       if (e.isPaywall) {
         if (mounted) {
-          Navigator.of(context).pop();
           unawaited(showPaywallPrompt(context, message: e.message));
         }
       } else if (mounted) {

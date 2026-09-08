@@ -11,7 +11,12 @@ import '../../../shared/widgets/paywall_dialog.dart';
 import '../models/insight.dart';
 import '../providers/insights_provider.dart';
 
-/// Blueprint Step 7. Replaces the `/insights` `PlaceholderScreen`.
+/// Blueprint Step 7. Originally replaced the `/insights` `PlaceholderScreen`
+/// and lived at the bottom nav's 4th tab slot. That slot now routes to
+/// `ChatbotScreen` (the AI Assistant) instead — this screen is currently
+/// unrouted (no `GoRoute` references it) but left in place, tests and all,
+/// in case the product decides to bring a distinct Q&A-history surface
+/// back later.
 ///
 /// Deliberately does **not** reuse [HeroMetricCard]/[ProgressCard] despite
 /// `docs/stitch-design-brief.md` §8 suggesting that vocabulary — both widgets'
