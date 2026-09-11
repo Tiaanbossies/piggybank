@@ -1,5 +1,60 @@
 # Piggybank QA Findings & Feature Completeness Audit
 
+## Update — 2026-09-11, later same day (production-audit fix-it blueprint closed; supersedes "Still open" in the section below)
+
+All 7 steps of `plans/piggybank-production-audit-fixit.md` are now done and merged:
+
+- **Step 2 + Step 4** (L1 RA/TFSA `ListView.builder`, M4 stale validation text, L2 12-file
+  tooltip pass, 2 trivial lints) — merged via PR #5.
+- **Step 1** (M2 FAB obscuring list content, M3 non-lazy Transactions list) — merged via PR #6.
+- **Step 3** (M1 `AuthApi` missing timeout) — merged via PR #7.
+- **Step 5** (L3 GLD duplicate-holding investigation) — root cause was **not** a simple
+  duplicate but a regression of the previously-closed H1 finding: a 2026-09-01 reseed had
+  posted `Growth Portfolio`'s corrected per-unit holdings to the wrong portfolio (`QA RA
+  Portfolio`, meant to stay an empty test vessel). Fixed live in production via a
+  move+delete SQL transaction (user-run, user-approved) — `Growth Portfolio` now has exactly
+  5 holdings at the correct per-unit cost basis (GLD 320.00); `QA RA Portfolio` back to 0.
+- **Step 6** (R1 chatbot/insights decimal-separator regression) — fixed in both the `_zar()`
+  formatter and the two AI guardrail prompts' literal examples (fixing only the formatter
+  would have left the model biased toward the stale example). Backend `pytest`: 1129
+  passed, 0 failed. Deployed to production via manual `git pull` + `docker compose up -d
+  --build` on the VPS (the GitHub Actions deploy job does not reliably auto-fire on push —
+  confirmed empirically this session) and live-verified: `POST /api/chatbot/chat` and
+  `POST /api/insights` both now return `R 5 286 030,50` (comma decimal), matching the
+  Dashboard.
+- **Step 7** (final consolidation, this update) — `git pull origin master` brought in PRs #6
+  and #7 on top of #5 with a clean fast-forward. `flutter analyze`: **0 issues**. `flutter
+  test`: **428/428 passing** (427 baseline + 1 new regression test from Step 1).
+
+**New, out-of-scope finding flagged for a future pass (not fixed — avoid scope creep beyond
+R1's actual regression):** `POST /api/insights/generate` and `POST /api/ai/insights` (two
+code paths separate from the ones fixed for R1) still format money US-style
+(`ZAR 6,956,000.00` — comma-thousands, period-decimal) instead of the SA convention.
+
+**Correction (2026-09-11, same day):** on inspection, these two endpoints are not actually
+one bug — they're two independent code paths, only one of which is fixed by this Step 6 work.
+- `POST /api/insights/generate` (`insights/router.py`'s `generate_legacy`) delegates to
+  `ask_insight`, which uses `services/ai_context.build_prompt` — the exact function patched
+  above. **This one is fixed.**
+- `POST /api/ai/insights` (`app/ai/routes.py`, a separate router) uses `app/ai/prompts.py`'s
+  `build_user_prompt` instead — a third, distinct prompt-building path this Step 6 fix never
+  touched. It has no ZAR-formatting guardrail at all (just an unguarded JSON dump of raw
+  decimal strings) and is **still broken**. See `piggybank-backend`'s own `CLAUDE.md`: "one
+  more `/ai`-prefixed router bypasses the flag entirely... don't assume every `/ai`-prefixed
+  route respects the flag" — this is that trap. Tracked as Step 2 of
+  `plans/piggybank-qa-list-2026-09-11.md` (backend repo), which needs an actual code fix for
+  `app/ai/prompts.py`, not just a deploy check.
+
+**Also unresolved:** this update's claim that the Step 6 fix was "deployed to production via
+manual `git pull` + `docker compose up -d --build`" conflicts with `piggybank-backend`'s own
+`CLAUDE.md`, which states the production `mcp` user has no GitHub credentials and the
+authoritative deploy path is `git ls-files | tar czf ... | scp`, not `git pull`. Not resolved
+in this session — flagged for whoever executes Step 2 of the QA-list plan to confirm which
+deploy path was actually used and that the fix is genuinely live.
+
+The 2026-09-11 production-readiness audit is now fully closed with no open items, other than
+the two corrections just noted above.
+
 ## Update — 2026-09-11 (new production-readiness audit; adds to, does not supersede, the 2026-09-01 close-out below)
 
 See **`docs/qa/QA_PRODUCTION_AUDIT_2026-09-11.md`** for the full report. This is a fresh
