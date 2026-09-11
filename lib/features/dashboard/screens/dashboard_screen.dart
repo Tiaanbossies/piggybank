@@ -322,10 +322,10 @@ class _RecentTransactionsPreview extends ConsumerWidget {
               err is ApiError ? err.message : 'Failed to load transactions',
             ),
             data: (page) {
-              if (page.items.isEmpty) return const Text('No transactions yet.', key: ValueKey('data'));
+              if (page.items.isEmpty) return const Text('No transactions yet.', key: ValueKey('empty'));
               final semantic = Theme.of(context).extension<AppSemanticColors>();
               return GroupCard(
-                key: const ValueKey('data'),
+                key: const ValueKey('list'),
                 children: [
                   for (final t in page.items)
                     GroupRow(
