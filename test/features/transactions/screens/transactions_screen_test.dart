@@ -150,6 +150,34 @@ void main() {
       expect(find.text('Employer Inc'), findsOneWidget);
     });
 
+    // Regression coverage for QA_PRODUCTION_AUDIT_2026-09-11.md M2 + M3: the
+    // non-empty list must render via a lazy builder delegate (not the
+    // eagerly-materialized ListView(children:) it used before), and must
+    // reserve enough bottom padding to clear the "Add transaction" FAB so a
+    // scrolled-to-the-bottom row's amount is never hidden behind it.
+    testWidgets('the non-empty transaction list uses a lazy builder delegate with FAB-clearing bottom padding', (tester) async {
+      _stubList(mockApi, [
+        _tx(id: '1', type: TransactionType.expense, category: 'Groceries', merchantName: 'Woolworths', date: DateTime(2026, 8, 20)),
+      ]);
+
+      await pumpApp(
+        tester,
+        const TransactionsScreen(),
+        overrides: [transactionsApiProvider.overrideWithValue(mockApi)],
+      );
+      await tester.pumpAndSettle();
+
+      final listView = tester.widget<ListView>(find.byType(ListView));
+      expect(listView.childrenDelegate, isA<SliverChildBuilderDelegate>());
+
+      final padding = listView.padding;
+      expect(padding, isA<EdgeInsets>());
+      if (padding is EdgeInsets) {
+        expect(padding.bottom, greaterThan(kFloatingActionButtonMargin + 56), // FAB height + its default margin
+            reason: 'bottom padding must clear the FloatingActionButton.extended so a scrolled row is never hidden behind it');
+      }
+    });
+
     testWidgets('pull-to-refresh triggers a refetch', (tester) async {
       _stubList(mockApi, [
         _tx(id: '1', type: TransactionType.expense, category: 'Groceries', merchantName: 'Woolworths', date: DateTime(2026, 8, 20)),

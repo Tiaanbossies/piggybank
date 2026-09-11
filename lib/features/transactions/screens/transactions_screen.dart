@@ -18,6 +18,14 @@ import '../providers/transactions_provider.dart';
 class TransactionsScreen extends ConsumerWidget {
   const TransactionsScreen({super.key});
 
+  // FloatingActionButton.extended's own height (56) plus its default margin
+  // from the screen edge (kFloatingActionButtonMargin, 16) plus a little
+  // breathing room, reserved as extra bottom padding so the last row(s) of
+  // the list never sit underneath the FAB (QA_PRODUCTION_AUDIT_2026-09-11.md
+  // M3 — a transaction's amount was fully hidden behind the FAB at certain
+  // scroll depths).
+  static const double _kFabClearance = 88;
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final currentPage = ref.watch(transactionsProvider);
@@ -86,36 +94,49 @@ class TransactionsScreen extends ConsumerWidget {
                     
                     if (accumulated.isEmpty) {
                       return ListView(
-                        padding: const EdgeInsets.all(16),
+                        padding: const EdgeInsets.fromLTRB(16, 16, 16, 16 + _kFabClearance),
                         children: const [Center(child: Padding(padding: EdgeInsets.only(top: 48), child: Text('No transactions match this filter.')))],
                       );
                     }
-                    
-                    final groups = _groupByDate(accumulated);
+
+                    final groupEntries = _groupByDate(accumulated).entries.toList();
                     final hasMore = accumulated.length < page.total;
-                    
-                    return ListView(
-                      padding: const EdgeInsets.all(16),
-                      children: [
-                        for (final entry in groups.entries) ...[
-                          Padding(
-                            padding: const EdgeInsets.only(top: 16, bottom: 8),
-                            child: Text(_formatGroupDate(entry.key), style: Theme.of(context).textTheme.labelMedium),
-                          ),
-                          GroupCard(children: [for (final transaction in entry.value) _TransactionRow(transaction: transaction)]),
-                        ],
-                        if (hasMore) ...[
-                          const SizedBox(height: 24),
-                          Center(
+                    final itemCount = groupEntries.length + (hasMore ? 1 : 0);
+
+                    // ListView.builder (not ListView(children:)) so groups are
+                    // built lazily as they scroll into view, instead of every
+                    // accumulated transaction's widget subtree being
+                    // constructed up front on every rebuild — this list grows
+                    // unboundedly via "Load more" (QA_PRODUCTION_AUDIT_2026-09-11.md M2).
+                    return ListView.builder(
+                      padding: const EdgeInsets.fromLTRB(16, 16, 16, 16 + _kFabClearance),
+                      itemCount: itemCount,
+                      itemBuilder: (context, index) {
+                        if (index < groupEntries.length) {
+                          final entry = groupEntries[index];
+                          return Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              Padding(
+                                padding: const EdgeInsets.only(top: 16, bottom: 8),
+                                child: Text(_formatGroupDate(entry.key), style: Theme.of(context).textTheme.labelMedium),
+                              ),
+                              GroupCard(children: [for (final transaction in entry.value) _TransactionRow(transaction: transaction)]),
+                            ],
+                          );
+                        }
+                        // Trailing "Load more" row — only reached once, after the last group.
+                        return Padding(
+                          padding: const EdgeInsets.only(top: 24),
+                          child: Center(
                             child: ElevatedButton.icon(
                               icon: const Icon(Icons.add),
                               label: Text('Load more (${accumulated.length} of ${page.total})'),
                               onPressed: () => ref.read(transactionPaginationProvider.notifier).loadMore(),
                             ),
                           ),
-                          const SizedBox(height: 16),
-                        ],
-                      ],
+                        );
+                      },
                     );
                   },
                 ),
