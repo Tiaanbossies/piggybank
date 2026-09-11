@@ -106,11 +106,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       ? const SizedBox(width: double.infinity)
                       : Padding(
                           padding: const EdgeInsets.only(top: 16),
-                          child: AnimatedOpacity(
-                            opacity: _error == null ? 0 : 1,
-                            duration: const Duration(milliseconds: 150),
-                            child: Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
-                          ),
+                          child: Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
                         ),
                 ),
                 const SizedBox(height: 24),
