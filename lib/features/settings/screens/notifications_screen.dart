@@ -67,28 +67,38 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
     return Scaffold(
       appBar: AppBar(title: const Text('Notifications')),
       body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.all(16),
-          children: [
-            if (_error != null) ...[
-              Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
-              const SizedBox(height: 12),
-            ],
-            GroupCard(
-              children: [
-                for (final row in _preferenceRows)
-                  GroupRow(
-                    title: row.title,
-                    subtitle: row.subtitle,
-                    trailing: Switch(
-                      value: _valueFor(row.key),
-                      onChanged: _busy ? null : (v) => _toggle(row.key, v),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            return SingleChildScrollView(
+              padding: const EdgeInsets.all(16),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    if (_error != null) ...[
+                      Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
+                      const SizedBox(height: 12),
+                    ],
+                    GroupCard(
+                      children: [
+                        for (final row in _preferenceRows)
+                          GroupRow(
+                            title: row.title,
+                            subtitle: row.subtitle,
+                            trailing: Switch(
+                              value: _valueFor(row.key),
+                              onChanged: _busy ? null : (v) => _toggle(row.key, v),
+                            ),
+                          ),
+                      ],
                     ),
-                  ),
-              ],
-            ),
-            if (_busy) ...[const SizedBox(height: 16), const Center(child: CircularProgressIndicator())],
-          ],
+                    if (_busy) ...[const SizedBox(height: 16), const CircularProgressIndicator()],
+                  ],
+                ),
+              ),
+            );
+          },
         ),
       ),
     );
