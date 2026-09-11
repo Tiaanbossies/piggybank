@@ -68,6 +68,7 @@ class InvestScreen extends ConsumerWidget {
                       Text('Your portfolios', style: Theme.of(context).textTheme.titleMedium),
                       IconButton(
                         icon: const Icon(Icons.add_circle_outline),
+                        tooltip: 'Add portfolio',
                         onPressed: () => showPortfolioSheet(context),
                       ),
                     ],

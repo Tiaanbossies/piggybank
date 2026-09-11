@@ -19,8 +19,8 @@ class ProfileApi {
   Future<void> updateProfile({String? fullName, int? salaryDay}) async {
     try {
       await _client.dio.patch('/auth/me', data: {
-        if (fullName != null) 'full_name': fullName,
-        if (salaryDay != null) 'salary_day': salaryDay,
+        'full_name': ?fullName,
+        'salary_day': ?salaryDay,
       });
     } on DioException catch (e) {
       throw ApiClient.errorFrom(e);

@@ -50,6 +50,17 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     }
   }
 
+  // QA_PRODUCTION_AUDIT_2026-09-11.md M4: a server-side field error (e.g.
+  // "String should have at least 8 characters") previously stayed on screen
+  // until the next _submit() call, even after the user had already fixed the
+  // field -- clear it live as soon as the user edits that field again.
+  void _clearFieldError(String field) {
+    if (_fieldErrors?[field] == null) return;
+    setState(() {
+      _fieldErrors = {..._fieldErrors!}..remove(field);
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -90,6 +101,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
               TextField(
                 controller: _emailController,
                 keyboardType: TextInputType.emailAddress,
+                onChanged: (_) => _clearFieldError('email'),
                 decoration: InputDecoration(
                   labelText: 'Email',
                   prefixIcon: const Icon(Icons.mail_outline),
@@ -100,11 +112,13 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
               TextField(
                 controller: _passwordController,
                 obscureText: _obscurePassword,
+                onChanged: (_) => _clearFieldError('password'),
                 decoration: InputDecoration(
                   labelText: 'Password',
                   prefixIcon: const Icon(Icons.lock_outline),
                   suffixIcon: IconButton(
                     icon: Icon(_obscurePassword ? Icons.visibility_outlined : Icons.visibility_off_outlined),
+                    tooltip: _obscurePassword ? 'Show password' : 'Hide password',
                     onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
                   ),
                   errorText: _fieldErrors?['password'],

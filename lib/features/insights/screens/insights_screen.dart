@@ -102,6 +102,7 @@ class _InsightsScreenState extends ConsumerState<InsightsScreen> {
                 hintText: 'Ask about your spending, budgets, or net worth…',
                 suffixIcon: IconButton(
                   onPressed: askState.asking ? null : _ask,
+                  tooltip: 'Ask',
                   icon: askState.asking
                       ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
                       : const Icon(Icons.send),

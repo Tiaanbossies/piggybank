@@ -36,27 +36,35 @@ class TfsaLedgerScreen extends ConsumerWidget {
             loading: () => const Center(child: CircularProgressIndicator()),
             error: (err, _) => Center(child: Text(err is ApiError ? err.message : 'Failed to load contributions')),
             data: (contributions) {
-              return ListView(
+              // ListView.builder (not ListView(children:)) per
+              // QA_PRODUCTION_AUDIT_2026-09-11.md L1 — same fix as the RA
+              // ledger screen (structurally identical). The fixed sections
+              // above the contribution list stay as single items; the
+              // contribution rows stay grouped into one GroupCard item,
+              // preserving its shared-card visual style.
+              final sections = <Widget>[
+                const _SummarySection(),
+                const SizedBox(height: 24),
+                const _ByYearSection(),
+                const SizedBox(height: 24),
+                const _GrowthProjectionSection(),
+                const SizedBox(height: 24),
+                Text('Contributions', style: Theme.of(context).textTheme.titleMedium),
+                const SizedBox(height: 8),
+                if (contributions.isEmpty)
+                  const Padding(
+                    padding: EdgeInsets.only(top: 16),
+                    child: Center(child: Text('No contributions recorded yet.')),
+                  )
+                else
+                  GroupCard(
+                    children: [for (final c in contributions) _ContributionRow(contribution: c)],
+                  ),
+              ];
+              return ListView.builder(
                 padding: const EdgeInsets.all(16),
-                children: [
-                  const _SummarySection(),
-                  const SizedBox(height: 24),
-                  const _ByYearSection(),
-                  const SizedBox(height: 24),
-                  const _GrowthProjectionSection(),
-                  const SizedBox(height: 24),
-                  Text('Contributions', style: Theme.of(context).textTheme.titleMedium),
-                  const SizedBox(height: 8),
-                  if (contributions.isEmpty)
-                    const Padding(
-                      padding: EdgeInsets.only(top: 16),
-                      child: Center(child: Text('No contributions recorded yet.')),
-                    )
-                  else
-                    GroupCard(
-                      children: [for (final c in contributions) _ContributionRow(contribution: c)],
-                    ),
-                ],
+                itemCount: sections.length,
+                itemBuilder: (context, index) => sections[index],
               );
             },
           ),
@@ -239,6 +247,7 @@ class _ContributionRow extends ConsumerWidget {
             Icon(Icons.warning_amber_rounded, color: semantic?.danger, size: 18),
           IconButton(
             icon: const Icon(Icons.delete_outline),
+            tooltip: 'Delete contribution',
             onPressed: () => _delete(context, ref),
           ),
         ],
