@@ -1,5 +1,27 @@
 # Piggybank QA Findings & Feature Completeness Audit
 
+## Update — 2026-09-11 (new production-readiness audit; adds to, does not supersede, the 2026-09-01 close-out below)
+
+See **`docs/qa/QA_PRODUCTION_AUDIT_2026-09-11.md`** for the full report. This is a fresh
+`flutter-production-audit` pass (static scan + live emulator walkthrough), run specifically to
+find opportunities beyond the fully-closed 2026-08-31 full-suite blueprint — not a re-run of it.
+7 new findings (0 Critical, 0 High, 4 Medium, 3 Low), plus one regression re-test: **M6 from the
+2026-08-31 report ("$"→currency and formatting inconsistency in the AI surfaces) is only
+partially fixed** — the fix-it blueprint's close-out fixed the "$" → "R" symbol, but the
+chatbot's decimal-separator convention still differs from the rest of the app (period vs the
+app's comma decimal, live-confirmed today). The single most important new finding: the
+Transactions screen's floating "Add transaction" button has no bottom padding reserved in its
+list, so whichever row scrolls to that fixed screen position has its **amount value fully
+hidden** behind the button — reproduced on two different rows at two different scroll depths.
+Also newly logged: `AuthApi`'s Dio client (login/register/refresh/password-reset) has no request
+timeout, unlike the main `ApiClient` (which was fixed for this exact gap as H6); the Transactions
+screen renders its paginated, unbounded list via a non-lazy `ListView(children:)` instead of
+`.builder`; 12 files have icon-only `IconButton`s with no `tooltip` (accessibility label gap);
+and a possibly-duplicated "GLD" holding on the Invest tab worth a quick DB check. Regression
+spot-checks confirmed still holding: login flow, net worth figure, and the Transactions/Dashboard
+income-expense green/red colour convention (M1). `flutter analyze`: 2 trivial info-lints only.
+`flutter test`: 427/427 passing.
+
 ## Update — 2026-09-01, later same day (L3 + demo re-seed closed; supersedes the "Still open" list below)
 
 The two items the fix-it blueprint's close-out (below) left open are now both done:
