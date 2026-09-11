@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/api/api_error.dart';
 import '../../../core/auth/auth_controller.dart';
+import '../../../core/theme/app_motion.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -97,10 +98,21 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     ),
                   ),
                 ),
-                if (_error != null) ...[
-                  const SizedBox(height: 16),
-                  Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
-                ],
+                AnimatedSize(
+                  duration: AppMotion.stateChange,
+                  curve: Curves.easeOut,
+                  alignment: Alignment.topCenter,
+                  child: _error == null
+                      ? const SizedBox(width: double.infinity)
+                      : Padding(
+                          padding: const EdgeInsets.only(top: 16),
+                          child: AnimatedOpacity(
+                            opacity: _error == null ? 0 : 1,
+                            duration: const Duration(milliseconds: 150),
+                            child: Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
+                          ),
+                        ),
+                ),
                 const SizedBox(height: 24),
                 ElevatedButton(
                   onPressed: _submitting ? null : _submit,
