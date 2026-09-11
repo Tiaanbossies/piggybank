@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/api/api_error.dart';
 import '../../../core/format/money.dart';
+import '../../../core/theme/app_motion.dart';
 import '../../../shared/widgets/progress_card.dart';
 import '../../transactions/category_icons.dart';
 import '../models/budget.dart';
@@ -58,51 +59,61 @@ class BudgetsBody extends ConsumerWidget {
         Expanded(
           child: RefreshIndicator(
             onRefresh: () => ref.refresh(budgetProgressProvider.future),
-            child: progressAsync.when(
-              loading: () => const Center(child: CircularProgressIndicator()),
-              error: (err, _) => Center(child: Text(err is ApiError ? err.message : 'Failed to load budgets')),
-              data: (budgets) {
-                if (budgets.isEmpty) {
-                  return ListView(
-                    padding: const EdgeInsets.all(16),
-                    children: [
-                      Center(
-                        child: Padding(
-                          padding: const EdgeInsets.only(top: 48),
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                Icons.account_balance_wallet_outlined,
-                                size: 48,
-                                color: Theme.of(context).colorScheme.onSurfaceVariant,
-                              ),
-                              const SizedBox(height: 12),
-                              const Text('No budgets for this month.'),
-                              const SizedBox(height: 4),
-                              Text(
-                                'Tap "Add budget" below to set one up.',
-                                style: Theme.of(context).textTheme.bodySmall,
-                              ),
-                            ],
+            child: AnimatedSwitcher(
+              duration: AppMotion.stateChange,
+              switchInCurve: Curves.easeOut,
+              switchOutCurve: Curves.easeOut,
+              child: progressAsync.when(
+                loading: () => const Center(key: ValueKey('loading'), child: CircularProgressIndicator()),
+                error: (err, _) => Center(
+                  key: const ValueKey('error'),
+                  child: Text(err is ApiError ? err.message : 'Failed to load budgets'),
+                ),
+                data: (budgets) {
+                  if (budgets.isEmpty) {
+                    return ListView(
+                      key: const ValueKey('empty'),
+                      padding: const EdgeInsets.all(16),
+                      children: [
+                        Center(
+                          child: Padding(
+                            padding: const EdgeInsets.only(top: 48),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.account_balance_wallet_outlined,
+                                  size: 48,
+                                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                ),
+                                const SizedBox(height: 12),
+                                const Text('No budgets for this month.'),
+                                const SizedBox(height: 4),
+                                Text(
+                                  'Tap "Add budget" below to set one up.',
+                                  style: Theme.of(context).textTheme.bodySmall,
+                                ),
+                              ],
+                            ),
                           ),
                         ),
-                      ),
+                      ],
+                    );
+                  }
+                  return ListView(
+                    key: const ValueKey('list'),
+                    padding: const EdgeInsets.all(16),
+                    children: [
+                      _TotalSpentSummary(budgets: budgets),
+                      const SizedBox(height: 4),
+                      for (final budget in budgets) ...[
+                        _BudgetProgressRow(progress: budget),
+                        for (final child in budget.children) _BudgetProgressRow(progress: child, indented: true),
+                      ],
                     ],
                   );
-                }
-                return ListView(
-                  padding: const EdgeInsets.all(16),
-                  children: [
-                    _TotalSpentSummary(budgets: budgets),
-                    const SizedBox(height: 4),
-                    for (final budget in budgets) ...[
-                      _BudgetProgressRow(progress: budget),
-                      for (final child in budget.children) _BudgetProgressRow(progress: child, indented: true),
-                    ],
-                  ],
-                );
-              },
+                },
+              ),
             ),
           ),
         ),

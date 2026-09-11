@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/api/api_error.dart';
 import '../../../core/format/money.dart';
+import '../../../core/theme/app_motion.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/group_card.dart';
 import '../../../shared/widgets/hero_metric_card.dart';
@@ -83,13 +84,26 @@ class _NetWorthHero extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final netWorthAsync = ref.watch(netWorthProvider);
-    return netWorthAsync.when(
-      loading: () => const SizedBox(height: 64, child: Center(child: CircularProgressIndicator())),
-      error: (err, _) => Text(err is ApiError ? err.message : 'Failed to load net worth'),
-      data: (netWorth) => HeroMetricCard(
-        label: 'Net worth',
-        value: formatZAR(netWorth.netWorth),
-        deltaText: _NetWorthTrend.of(ref),
+    return AnimatedSwitcher(
+      duration: AppMotion.stateChange,
+      switchInCurve: Curves.easeOut,
+      switchOutCurve: Curves.easeOut,
+      child: netWorthAsync.when(
+        loading: () => const SizedBox(
+          key: ValueKey('loading'),
+          height: 64,
+          child: Center(child: CircularProgressIndicator()),
+        ),
+        error: (err, _) => Text(
+          key: const ValueKey('error'),
+          err is ApiError ? err.message : 'Failed to load net worth',
+        ),
+        data: (netWorth) => HeroMetricCard(
+          key: const ValueKey('data'),
+          label: 'Net worth',
+          value: formatZAR(netWorth.netWorth),
+          deltaText: _NetWorthTrend.of(ref),
+        ),
       ),
     );
   }
@@ -131,40 +145,46 @@ class _CashflowStatStrip extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final cashflowAsync = ref.watch(cashflowProvider);
     final semantic = Theme.of(context).extension<AppSemanticColors>();
-    return cashflowAsync.when(
-      loading: () => const SizedBox.shrink(),
-      error: (_, _) => const SizedBox.shrink(),
-      data: (cashflow) => Card(
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('Cashflow · This month', style: Theme.of(context).textTheme.labelMedium),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('Income', style: Theme.of(context).textTheme.labelMedium),
-                        Text(formatZAR(cashflow.incomeTotal), style: moneyTextStyle(context, fontSize: 18, color: semantic?.success)),
-                      ],
+    return AnimatedSwitcher(
+      duration: AppMotion.stateChange,
+      switchInCurve: Curves.easeOut,
+      switchOutCurve: Curves.easeOut,
+      child: cashflowAsync.when(
+        loading: () => const SizedBox.shrink(key: ValueKey('loading')),
+        error: (_, _) => const SizedBox.shrink(key: ValueKey('error')),
+        data: (cashflow) => Card(
+          key: const ValueKey('data'),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Cashflow · This month', style: Theme.of(context).textTheme.labelMedium),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Income', style: Theme.of(context).textTheme.labelMedium),
+                          Text(formatZAR(cashflow.incomeTotal), style: moneyTextStyle(context, fontSize: 18, color: semantic?.success)),
+                        ],
+                      ),
                     ),
-                  ),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('Expenses', style: Theme.of(context).textTheme.labelMedium),
-                        Text(formatZAR(cashflow.expenseTotal), style: moneyTextStyle(context, fontSize: 18)),
-                      ],
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Expenses', style: Theme.of(context).textTheme.labelMedium),
+                          Text(formatZAR(cashflow.expenseTotal), style: moneyTextStyle(context, fontSize: 18)),
+                        ],
+                      ),
                     ),
-                  ),
-                ],
-              ),
-            ],
+                  ],
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -181,26 +201,32 @@ class _ProgressBlock extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final goalsAsync = ref.watch(goalsProvider);
 
-    return goalsAsync.when(
-      loading: () => const SizedBox.shrink(),
-      error: (_, _) => const SizedBox.shrink(),
-      data: (goals) {
-        if (goals.isNotEmpty) {
-          final goal = goals.first;
-          return ProgressCard(
-            title: goal.name,
-            pct: goal.progressPct / 100,
-            footnote: '${formatZAR(goal.currentAmount)} saved / ${formatZAR(goal.targetAmount)} goal',
-          );
-        }
-        return const _BudgetProgressFallback();
-      },
+    return AnimatedSwitcher(
+      duration: AppMotion.stateChange,
+      switchInCurve: Curves.easeOut,
+      switchOutCurve: Curves.easeOut,
+      child: goalsAsync.when(
+        loading: () => const SizedBox.shrink(key: ValueKey('loading')),
+        error: (_, _) => const SizedBox.shrink(key: ValueKey('error')),
+        data: (goals) {
+          if (goals.isNotEmpty) {
+            final goal = goals.first;
+            return ProgressCard(
+              key: const ValueKey('data'),
+              title: goal.name,
+              pct: goal.progressPct / 100,
+              footnote: '${formatZAR(goal.currentAmount)} saved / ${formatZAR(goal.targetAmount)} goal',
+            );
+          }
+          return const _BudgetProgressFallback(key: ValueKey('data'));
+        },
+      ),
     );
   }
 }
 
 class _BudgetProgressFallback extends ConsumerWidget {
-  const _BudgetProgressFallback();
+  const _BudgetProgressFallback({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -285,37 +311,46 @@ class _RecentTransactionsPreview extends ConsumerWidget {
             ),
           ],
         ),
-        recentAsync.when(
-          loading: () => const Center(child: CircularProgressIndicator()),
-          error: (err, _) => Text(err is ApiError ? err.message : 'Failed to load transactions'),
-          data: (page) {
-            if (page.items.isEmpty) return const Text('No transactions yet.');
-            final semantic = Theme.of(context).extension<AppSemanticColors>();
-            return GroupCard(
-              children: [
-                for (final t in page.items)
-                  GroupRow(
-                    leadingIcon: categoryIcon(
-                      t.category,
-                      isExpense: t.transactionType.name == 'expense',
-                      isTransfer: t.transactionType.name == 'transfer',
-                    ),
-                    title: t.merchantName ?? t.description ?? t.category,
-                    subtitle: t.category,
-                    trailing: Text(
-                      formatZAR(t.transactionType.name == 'expense' ? -t.amount.toDouble() : t.amount.toDouble()),
-                      style: moneyTextStyle(
-                        context,
-                        fontSize: 14,
-                        color: t.transactionType.name == 'income'
-                            ? semantic?.success
-                            : (t.transactionType.name == 'expense' ? semantic?.danger : null),
+        AnimatedSwitcher(
+          duration: AppMotion.stateChange,
+          switchInCurve: Curves.easeOut,
+          switchOutCurve: Curves.easeOut,
+          child: recentAsync.when(
+            loading: () => const Center(key: ValueKey('loading'), child: CircularProgressIndicator()),
+            error: (err, _) => Text(
+              key: const ValueKey('error'),
+              err is ApiError ? err.message : 'Failed to load transactions',
+            ),
+            data: (page) {
+              if (page.items.isEmpty) return const Text('No transactions yet.', key: ValueKey('data'));
+              final semantic = Theme.of(context).extension<AppSemanticColors>();
+              return GroupCard(
+                key: const ValueKey('data'),
+                children: [
+                  for (final t in page.items)
+                    GroupRow(
+                      leadingIcon: categoryIcon(
+                        t.category,
+                        isExpense: t.transactionType.name == 'expense',
+                        isTransfer: t.transactionType.name == 'transfer',
+                      ),
+                      title: t.merchantName ?? t.description ?? t.category,
+                      subtitle: t.category,
+                      trailing: Text(
+                        formatZAR(t.transactionType.name == 'expense' ? -t.amount.toDouble() : t.amount.toDouble()),
+                        style: moneyTextStyle(
+                          context,
+                          fontSize: 14,
+                          color: t.transactionType.name == 'income'
+                              ? semantic?.success
+                              : (t.transactionType.name == 'expense' ? semantic?.danger : null),
+                        ),
                       ),
                     ),
-                  ),
-              ],
-            );
-          },
+                ],
+              );
+            },
+          ),
         ),
       ],
     );
