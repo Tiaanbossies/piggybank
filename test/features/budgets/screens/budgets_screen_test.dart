@@ -69,6 +69,8 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('No budgets for this month.'), findsOneWidget);
+      expect(find.text('Tap "Add budget" below to set one up.'), findsOneWidget);
+      expect(find.byIcon(Icons.account_balance_wallet_outlined), findsOneWidget);
       expect(find.byType(ProgressCard), findsNothing);
     });
 
