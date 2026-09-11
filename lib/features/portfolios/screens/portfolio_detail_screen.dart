@@ -61,6 +61,7 @@ class PortfolioDetailScreen extends ConsumerWidget {
             ),
           IconButton(
             icon: const Icon(Icons.edit_outlined),
+            tooltip: 'Edit portfolio',
             onPressed: () => showPortfolioSheet(context, existing: portfolio),
           ),
         ],

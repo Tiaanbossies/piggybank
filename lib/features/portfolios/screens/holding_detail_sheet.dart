@@ -236,6 +236,7 @@ class _DividendSectionState extends ConsumerState<_DividendSection> {
             Text('Dividends', style: Theme.of(context).textTheme.titleMedium),
             IconButton(
               icon: const Icon(Icons.add_circle_outline),
+              tooltip: 'Add dividend',
               onPressed: () => setState(() => _adding = !_adding),
             ),
           ],
@@ -277,6 +278,7 @@ class _DividendRow extends ConsumerWidget {
           '${dividend.note != null ? ' · ${dividend.note}' : ''}',
       trailing: IconButton(
         icon: const Icon(Icons.delete_outline, size: 20),
+        tooltip: 'Delete dividend',
         onPressed: () async {
           final confirmed = await confirmDestroy(context, title: 'Delete dividend?');
           if (!confirmed) return;

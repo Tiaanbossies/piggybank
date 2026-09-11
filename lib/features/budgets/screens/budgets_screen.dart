@@ -43,11 +43,13 @@ class BudgetsBody extends ConsumerWidget {
             children: [
               IconButton(
                 icon: const Icon(Icons.chevron_left),
+                tooltip: 'Previous month',
                 onPressed: () => ref.read(selectedBudgetMonthProvider.notifier).previous(),
               ),
               Text('${_monthNames[month.month - 1]} ${month.year}', style: Theme.of(context).textTheme.titleMedium),
               IconButton(
                 icon: const Icon(Icons.chevron_right),
+                tooltip: 'Next month',
                 onPressed: () => ref.read(selectedBudgetMonthProvider.notifier).next(),
               ),
             ],

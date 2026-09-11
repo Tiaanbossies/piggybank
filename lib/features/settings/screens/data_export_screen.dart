@@ -63,7 +63,7 @@ class _DataExportScreenState extends ConsumerState<DataExportScreen> {
       appBar: AppBar(
         title: const Text('Export my data'),
         actions: [
-          if (_json != null) IconButton(icon: const Icon(Icons.copy_outlined), onPressed: _copy),
+          if (_json != null) IconButton(icon: const Icon(Icons.copy_outlined), tooltip: 'Copy to clipboard', onPressed: _copy),
         ],
       ),
       body: SafeArea(

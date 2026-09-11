@@ -247,6 +247,7 @@ class _ContributionRow extends ConsumerWidget {
             Icon(Icons.warning_amber_rounded, color: semantic?.danger, size: 18),
           IconButton(
             icon: const Icon(Icons.delete_outline),
+            tooltip: 'Delete contribution',
             onPressed: () => _delete(context, ref),
           ),
         ],

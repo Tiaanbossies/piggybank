@@ -37,6 +37,7 @@ class LiabilityDetailScreen extends ConsumerWidget {
         actions: [
           IconButton(
             icon: const Icon(Icons.edit_outlined),
+            tooltip: 'Edit liability',
             onPressed: () => showLiabilitySheet(context, existing: liability),
           ),
         ],
@@ -212,6 +213,7 @@ class _PaymentRow extends ConsumerWidget {
       subtitle: subtitleParts.join(' · '),
       trailing: IconButton(
         icon: const Icon(Icons.delete_outline),
+        tooltip: 'Delete liability',
         onPressed: () => _delete(context, ref),
       ),
     );
