@@ -1,6 +1,28 @@
 # Piggybank QA Findings & Feature Completeness Audit
 
-## Update — 2026-09-11, later same day (production-audit fix-it blueprint closed; supersedes "Still open" in the section below)
+## Update — 2026-09-11, evening (new finding: pre-existing CI lint failure on piggybank-backend main)
+
+While merging `piggybank-backend` PR #1 (`fix/ai-insights-money-formatting`, Step 2 of
+`plans/piggybank-qa-list-2026-09-11.md`), its merge commit (`74c9534`) showed "1 of 2 checks
+passed" on GitHub — the **"Backend — lint + tests" CI check fails** with `ruff check .` reporting
+**20 pre-existing errors**, none in the files this PR touched:
+
+- `app/imports/router.py:63-64` — 2x `E402 Module level import not at top of file`
+- `app/market_data/fmp.py:59` — `F821 Undefined name 'Decimal'` (missing import)
+- `tests/test_refresh_job.py:307,330` — 2x `F841 Local variable assigned but never used`
+  (`mock_cg_batch`, `mock_td_batch`)
+- (plus 15 more errors in the same run not itemized here — see the "Backend — lint + tests"
+  check's annotations on commit `74c9534` for the full list)
+
+**Confirmed pre-existing, not introduced by PR #1:** `git diff 15e9179..74c9534 --stat` shows the
+PR touched only `app/ai/prompts.py` and the new `tests/test_ai_prompts.py`; `ruff check .` at
+`15e9179` (the commit immediately before this PR) already reports the same 20 errors. `pytest`
+itself passes clean (1131 passed, 6 deselected, 0 failures) — this is a lint-only CI gate failure,
+not a test regression. `git log` shows no earlier commit fixed this; it's not clear how long
+`main`'s lint gate has been red. Not fixed in this session — flagged as a new finding for a future
+pass (`ruff check . --fix` handles 1 of the 20 automatically per its own output; the rest need
+manual review, particularly the `F821 Undefined name 'Decimal'` in `fmp.py`, which may indicate a
+real missing import rather than just a style issue).
 
 All 7 steps of `plans/piggybank-production-audit-fixit.md` are now done and merged:
 
