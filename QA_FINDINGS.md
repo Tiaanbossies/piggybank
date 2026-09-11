@@ -1,5 +1,37 @@
 # Piggybank QA Findings & Feature Completeness Audit
 
+## Update — 2026-09-11, night (2026-09-11 QA list close-out — all 7 steps of
+`plans/piggybank-qa-list-2026-09-11.md` done or explicitly deferred)
+
+- **Step 1** (doc corrections) — landed direct to master, commit `6a24226`.
+- **Step 2** (`/api/ai/insights` ZAR comma-decimal formatting — a second, separate code path from
+  the already-fixed `services/ai_context.build_prompt`) — fixed via a prompt-guardrail sentence in
+  `app/ai/prompts.py`, backend `pytest` 1131 passed/6 deselected/0 failures, merged as
+  `piggybank-backend` PR #1 (`74c9534`). **Production deploy not yet confirmed** — user was given
+  the exact `ssh mcp@100.121.165.7` → `git pull` → `docker compose up -d --build` commands; still
+  pending as of this entry.
+- **Step 3 / M1** (Budgets empty-state layout) — fixed, `flutter analyze` 0 issues, `flutter test`
+  428/428, merged as PR #8.
+- **Step 4 / L1** (Notifications dead-space, scoped to Notifications only — Accounts/Subscription/
+  Calculators explicitly still open, not silently dropped) — fixed and merged as PR #9.
+- **Step 5 / L2 & L3** (avatar icon, single-accent-color trade-off) — recorded as deliberate design
+  decisions, no code change, doc-only commit `6a24226`.
+- **Step 6 / L4** (dark-mode live verification) — **verified**. Memory gate cleared (10GB free vs.
+  the ~3-4GB that caused two earlier OOM kills), ran the app in release mode on the `piggybank`
+  emulator, switched to dark mode, and screenshotted 8 screens (Dashboard, Budgets populated +
+  empty-state, Notifications, Transactions, lock screen, Login, Appearance settings) — all correct.
+  Screenshots under `qa_screens/dark/`, doc updated in `docs/qa/QA_VISUAL_UIUX_AUDIT_2026-09-11.md`.
+- A pre-existing, unrelated `piggybank-backend` ruff CI failure (20 errors, none in this session's
+  diffs) was found and logged as its own finding — see the entry directly below this one.
+- Also fixed this session: a stale deploy-credentials note in `piggybank-backend/CLAUDE.md` (said
+  the `mcp` user has no GitHub credentials; `docs/runbook.md`, dated 2026-09-06, shows a scoped
+  deploy key now exists, making `git pull` the real deploy path) — corrected, commit `d6800ee`.
+
+**Still open:** Step 2's production deploy (commands handed to user, not yet confirmed run); the 20
+pre-existing `piggybank-backend` ruff errors (logged only, not fixed — one, `F821 Undefined name
+'Decimal'` in `app/market_data/fmp.py:59`, may be a real bug); Notifications-style dead-space fix
+for Accounts/Subscription/Calculators (Step 4 scoped Notifications only).
+
 ## Update — 2026-09-11, evening (new finding: pre-existing CI lint failure on piggybank-backend main)
 
 While merging `piggybank-backend` PR #1 (`fix/ai-insights-money-formatting`, Step 2 of
