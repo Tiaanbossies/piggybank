@@ -27,10 +27,33 @@
   the `mcp` user has no GitHub credentials; `docs/runbook.md`, dated 2026-09-06, shows a scoped
   deploy key now exists, making `git pull` the real deploy path) — corrected, commit `d6800ee`.
 
-**Still open:** Step 2's production deploy (commands handed to user, not yet confirmed run); the 20
-pre-existing `piggybank-backend` ruff errors (logged only, not fixed — one, `F821 Undefined name
-'Decimal'` in `app/market_data/fmp.py:59`, may be a real bug); Notifications-style dead-space fix
-for Accounts/Subscription/Calculators (Step 4 scoped Notifications only).
+**Still open:** Step 2's production deploy (commands handed to user, not yet confirmed run);
+Notifications-style dead-space fix for Accounts/Subscription/Calculators (Step 4 scoped
+Notifications only).
+
+## Update — 2026-09-11, late night (20 pre-existing `piggybank-backend` ruff errors — fixed)
+
+All 20 errors from the entry below are fixed via `piggybank-backend` PR #2
+(`fix/ruff-lint-errors`), merged as `76ec73b`:
+
+- 16x `E402` in `app/imports/router.py` — two import blocks had been split apart by
+  later-added helper functions (`_detect_media_type`, `_validate_ollama_url`); consolidated
+  into one import block at the top of the file.
+- `F821 Undefined name 'Decimal'` in `app/market_data/fmp.py:59` — confirmed a real issue, not
+  just style: `Decimal` was only imported inside `get_price()`'s body, after its own return-type
+  annotation already referenced it. Moved to a module-level import.
+- `F401` unused `postgresql` import in the `add_goals_table` Alembic migration — the function that
+  needs it already re-imports it locally as `pg`; removed the redundant top-level import.
+- 2x `F841` unused mock variables in `test_refresh_job.py`'s batch-refresh tests — used them to
+  assert the non-selected price provider was **not** called, fixing the lint warning while also
+  strengthening the tests (they previously only asserted the selected provider was called).
+
+Verified: `ruff check .` — all checks passed. `pytest` — 1131 passed, 6 deselected, 0 failures
+(same baseline). Confirmed on GitHub: the "Backend — lint + tests" check on merge commit `76ec73b`
+is now green (`conclusion: success`), vs. the red check on `74c9534` before this fix. (A separate
+"Deploy to production" check on the same commit still fails — that's the known-unused GitHub
+Actions auto-deploy job per `docs/runbook.md`, unrelated to this fix; the manual SSH deploy path
+remains authoritative.)
 
 ## Update — 2026-09-11, evening (new finding: pre-existing CI lint failure on piggybank-backend main)
 
