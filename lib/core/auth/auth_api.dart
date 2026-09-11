@@ -16,9 +16,19 @@ class TokenPair {
 /// Raw (unauthenticated) client for `/api/auth/*`. Deliberately doesn't go
 /// through [ApiClient]'s bearer/refresh interceptor — these endpoints either
 /// don't need it (register/login) or are what the interceptor calls into
-/// (refresh), which would otherwise be circular.
+/// (refresh), which would otherwise be circular. Timeouts mirror
+/// [ApiClient]'s (QA_PRODUCTION_AUDIT_2026-09-11.md M1 — this client had none,
+/// leaving login/register/refresh/password-reset to hang indefinitely on a
+/// stalled connection).
 class AuthApi {
-  AuthApi({Dio? dio}) : _dio = dio ?? Dio(BaseOptions(baseUrl: ApiConfig.baseUrl));
+  AuthApi({Dio? dio})
+      : _dio = dio ??
+            Dio(BaseOptions(
+              baseUrl: ApiConfig.baseUrl,
+              connectTimeout: const Duration(seconds: 8),
+              sendTimeout: const Duration(seconds: 15),
+              receiveTimeout: const Duration(seconds: 15),
+            ));
 
   final Dio _dio;
 
