@@ -17,7 +17,12 @@ cd "$(dirname "$0")/.."
 
 SERVER="mcp@100.121.165.7"
 REMOTE_DIR="~/piggybank-backend/downloads"
-DOWNLOAD_HOST="https://piggybank.fynboscreative.co.za/downloads"
+# Plain HTTP on the raw Tailscale IP, not the fynboscreative.co.za domain --
+# that domain's public DNS points to an unrelated server (see
+# lib/core/api/api_config.dart's comment on this same fact), so Caddy can
+# never get a TLS cert for it here. This matches how the app itself already
+# talks to the backend (http://100.121.165.7:8000/api).
+DOWNLOAD_HOST="http://100.121.165.7/downloads"
 
 VERSION=$(grep '^version:' pubspec.yaml | awk '{print $2}' | cut -d+ -f1)
 BUILD_NUMBER=$(grep '^version:' pubspec.yaml | awk '{print $2}' | cut -d+ -f2)
