@@ -65,7 +65,30 @@ class BudgetsBody extends ConsumerWidget {
                 if (budgets.isEmpty) {
                   return ListView(
                     padding: const EdgeInsets.all(16),
-                    children: const [Center(child: Padding(padding: EdgeInsets.only(top: 48), child: Text('No budgets for this month.')))],
+                    children: [
+                      Center(
+                        child: Padding(
+                          padding: const EdgeInsets.only(top: 48),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.account_balance_wallet_outlined,
+                                size: 48,
+                                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                              ),
+                              const SizedBox(height: 12),
+                              const Text('No budgets for this month.'),
+                              const SizedBox(height: 4),
+                              Text(
+                                'Tap "Add budget" below to set one up.',
+                                style: Theme.of(context).textTheme.bodySmall,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
                   );
                 }
                 return ListView(
