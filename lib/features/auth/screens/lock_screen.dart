@@ -16,6 +16,11 @@ import '../../settings/data/security_api.dart';
 /// `AuthController.unlockWithBiometrics`'s no-hardware fix). When biometric
 /// IS attempted and a PIN exists, a "Use PIN instead" fallback is always
 /// offered, covering cancel/failure without a second biometric retry loop.
+///
+/// A "Log out" action is always available in both branches — the escape
+/// hatch for a device with no working unlock method (no biometric hardware/
+/// enrollment and no PIN set, or a forgotten PIN), which the "never silently
+/// unlock" invariant above would otherwise turn into a permanent lockout.
 class LockScreen extends ConsumerStatefulWidget {
   const LockScreen({super.key});
 
@@ -122,6 +127,11 @@ class _LockScreenState extends ConsumerState<LockScreen> {
                       child: const Text('Use biometrics instead'),
                     ),
                   ],
+                  const SizedBox(height: 16),
+                  TextButton(
+                    onPressed: () => ref.read(authControllerProvider.notifier).logout(),
+                    child: const Text('Log out'),
+                  ),
                 ] else if (_prompting)
                   const CircularProgressIndicator()
                 else ...[
@@ -141,6 +151,11 @@ class _LockScreenState extends ConsumerState<LockScreen> {
                       child: const Text('Use PIN instead'),
                     ),
                   ],
+                  const SizedBox(height: 16),
+                  TextButton(
+                    onPressed: () => ref.read(authControllerProvider.notifier).logout(),
+                    child: const Text('Log out'),
+                  ),
                 ],
               ],
             ),
