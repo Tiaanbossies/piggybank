@@ -187,5 +187,43 @@ void main() {
       expect(find.text('Use PIN instead'), findsNothing); // no PIN to fall back to
       expect(find.byType(TextField), findsNothing); // and no PIN entry shown either
     });
+
+    testWidgets('no biometric hardware and no PIN set: "Log out" is available and works', (tester) async {
+      authController.state = const AuthState(
+        status: AuthStatus.authenticated,
+        accessToken: 'token',
+        locked: true,
+        user: User(id: 'u1', email: 'a@b.com', fullName: null, role: 'user', isActive: true, hasPin: false),
+      );
+      when(() => mockLocalAuth.canCheckBiometrics).thenAnswer((_) async => false);
+      when(() => mockLocalAuth.isDeviceSupported()).thenAnswer((_) async => false);
+      when(() => mockSecureStorage.readRefreshToken()).thenAnswer((_) async => 'refresh');
+      when(() => mockSecureStorage.clearRefreshToken()).thenAnswer((_) async {});
+      when(() => mockAuthApi.logout(any())).thenAnswer((_) async {});
+
+      await tester.pumpWidget(buildScreen(adapter: _FakeAdapter([])));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Log out'), findsOneWidget);
+      await tester.tap(find.text('Log out'));
+      await tester.pumpAndSettle();
+
+      expect(authController.state.isAuthenticated, false);
+    });
+
+    testWidgets('PIN entry state: "Log out" is available alongside PIN entry', (tester) async {
+      authController.state = const AuthState(
+        status: AuthStatus.authenticated,
+        accessToken: 'token',
+        locked: true,
+        user: User(id: 'u1', email: 'a@b.com', fullName: null, role: 'user', isActive: true, hasPin: true),
+      );
+      await prefs.setBool('biometric_enabled', false);
+
+      await tester.pumpWidget(buildScreen(adapter: _FakeAdapter([])));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Log out'), findsOneWidget);
+    });
   });
 }
