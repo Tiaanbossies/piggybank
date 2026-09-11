@@ -112,6 +112,14 @@ own comment says has never happened. A theme picker already exists at
 `lib/features/settings/screens/appearance_screen.dart` (Light/Dark/System) — worth spending one
 pass actually toggling it and screenshotting a few key screens.
 
+**Decision (2026-09-11):** verified. Ran the app in release mode on the `piggybank` Android
+emulator, switched Settings → Appearance → Dark, and screenshotted eight screens:
+Appearance settings, Dashboard, Budgets (populated month and the M1 empty-state fix on a future
+month), Notifications (confirms the L1 fix reads correctly in dark mode too), Transactions, the
+biometric lock screen, and Login. All render with correct contrast, no unstyled/light-mode-leftover
+surfaces, and ZAR comma-decimal formatting intact throughout. Screenshots committed under
+`qa_screens/dark/`.
+
 ---
 
 ## Recommended next step
