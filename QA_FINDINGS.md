@@ -1,5 +1,42 @@
 # Piggybank QA Findings & Feature Completeness Audit
 
+## Update — 2026-09-11, very late night (manual API authorization probe against production)
+
+Requested API security testing; Strix (OSS CLI needs Docker, not present on this machine; Cloud
+needs an app.strix.ai account/token, user opted out) was skipped in favor of a manual probe against
+the live `piggybank-backend` production API (`100.121.165.7:8000`) using two fresh, isolated test
+accounts (`strix-test-a@example.com`, `strix-test-b@example.com` — not the demo account), scoped to
+read-mostly checks with payment/admin-refresh endpoints excluded from active exploitation.
+
+**17 checks run, all passed (no vulnerabilities found), one low-severity info-disclosure noted:**
+
+- **BOLA (cross-tenant object access)**: Tenant B's token against Tenant A's account ID —
+  `GET`/`PATCH`/`.../balance` all correctly `404` (not a leaking `403`). `GET /api/accounts/`
+  (list) for B returns `{"items":[]}`, no trace of A's data.
+- **Function-level authz**: `POST /api/admin/refresh-prices` with a plain user token → `403 admin
+  role required`; with no token → `401`.
+- **Mass assignment**: `PATCH /api/auth/me` with `role`/`is_active` in the body → `422 Extra inputs
+  are not permitted` (schema rejects unknown fields outright).
+- **Aggregation leakage**: `GET /api/summaries/net-worth` and `GET /api/ai/context-preview` for
+  Tenant B return B's own (empty) data only, no cross-tenant bleed into AI context.
+- **Token validation**: tampered JWT → `401`; missing token → `401`.
+- **SQL injection**: `'; DROP TABLE accounts; --` as an account name → stored as inert literal text
+  (SQLAlchemy ORM parameterization), table intact on re-fetch.
+- **Path traversal**: `..%2f..%2fadmin` in a path param → `404`.
+- **Low finding — info disclosure**: `POST /ai/web-search` (authenticated) returns `500 {"detail":
+  "TAVILY_API_KEY is not configured"}` when the integration has no key set in production — leaks
+  the internal env var name in the error body instead of a generic message. Not exploitable beyond
+  confirming the feature is unconfigured; still, exception handlers on this route should not surface
+  raw config-variable names to the client.
+
+**Not tested** (excluded per user-agreed scope): `/api/subscription/checkout`,
+`/api/subscription/payfast/notify` (real payment flow, would risk real charges), full admin-boundary
+authenticated testing (no admin credentials available — only proved a user token *can't* reach
+admin routes, not a full comparison), and broad fuzzing/DoS-style testing (out of scope for a
+manual, budget-conscious pass). A full Strix run (OSS with Docker, or Cloud) would give broader
+endpoint coverage across all 99 routes; this pass covered the highest-value authorization classes
+by hand.
+
 ## Update — 2026-09-11, night (2026-09-11 QA list close-out — all 7 steps of
 `plans/piggybank-qa-list-2026-09-11.md` done or explicitly deferred)
 
