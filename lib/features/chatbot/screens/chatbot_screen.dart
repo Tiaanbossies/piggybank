@@ -57,7 +57,7 @@ class _ChatbotScreenState extends ConsumerState<ChatbotScreen> {
       if (!_scrollController.hasClients) return;
       _scrollController.animateTo(
         _scrollController.position.maxScrollExtent,
-        duration: AppMotion.stateChange,
+        duration: context.reducedMotion ? Duration.zero : AppMotion.stateChange,
         curve: AppMotion.easeOut,
       );
     });
@@ -233,7 +233,15 @@ class _ChatBubbleState extends State<_ChatBubble> with SingleTickerProviderState
   @override
   void initState() {
     super.initState();
-    if (widget.animate) _controller.forward();
+    if (!widget.animate) return;
+    // MediaQuery isn't reliably available yet in initState, so this checks
+    // the platform accessibility flag directly rather than via BuildContext
+    // (same underlying signal MediaQuery.disableAnimations reads from).
+    if (WidgetsBinding.instance.platformDispatcher.accessibilityFeatures.disableAnimations) {
+      _controller.value = 1;
+    } else {
+      _controller.forward();
+    }
   }
 
   @override

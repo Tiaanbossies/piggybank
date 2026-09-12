@@ -31,7 +31,7 @@ class GoalsBody extends ConsumerWidget {
     return RefreshIndicator(
       onRefresh: () => ref.refresh(goalsProvider.future),
       child: AnimatedSwitcher(
-        duration: AppMotion.stateChange,
+        duration: context.reducedMotion ? Duration.zero : AppMotion.stateChange,
         switchInCurve: AppMotion.easeOut,
         switchOutCurve: AppMotion.easeOut,
         child: goalsAsync.when(

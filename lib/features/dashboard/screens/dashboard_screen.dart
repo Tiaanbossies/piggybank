@@ -86,7 +86,7 @@ class _NetWorthHero extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final netWorthAsync = ref.watch(netWorthProvider);
     return AnimatedSwitcher(
-      duration: AppMotion.stateChange,
+      duration: context.reducedMotion ? Duration.zero : AppMotion.stateChange,
       switchInCurve: AppMotion.easeOut,
       switchOutCurve: AppMotion.easeOut,
       child: netWorthAsync.when(
@@ -147,7 +147,7 @@ class _CashflowStatStrip extends ConsumerWidget {
     final cashflowAsync = ref.watch(cashflowProvider);
     final semantic = Theme.of(context).extension<AppSemanticColors>();
     return AnimatedSwitcher(
-      duration: AppMotion.stateChange,
+      duration: context.reducedMotion ? Duration.zero : AppMotion.stateChange,
       switchInCurve: AppMotion.easeOut,
       switchOutCurve: AppMotion.easeOut,
       child: cashflowAsync.when(
@@ -215,7 +215,7 @@ class _ProgressBlock extends ConsumerWidget {
     final goalsAsync = ref.watch(goalsProvider);
 
     return AnimatedSwitcher(
-      duration: AppMotion.stateChange,
+      duration: context.reducedMotion ? Duration.zero : AppMotion.stateChange,
       switchInCurve: AppMotion.easeOut,
       switchOutCurve: AppMotion.easeOut,
       child: goalsAsync.when(
@@ -347,9 +347,9 @@ class _RecentTransactionsPreview extends ConsumerWidget {
           ],
         ),
         AnimatedSwitcher(
-          duration: AppMotion.stateChange,
-          switchInCurve: Curves.easeOut,
-          switchOutCurve: Curves.easeOut,
+          duration: context.reducedMotion ? Duration.zero : AppMotion.stateChange,
+          switchInCurve: AppMotion.easeOut,
+          switchOutCurve: AppMotion.easeOut,
           child: recentAsync.when(
             loading: () => const Center(key: ValueKey('loading'), child: CircularProgressIndicator()),
             error: (err, _) => Center(

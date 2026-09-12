@@ -13,17 +13,34 @@ class LoginScreen extends ConsumerStatefulWidget {
   ConsumerState<LoginScreen> createState() => _LoginScreenState();
 }
 
-class _LoginScreenState extends ConsumerState<LoginScreen> {
+class _LoginScreenState extends ConsumerState<LoginScreen> with SingleTickerProviderStateMixin {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _submitting = false;
   bool _obscurePassword = true;
   String? _error;
 
+  late final AnimationController _shakeController;
+  late final Animation<double> _shakeOffset;
+
+  @override
+  void initState() {
+    super.initState();
+    _shakeController = AnimationController(vsync: this, duration: AppMotion.feedback);
+    _shakeOffset = TweenSequence<double>([
+      TweenSequenceItem(tween: Tween(begin: 0, end: -8), weight: 1),
+      TweenSequenceItem(tween: Tween(begin: -8, end: 8), weight: 1),
+      TweenSequenceItem(tween: Tween(begin: 8, end: -6), weight: 1),
+      TweenSequenceItem(tween: Tween(begin: -6, end: 6), weight: 1),
+      TweenSequenceItem(tween: Tween(begin: 6, end: 0), weight: 1),
+    ]).animate(CurvedAnimation(parent: _shakeController, curve: AppMotion.easeOut));
+  }
+
   @override
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
+    _shakeController.dispose();
     super.dispose();
   }
 
@@ -39,6 +56,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           );
     } on ApiError catch (e) {
       setState(() => _error = e.message);
+      if (mounted && !context.reducedMotion) _shakeController.forward(from: 0);
     } finally {
       if (mounted) setState(() => _submitting = false);
     }
@@ -75,39 +93,48 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   style: Theme.of(context).textTheme.bodyMedium,
                 ),
                 const SizedBox(height: 40),
-                TextField(
-                  controller: _emailController,
-                  keyboardType: TextInputType.emailAddress,
-                  decoration: const InputDecoration(
-                    labelText: 'Email address',
-                    hintText: 'you@example.com',
-                    prefixIcon: Icon(Icons.mail_outline),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                TextField(
-                  controller: _passwordController,
-                  obscureText: _obscurePassword,
-                  decoration: InputDecoration(
-                    labelText: 'Password',
-                    prefixIcon: const Icon(Icons.lock_outline),
-                    suffixIcon: IconButton(
-                      icon: Icon(_obscurePassword ? Icons.visibility_outlined : Icons.visibility_off_outlined),
-                      tooltip: _obscurePassword ? 'Show password' : 'Hide password',
-                      onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
-                    ),
-                  ),
-                ),
-                AnimatedSize(
-                  duration: AppMotion.stateChange,
-                  curve: AppMotion.easeOut,
-                  alignment: Alignment.topCenter,
-                  child: _error == null
-                      ? const SizedBox(width: double.infinity)
-                      : Padding(
-                          padding: const EdgeInsets.only(top: 16),
-                          child: Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
+                AnimatedBuilder(
+                  animation: _shakeOffset,
+                  builder: (context, child) => Transform.translate(offset: Offset(_shakeOffset.value, 0), child: child),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      TextField(
+                        controller: _emailController,
+                        keyboardType: TextInputType.emailAddress,
+                        decoration: const InputDecoration(
+                          labelText: 'Email address',
+                          hintText: 'you@example.com',
+                          prefixIcon: Icon(Icons.mail_outline),
                         ),
+                      ),
+                      const SizedBox(height: 16),
+                      TextField(
+                        controller: _passwordController,
+                        obscureText: _obscurePassword,
+                        decoration: InputDecoration(
+                          labelText: 'Password',
+                          prefixIcon: const Icon(Icons.lock_outline),
+                          suffixIcon: IconButton(
+                            icon: Icon(_obscurePassword ? Icons.visibility_outlined : Icons.visibility_off_outlined),
+                            tooltip: _obscurePassword ? 'Show password' : 'Hide password',
+                            onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                          ),
+                        ),
+                      ),
+                      AnimatedSize(
+                        duration: context.reducedMotion ? Duration.zero : AppMotion.stateChange,
+                        curve: AppMotion.easeOut,
+                        alignment: Alignment.topCenter,
+                        child: _error == null
+                            ? const SizedBox(width: double.infinity)
+                            : Padding(
+                                padding: const EdgeInsets.only(top: 16),
+                                child: Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
+                              ),
+                      ),
+                    ],
+                  ),
                 ),
                 const SizedBox(height: 24),
                 ElevatedButton(

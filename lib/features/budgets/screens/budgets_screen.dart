@@ -61,7 +61,7 @@ class BudgetsBody extends ConsumerWidget {
           child: RefreshIndicator(
             onRefresh: () => ref.refresh(budgetProgressProvider.future),
             child: AnimatedSwitcher(
-              duration: AppMotion.stateChange,
+              duration: context.reducedMotion ? Duration.zero : AppMotion.stateChange,
               switchInCurve: AppMotion.easeOut,
               switchOutCurve: AppMotion.easeOut,
               child: progressAsync.when(
