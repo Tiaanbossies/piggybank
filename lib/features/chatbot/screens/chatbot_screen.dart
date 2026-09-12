@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/api/api_error.dart';
+import '../../../core/theme/app_motion.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/icon_chip.dart';
 import '../../../shared/widgets/paywall_dialog.dart';
@@ -42,6 +43,7 @@ class _ChatbotScreenState extends ConsumerState<ChatbotScreen> {
   final _scrollController = ScrollController();
   String? _error;
   String? _retryText;
+  late final int _animatedFloor = ref.read(chatbotControllerProvider).messages.length;
 
   @override
   void dispose() {
@@ -157,7 +159,8 @@ class _ChatbotScreenState extends ConsumerState<ChatbotScreen> {
                       controller: _scrollController,
                       padding: const EdgeInsets.all(16),
                       children: [
-                        for (final message in state.messages) _ChatBubble(message: message),
+                        for (var i = 0; i < state.messages.length; i++)
+                          _ChatBubble(key: ValueKey(i), message: state.messages[i], animate: i >= _animatedFloor),
                         if (state.sending) const _TypingBubble(),
                         if (_error != null)
                           _ErrorBubble(message: _error!, onRetry: _retryText == null ? null : () => _send(_retryText)),
@@ -210,18 +213,43 @@ final _statCardPattern = RegExp(
   caseSensitive: false,
 );
 
-class _ChatBubble extends StatelessWidget {
-  const _ChatBubble({required this.message});
+class _ChatBubble extends StatefulWidget {
+  const _ChatBubble({required this.message, required this.animate, super.key});
   final ChatMessage message;
+  final bool animate;
+
+  @override
+  State<_ChatBubble> createState() => _ChatBubbleState();
+}
+
+class _ChatBubbleState extends State<_ChatBubble> with SingleTickerProviderStateMixin {
+  late final AnimationController _controller = AnimationController(
+    vsync: this,
+    duration: AppMotion.stateChange,
+    value: widget.animate ? 0 : 1,
+  );
+  late final Animation<double> _curved = CurvedAnimation(parent: _controller, curve: Curves.easeOut);
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.animate) _controller.forward();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    final isUser = message.role == ChatRole.user;
+    final isUser = widget.message.role == ChatRole.user;
     final colorScheme = Theme.of(context).colorScheme;
     final semantic = Theme.of(context).extension<AppSemanticColors>();
-    final match = isUser ? null : _statCardPattern.firstMatch(message.content);
+    final match = isUser ? null : _statCardPattern.firstMatch(widget.message.content);
 
-    return Align(
+    final bubble = Align(
       alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
       child: Container(
         margin: const EdgeInsets.symmetric(vertical: 4),
@@ -238,11 +266,21 @@ class _ChatBubble extends StatelessWidget {
         ),
         child: match == null
             ? Text(
-                message.content,
+                widget.message.content,
                 style: TextStyle(color: isUser ? colorScheme.onPrimary : colorScheme.onSurface),
               )
-            : _StatCardReply(fullText: message.content, match: match),
+            : _StatCardReply(fullText: widget.message.content, match: match),
       ),
+    );
+
+    if (!widget.animate) return bubble;
+    return AnimatedBuilder(
+      animation: _curved,
+      builder: (context, child) => Opacity(
+        opacity: _curved.value,
+        child: Transform.translate(offset: Offset(0, (1 - _curved.value) * 8), child: child),
+      ),
+      child: bubble,
     );
   }
 }

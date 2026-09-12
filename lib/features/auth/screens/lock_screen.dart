@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/auth/auth_controller.dart';
 import '../../../core/auth/biometric_preference.dart';
+import '../../../core/theme/app_motion.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/icon_chip.dart';
 import '../../settings/data/security_api.dart';
@@ -180,16 +181,36 @@ class _PinBoxes extends StatefulWidget {
   State<_PinBoxes> createState() => _PinBoxesState();
 }
 
-class _PinBoxesState extends State<_PinBoxes> {
+class _PinBoxesState extends State<_PinBoxes> with SingleTickerProviderStateMixin {
+  late final AnimationController _shakeController;
+  late final Animation<double> _shakeOffset;
+
   @override
   void initState() {
     super.initState();
     widget.controller.addListener(_onChanged);
+    _shakeController = AnimationController(vsync: this, duration: AppMotion.feedback);
+    _shakeOffset = TweenSequence<double>([
+      TweenSequenceItem(tween: Tween(begin: 0, end: -8), weight: 1),
+      TweenSequenceItem(tween: Tween(begin: -8, end: 8), weight: 1),
+      TweenSequenceItem(tween: Tween(begin: 8, end: -6), weight: 1),
+      TweenSequenceItem(tween: Tween(begin: -6, end: 6), weight: 1),
+      TweenSequenceItem(tween: Tween(begin: 6, end: 0), weight: 1),
+    ]).animate(CurvedAnimation(parent: _shakeController, curve: Curves.easeOut));
+  }
+
+  @override
+  void didUpdateWidget(_PinBoxes oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.hasError && !oldWidget.hasError && !MediaQuery.of(context).disableAnimations) {
+      _shakeController.forward(from: 0);
+    }
   }
 
   @override
   void dispose() {
     widget.controller.removeListener(_onChanged);
+    _shakeController.dispose();
     super.dispose();
   }
 
@@ -201,44 +222,48 @@ class _PinBoxesState extends State<_PinBoxes> {
     final border = Theme.of(context).colorScheme.outline;
     final danger = semantic?.danger ?? Theme.of(context).colorScheme.error;
     final value = widget.controller.text;
-    return SizedBox(
-      height: 56,
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              for (var i = 0; i < 6; i++) ...[
-                if (i != 0) const SizedBox(width: 8),
-                Container(
-                  width: 40,
-                  height: 56,
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: widget.hasError ? danger : border, width: widget.hasError ? 1.5 : 1),
+    return AnimatedBuilder(
+      animation: _shakeOffset,
+      builder: (context, child) => Transform.translate(offset: Offset(_shakeOffset.value, 0), child: child),
+      child: SizedBox(
+        height: 56,
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                for (var i = 0; i < 6; i++) ...[
+                  if (i != 0) const SizedBox(width: 8),
+                  Container(
+                    width: 40,
+                    height: 56,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: widget.hasError ? danger : border, width: widget.hasError ? 1.5 : 1),
+                    ),
+                    child: Text(
+                      i < value.length ? '•' : '',
+                      style: Theme.of(context).textTheme.titleLarge,
+                    ),
                   ),
-                  child: Text(
-                    i < value.length ? '•' : '',
-                    style: Theme.of(context).textTheme.titleLarge,
-                  ),
-                ),
+                ],
               ],
-            ],
-          ),
-          Opacity(
-            opacity: 0,
-            child: TextField(
-              controller: widget.controller,
-              autofocus: true,
-              keyboardType: TextInputType.number,
-              maxLength: 6,
-              decoration: const InputDecoration(counterText: '', border: InputBorder.none),
-              onSubmitted: (_) {},
             ),
-          ),
-        ],
+            Opacity(
+              opacity: 0,
+              child: TextField(
+                controller: widget.controller,
+                autofocus: true,
+                keyboardType: TextInputType.number,
+                maxLength: 6,
+                decoration: const InputDecoration(counterText: '', border: InputBorder.none),
+                onSubmitted: (_) {},
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

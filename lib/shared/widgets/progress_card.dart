@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../core/theme/app_motion.dart';
 import '../../core/theme/app_theme.dart';
 import 'icon_chip.dart';
 import 'percent_pill.dart';
@@ -8,7 +9,7 @@ import 'percent_pill.dart';
 /// [RowCard]-shell card holding a title + [PercentPill], a linear progress
 /// bar (never a ring — resolved by the delivered mockups), and a muted
 /// footnote line. Used by Budgets, Goals, and the Dashboard progress block.
-class ProgressCard extends StatelessWidget {
+class ProgressCard extends StatefulWidget {
   const ProgressCard({
     required this.title,
     required this.pct,
@@ -34,11 +35,24 @@ class ProgressCard extends StatelessWidget {
   final IconData? icon;
 
   @override
+  State<ProgressCard> createState() => _ProgressCardState();
+}
+
+class _ProgressCardState extends State<ProgressCard> {
+  late double _displayedPct = widget.pct;
+
+  @override
+  void didUpdateWidget(ProgressCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.pct != widget.pct) _displayedPct = oldWidget.pct;
+  }
+
+  @override
   Widget build(BuildContext context) {
     final semantic = Theme.of(context).extension<AppSemanticColors>();
-    final barColor = overBudget ? semantic?.danger : Theme.of(context).colorScheme.primary;
+    final barColor = widget.overBudget ? semantic?.danger : Theme.of(context).colorScheme.primary;
     return Card(
-      margin: EdgeInsets.only(left: indented ? 24 : 0, bottom: 12),
+      margin: EdgeInsets.only(left: widget.indented ? 24 : 0, bottom: 12),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -46,25 +60,34 @@ class ProgressCard extends StatelessWidget {
           children: [
             Row(
               children: [
-                if (icon != null) ...[IconChip(icon: icon!, danger: overBudget), const SizedBox(width: 12)],
-                Expanded(child: Text(title, style: Theme.of(context).textTheme.titleMedium)),
-                PercentPill(pct: (pct * 100).round(), danger: overBudget),
+                if (widget.icon != null) ...[
+                  IconChip(icon: widget.icon!, danger: widget.overBudget),
+                  const SizedBox(width: 12),
+                ],
+                Expanded(child: Text(widget.title, style: Theme.of(context).textTheme.titleMedium)),
+                PercentPill(pct: (widget.pct * 100).round(), danger: widget.overBudget),
               ],
             ),
             const SizedBox(height: 10),
             ClipRRect(
               borderRadius: BorderRadius.circular(8),
-              child: LinearProgressIndicator(
-                value: pct.clamp(0.0, 1.0),
-                minHeight: 8,
-                color: barColor,
-                backgroundColor: semantic?.accentChipBg,
+              child: TweenAnimationBuilder<double>(
+                tween: Tween(begin: _displayedPct, end: widget.pct),
+                duration: AppMotion.valueTransition,
+                curve: Curves.easeOut,
+                onEnd: () => _displayedPct = widget.pct,
+                builder: (context, value, _) => LinearProgressIndicator(
+                  value: value.clamp(0.0, 1.0),
+                  minHeight: 8,
+                  color: barColor,
+                  backgroundColor: semantic?.accentChipBg,
+                ),
               ),
             ),
             const SizedBox(height: 6),
             Text(
-              footnote,
-              style: TextStyle(color: overBudget ? semantic?.danger : semantic?.textMuted, fontSize: 12),
+              widget.footnote,
+              style: TextStyle(color: widget.overBudget ? semantic?.danger : semantic?.textMuted, fontSize: 12),
             ),
           ],
         ),

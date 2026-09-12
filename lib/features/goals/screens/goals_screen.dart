@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/api/api_error.dart';
 import '../../../core/format/money.dart';
+import '../../../core/theme/app_motion.dart';
 import '../../../shared/widgets/progress_card.dart';
 import '../models/goal.dart';
 import '../providers/goals_provider.dart';
@@ -28,21 +29,31 @@ class GoalsBody extends ConsumerWidget {
 
     return RefreshIndicator(
       onRefresh: () => ref.refresh(goalsProvider.future),
-      child: goalsAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (err, _) => Center(child: Text(err is ApiError ? err.message : 'Failed to load goals')),
-        data: (goals) {
-          if (goals.isEmpty) {
+      child: AnimatedSwitcher(
+        duration: AppMotion.stateChange,
+        switchInCurve: Curves.easeOut,
+        switchOutCurve: Curves.easeOut,
+        child: goalsAsync.when(
+          loading: () => const Center(key: ValueKey('loading'), child: CircularProgressIndicator()),
+          error: (err, _) => Center(
+            key: const ValueKey('error'),
+            child: Text(err is ApiError ? err.message : 'Failed to load goals'),
+          ),
+          data: (goals) {
+            if (goals.isEmpty) {
+              return ListView(
+                key: const ValueKey('empty'),
+                padding: const EdgeInsets.all(16),
+                children: const [Center(child: Padding(padding: EdgeInsets.only(top: 48), child: Text('No goals yet.')))],
+              );
+            }
             return ListView(
+              key: const ValueKey('list'),
               padding: const EdgeInsets.all(16),
-              children: const [Center(child: Padding(padding: EdgeInsets.only(top: 48), child: Text('No goals yet.')))],
+              children: [for (final goal in goals) _GoalRow(goal: goal)],
             );
-          }
-          return ListView(
-            padding: const EdgeInsets.all(16),
-            children: [for (final goal in goals) _GoalRow(goal: goal)],
-          );
-        },
+          },
+        ),
       ),
     );
   }
