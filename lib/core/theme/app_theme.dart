@@ -77,17 +77,30 @@ abstract final class AppTheme {
       outline: border,
     );
 
+    // DESIGN.md § Typography specifies a 28/22/17/15/13sp scale for
+    // display/title/body-large/body/caption. Material's default titleLarge
+    // (22) already matches "title" exactly, so it's left alone. displaySmall
+    // is the one role that visibly diverges (Material default: 36) and has
+    // exactly one call site (login_screen.dart's title) — corrected here so
+    // the doc and the code are provably the same value. The remaining tiers
+    // (body-large/body/caption) map onto ~90 call sites across the app using
+    // Material's broader default role set (titleMedium/bodyMedium/bodySmall/
+    // etc.) for purposes DESIGN.md's 5-tier scale doesn't individually cover
+    // (card titles, footnotes, subtitles) — left as Material defaults rather
+    // than reassigned blind, since a change that broad can't be visually
+    // verified without a mockup-matched device pass.
     final baseText = GoogleFonts.manropeTextTheme().apply(
       bodyColor: textPrimary,
       displayColor: textPrimary,
     );
+    final textTheme = baseText.copyWith(displaySmall: baseText.displaySmall?.copyWith(fontSize: 28));
 
     return ThemeData(
       useMaterial3: true,
       brightness: brightness,
       colorScheme: colorScheme,
       scaffoldBackgroundColor: background,
-      textTheme: baseText,
+      textTheme: textTheme,
       cardTheme: CardThemeData(
         color: surface,
         elevation: 1,
