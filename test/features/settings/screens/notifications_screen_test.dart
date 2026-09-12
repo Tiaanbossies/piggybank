@@ -11,6 +11,7 @@ import 'package:piggybank/core/api/api_client.dart';
 import 'package:piggybank/core/auth/auth_api.dart';
 import 'package:piggybank/core/auth/auth_controller.dart';
 import 'package:piggybank/core/auth/auth_state.dart';
+import 'package:piggybank/core/auth/onboarding_store.dart';
 import 'package:piggybank/core/auth/secure_storage.dart';
 import 'package:piggybank/core/auth/user.dart';
 import 'package:piggybank/features/settings/data/notification_prefs_api.dart';
@@ -21,6 +22,8 @@ class MockAuthApi extends Mock implements AuthApi {}
 class MockSecureStorage extends Mock implements SecureStorage {}
 
 class MockLocalAuthentication extends Mock implements LocalAuthentication {}
+
+class MockOnboardingStore extends Mock implements OnboardingStore {}
 
 const _user = User(id: 'u1', email: 'a@b.com', fullName: 'A B', role: 'user', isActive: true);
 
@@ -54,15 +57,23 @@ void main() {
   late MockAuthApi mockAuthApi;
   late MockSecureStorage mockSecureStorage;
   late MockLocalAuthentication mockLocalAuth;
+  late MockOnboardingStore mockOnboardingStore;
   late AuthController authController;
 
   setUp(() async {
     mockAuthApi = MockAuthApi();
     mockSecureStorage = MockSecureStorage();
     mockLocalAuth = MockLocalAuthentication();
+    mockOnboardingStore = MockOnboardingStore();
     when(() => mockSecureStorage.readRefreshToken()).thenAnswer((_) async => null);
+    when(() => mockOnboardingStore.isPending(any())).thenReturn(false);
 
-    authController = AuthController(authApi: mockAuthApi, secureStorage: mockSecureStorage, localAuth: mockLocalAuth);
+    authController = AuthController(
+      authApi: mockAuthApi,
+      secureStorage: mockSecureStorage,
+      localAuth: mockLocalAuth,
+      onboardingStore: mockOnboardingStore,
+    );
     await Future<void>.delayed(Duration.zero);
     authController.state = const AuthState(status: AuthStatus.authenticated, accessToken: 'token', user: _user, locked: false);
   });

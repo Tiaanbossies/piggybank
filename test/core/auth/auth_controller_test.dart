@@ -5,6 +5,7 @@ import 'package:mocktail/mocktail.dart';
 import 'package:piggybank/core/api/api_error.dart';
 import 'package:piggybank/core/auth/auth_api.dart';
 import 'package:piggybank/core/auth/auth_controller.dart';
+import 'package:piggybank/core/auth/onboarding_store.dart';
 import 'package:piggybank/core/auth/secure_storage.dart';
 import 'package:piggybank/core/auth/user.dart';
 import 'package:piggybank/core/consents/consent_models.dart';
@@ -17,6 +18,8 @@ class MockSecureStorage extends Mock implements SecureStorage {}
 class MockLocalAuthentication extends Mock implements LocalAuthentication {}
 
 class MockSecurityApi extends Mock implements SecurityApi {}
+
+class MockOnboardingStore extends Mock implements OnboardingStore {}
 
 class FakeUser extends Fake implements User {
   @override
@@ -53,6 +56,7 @@ void main() {
     late MockAuthApi mockAuthApi;
     late MockSecureStorage mockSecureStorage;
     late MockLocalAuthentication mockLocalAuth;
+    late MockOnboardingStore mockOnboardingStore;
     late AuthController authController;
 
     setUpAll(() {
@@ -63,6 +67,7 @@ void main() {
       mockAuthApi = MockAuthApi();
       mockSecureStorage = MockSecureStorage();
       mockLocalAuth = MockLocalAuthentication();
+      mockOnboardingStore = MockOnboardingStore();
 
       // Set default mock behavior for restoreSession to return null (no stored token)
       when(() => mockSecureStorage.readRefreshToken())
@@ -73,10 +78,17 @@ void main() {
       when(() => mockAuthApi.requiredConsents(any())).thenAnswer((_) async => const []);
       when(() => mockAuthApi.acceptedConsents(any())).thenAnswer((_) async => const []);
 
+      // Default: no pending onboarding flag, so existing login/register/restore
+      // tests (which don't assert on onboardingRequired) keep passing unchanged.
+      when(() => mockOnboardingStore.isPending(any())).thenReturn(false);
+      when(() => mockOnboardingStore.markPending(any())).thenAnswer((_) async {});
+      when(() => mockOnboardingStore.clearPending(any())).thenAnswer((_) async {});
+
       authController = AuthController(
         authApi: mockAuthApi,
         secureStorage: mockSecureStorage,
         localAuth: mockLocalAuth,
+        onboardingStore: mockOnboardingStore,
       );
     });
 
@@ -187,6 +199,7 @@ void main() {
           authApi: mockAuthApi,
           secureStorage: mockSecureStorage,
           localAuth: mockLocalAuth,
+          onboardingStore: mockOnboardingStore,
         );
 
         await Future.delayed(const Duration(milliseconds: 100));
@@ -203,6 +216,7 @@ void main() {
           authApi: mockAuthApi,
           secureStorage: mockSecureStorage,
           localAuth: mockLocalAuth,
+          onboardingStore: mockOnboardingStore,
         );
 
         await Future.delayed(const Duration(milliseconds: 100));
@@ -439,6 +453,87 @@ void main() {
         authController.markConsentsRequired();
 
         expect(authController.state.consentsRequired, false);
+      });
+    });
+
+    group('onboarding', () {
+      const email = 'test@example.com';
+      const password = 'password123';
+      const tokenPair = TokenPair(accessToken: 'access_token_123', refreshToken: 'refresh_token_456');
+
+      test('register() marks the account pending and sets onboardingRequired true', () async {
+        when(() => mockAuthApi.register(email: email, password: password, fullName: null))
+            .thenAnswer((_) async => tokenPair);
+        when(() => mockSecureStorage.writeRefreshToken(any())).thenAnswer((_) async {});
+        when(() => mockAuthApi.me('access_token_123')).thenAnswer((_) async => FakeUser());
+
+        await authController.register(email: email, password: password);
+
+        verify(() => mockOnboardingStore.markPending('user123')).called(1);
+        expect(authController.state.onboardingRequired, true);
+      });
+
+      test('login() mirrors OnboardingStore.isPending — false for an ordinary account', () async {
+        when(() => mockAuthApi.login(email: email, password: password)).thenAnswer((_) async => tokenPair);
+        when(() => mockSecureStorage.writeRefreshToken(any())).thenAnswer((_) async {});
+        when(() => mockAuthApi.me('access_token_123')).thenAnswer((_) async => FakeUser());
+        when(() => mockOnboardingStore.isPending('user123')).thenReturn(false);
+
+        await authController.login(email: email, password: password);
+
+        expect(authController.state.onboardingRequired, false);
+      });
+
+      test('login() resumes an interrupted tour when a pending flag exists', () async {
+        when(() => mockAuthApi.login(email: email, password: password)).thenAnswer((_) async => tokenPair);
+        when(() => mockSecureStorage.writeRefreshToken(any())).thenAnswer((_) async {});
+        when(() => mockAuthApi.me('access_token_123')).thenAnswer((_) async => FakeUser());
+        when(() => mockOnboardingStore.isPending('user123')).thenReturn(true);
+
+        await authController.login(email: email, password: password);
+
+        expect(authController.state.onboardingRequired, true);
+      });
+
+      test('restoreSession() mirrors OnboardingStore.isPending the same way login() does', () async {
+        when(() => mockSecureStorage.readRefreshToken()).thenAnswer((_) async => 'valid_refresh_token');
+        when(() => mockAuthApi.refresh('valid_refresh_token')).thenAnswer((_) async => tokenPair);
+        when(() => mockSecureStorage.writeRefreshToken(any())).thenAnswer((_) async {});
+        when(() => mockAuthApi.me('access_token_123')).thenAnswer((_) async => FakeUser());
+        when(() => mockOnboardingStore.isPending('user123')).thenReturn(true);
+
+        final controller = AuthController(
+          authApi: mockAuthApi,
+          secureStorage: mockSecureStorage,
+          localAuth: mockLocalAuth,
+          onboardingStore: mockOnboardingStore,
+        );
+
+        await Future.delayed(const Duration(milliseconds: 100));
+
+        expect(controller.state.onboardingRequired, true);
+      });
+
+      test('completeOnboarding() clears the flag on state and in the store', () async {
+        when(() => mockAuthApi.login(email: email, password: password)).thenAnswer((_) async => tokenPair);
+        when(() => mockSecureStorage.writeRefreshToken(any())).thenAnswer((_) async {});
+        when(() => mockAuthApi.me('access_token_123')).thenAnswer((_) async => FakeUser());
+        when(() => mockOnboardingStore.isPending('user123')).thenReturn(true);
+        await authController.login(email: email, password: password);
+        expect(authController.state.onboardingRequired, true);
+
+        await authController.completeOnboarding();
+
+        verify(() => mockOnboardingStore.clearPending('user123')).called(1);
+        expect(authController.state.onboardingRequired, false);
+      });
+
+      test('completeOnboarding() is a no-op when not authenticated', () async {
+        expect(authController.state.isAuthenticated, false);
+
+        await authController.completeOnboarding();
+
+        verifyNever(() => mockOnboardingStore.clearPending(any()));
       });
     });
   });

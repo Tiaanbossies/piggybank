@@ -11,6 +11,13 @@ enum AuthStatus { unknown, authenticated, unauthenticated }
 /// authenticated action works. [locked] takes precedence over it — nothing,
 /// including the consent screen, should render before the device-lock gate
 /// clears.
+///
+/// [onboardingRequired] is a third, independent gate for the first-run Penny
+/// tour (see `plans/piggybank-penny-onboarding-tour.md`) — purely local, with
+/// no backend concept of it (unlike [consentsRequired]). It's derived from
+/// `OnboardingStore.isPending(userId)` on every auth path, not hand-set per
+/// path, so an interrupted tour resumes on the next login/restore rather than
+/// being silently lost.
 class AuthState {
   const AuthState({
     required this.status,
@@ -18,6 +25,7 @@ class AuthState {
     this.user,
     this.locked = false,
     this.consentsRequired = false,
+    this.onboardingRequired = false,
   });
 
   final AuthStatus status;
@@ -25,6 +33,7 @@ class AuthState {
   final User? user;
   final bool locked;
   final bool consentsRequired;
+  final bool onboardingRequired;
 
   static const initial = AuthState(status: AuthStatus.unknown);
 
@@ -36,6 +45,7 @@ class AuthState {
     User? user,
     bool? locked,
     bool? consentsRequired,
+    bool? onboardingRequired,
   }) {
     return AuthState(
       status: status ?? this.status,
@@ -43,6 +53,7 @@ class AuthState {
       user: user ?? this.user,
       locked: locked ?? this.locked,
       consentsRequired: consentsRequired ?? this.consentsRequired,
+      onboardingRequired: onboardingRequired ?? this.onboardingRequired,
     );
   }
 

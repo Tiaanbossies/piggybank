@@ -11,6 +11,7 @@ import '../../features/budgets/screens/budgets_home_screen.dart';
 import '../../features/chatbot/screens/chatbot_screen.dart';
 import '../../features/consent/screens/consent_screen.dart';
 import '../../features/dashboard/screens/dashboard_screen.dart';
+import '../../features/onboarding/screens/onboarding_screen.dart';
 import '../../features/portfolios/screens/invest_screen.dart';
 import '../../features/settings/screens/data_export_screen.dart';
 import '../auth/auth_controller.dart';
@@ -20,9 +21,10 @@ import 'placeholder_screens.dart';
 
 /// Redirects on [AuthState]: unknown → splash (empty), unauthenticated →
 /// /login, authenticated+locked → /lock, authenticated+unlocked+
-/// consentsRequired → /consent, authenticated+unlocked+consented → the
-/// shell. See [computeRedirect] for the precedence rules — `locked` always
-/// wins over `consentsRequired`.
+/// consentsRequired → /consent, authenticated+unlocked+consented+
+/// onboardingRequired → /onboarding, otherwise → the shell. See
+/// [computeRedirect] for the precedence rules — `locked` wins over
+/// `consentsRequired`, which wins over `onboardingRequired`.
 final appRouterProvider = Provider<GoRouter>((ref) {
   return GoRouter(
     initialLocation: '/login',
@@ -38,6 +40,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(path: '/lock', builder: (context, state) => const LockScreen()),
       GoRoute(path: '/consent', builder: (context, state) => const ConsentScreen()),
+      GoRoute(path: '/onboarding', builder: (context, state) => const OnboardingScreen()),
       GoRoute(path: '/settings/data-export', builder: (context, state) => const DataExportScreen()),
       StatefulShellRoute.indexedStack(
         builder: (context, state, navigationShell) => AppShell(navigationShell: navigationShell),
@@ -64,11 +67,13 @@ class _RouterRefreshListenable extends ChangeNotifier {
 /// Pure redirect logic, extracted out of the `GoRouter.redirect` closure so
 /// it's directly unit-testable without pumping a widget tree.
 ///
-/// Precedence: `locked` wins over `consentsRequired` — nothing (including
-/// the consent screen) should render before the device-lock gate clears.
-/// No redirect loop: each state maps to exactly one target, and go_router
-/// doesn't re-navigate when the redirect target equals the current
-/// location (the same property `/lock` already relies on).
+/// Precedence: `locked` wins over `consentsRequired`, which wins over
+/// `onboardingRequired` — nothing (including the consent screen or the
+/// onboarding tour) should render before the device-lock gate clears, and
+/// unresolved consents outrank the tour. No redirect loop: each state maps
+/// to exactly one target, and go_router doesn't re-navigate when the
+/// redirect target equals the current location (the same property `/lock`
+/// already relies on).
 String? computeRedirect(AuthState auth, String matchedLocation) {
   final loggingIn = matchedLocation == '/login' ||
       matchedLocation == '/register' ||
@@ -79,6 +84,9 @@ String? computeRedirect(AuthState auth, String matchedLocation) {
   if (!auth.isAuthenticated) return loggingIn ? null : '/login';
   if (auth.locked) return '/lock';
   if (auth.consentsRequired) return matchedLocation == '/consent' ? null : '/consent';
-  if (loggingIn || matchedLocation == '/lock' || matchedLocation == '/consent') return '/';
+  if (auth.onboardingRequired) return matchedLocation == '/onboarding' ? null : '/onboarding';
+  if (loggingIn || matchedLocation == '/lock' || matchedLocation == '/consent' || matchedLocation == '/onboarding') {
+    return '/';
+  }
   return null;
 }
