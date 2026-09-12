@@ -373,9 +373,12 @@ class _ErrorBubble extends StatelessWidget {
               const SizedBox(height: 4),
               InkWell(
                 onTap: onRetry,
-                child: Text(
-                  'Retry',
-                  style: TextStyle(color: semantic?.danger, fontWeight: FontWeight.w700, decoration: TextDecoration.underline),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  child: Text(
+                    'Retry',
+                    style: TextStyle(color: semantic?.danger, fontWeight: FontWeight.w700, decoration: TextDecoration.underline),
+                  ),
                 ),
               ),
             ],

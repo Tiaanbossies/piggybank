@@ -197,11 +197,14 @@ class _ConsentScreenState extends ConsumerState<ConsentScreen> {
                       }
                     }),
             title: Text(doc.label),
-            subtitle: GestureDetector(
+            subtitle: InkWell(
               onTap: () => _showDocument(doc),
-              child: Text(
-                '${doc.summary} (Read)',
-                style: TextStyle(color: Theme.of(context).colorScheme.primary),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                child: Text(
+                  '${doc.summary} (Read)',
+                  style: TextStyle(color: Theme.of(context).colorScheme.primary),
+                ),
               ),
             ),
             controlAffinity: ListTileControlAffinity.leading,

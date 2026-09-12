@@ -51,45 +51,52 @@ class _ProgressCardState extends State<ProgressCard> {
   Widget build(BuildContext context) {
     final semantic = Theme.of(context).extension<AppSemanticColors>();
     final barColor = widget.overBudget ? semantic?.danger : Theme.of(context).colorScheme.primary;
-    return Card(
-      margin: EdgeInsets.only(left: widget.indented ? 24 : 0, bottom: 12),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
+    final pctLabel = (widget.pct * 100).round();
+    return Semantics(
+      label:
+          '${widget.title}, $pctLabel percent${widget.overBudget ? ', over budget' : ''}. ${widget.footnote}',
+      child: ExcludeSemantics(
+        child: Card(
+          margin: EdgeInsets.only(left: widget.indented ? 24 : 0, bottom: 12),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                if (widget.icon != null) ...[
-                  IconChip(icon: widget.icon!, danger: widget.overBudget),
-                  const SizedBox(width: 12),
-                ],
-                Expanded(child: Text(widget.title, style: Theme.of(context).textTheme.titleMedium)),
-                PercentPill(pct: (widget.pct * 100).round(), danger: widget.overBudget),
+                Row(
+                  children: [
+                    if (widget.icon != null) ...[
+                      IconChip(icon: widget.icon!, danger: widget.overBudget),
+                      const SizedBox(width: 12),
+                    ],
+                    Expanded(child: Text(widget.title, style: Theme.of(context).textTheme.titleMedium)),
+                    PercentPill(pct: (widget.pct * 100).round(), danger: widget.overBudget),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: TweenAnimationBuilder<double>(
+                    tween: Tween(begin: _displayedPct, end: widget.pct),
+                    duration: AppMotion.valueTransition,
+                    curve: AppMotion.easeOut,
+                    onEnd: () => _displayedPct = widget.pct,
+                    builder: (context, value, _) => LinearProgressIndicator(
+                      value: value.clamp(0.0, 1.0),
+                      minHeight: 8,
+                      color: barColor,
+                      backgroundColor: semantic?.accentChipBg,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  widget.footnote,
+                  style: TextStyle(color: widget.overBudget ? semantic?.danger : semantic?.textMuted, fontSize: 12),
+                ),
               ],
             ),
-            const SizedBox(height: 10),
-            ClipRRect(
-              borderRadius: BorderRadius.circular(8),
-              child: TweenAnimationBuilder<double>(
-                tween: Tween(begin: _displayedPct, end: widget.pct),
-                duration: AppMotion.valueTransition,
-                curve: Curves.easeOut,
-                onEnd: () => _displayedPct = widget.pct,
-                builder: (context, value, _) => LinearProgressIndicator(
-                  value: value.clamp(0.0, 1.0),
-                  minHeight: 8,
-                  color: barColor,
-                  backgroundColor: semantic?.accentChipBg,
-                ),
-              ),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              widget.footnote,
-              style: TextStyle(color: widget.overBudget ? semantic?.danger : semantic?.textMuted, fontSize: 12),
-            ),
-          ],
+          ),
         ),
       ),
     );
