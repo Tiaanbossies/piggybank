@@ -80,20 +80,31 @@ abstract final class AppTheme {
     // DESIGN.md § Typography specifies a 28/22/17/15/13sp scale for
     // display/title/body-large/body/caption. Material's default titleLarge
     // (22) already matches "title" exactly, so it's left alone. displaySmall
-    // is the one role that visibly diverges (Material default: 36) and has
-    // exactly one call site (login_screen.dart's title) — corrected here so
-    // the doc and the code are provably the same value. The remaining tiers
-    // (body-large/body/caption) map onto ~90 call sites across the app using
-    // Material's broader default role set (titleMedium/bodyMedium/bodySmall/
-    // etc.) for purposes DESIGN.md's 5-tier scale doesn't individually cover
-    // (card titles, footnotes, subtitles) — left as Material defaults rather
-    // than reassigned blind, since a change that broad can't be visually
-    // verified without a mockup-matched device pass.
+    // diverged (Material default: 36) and was corrected to 28 in a prior
+    // session (login_screen.dart's title, its one call site). The remaining
+    // three named tiers — body-large/body/caption — map onto Material's
+    // bodyLarge/bodyMedium/bodySmall (defaults 16/14/12) and are corrected
+    // here to 17/15/13, completing the 5-tier scale. This was deferred
+    // earlier for lack of a way to visually verify ~90 call sites at once;
+    // a live device/browser pass is now available, and the deltas here are
+    // small (≤3sp) relative to Material's own defaults, so the regression
+    // risk is low.
+    //
+    // Material's remaining roles (titleMedium/titleSmall, labelLarge/Medium/
+    // Small, headlineLarge/Medium/Small) are used across the app for things
+    // DESIGN.md's 5-tier scale doesn't individually name (card titles,
+    // footnotes, subtitles, nav labels) — left at Material defaults, since
+    // there is no documented value to correct them to.
     final baseText = GoogleFonts.manropeTextTheme().apply(
       bodyColor: textPrimary,
       displayColor: textPrimary,
     );
-    final textTheme = baseText.copyWith(displaySmall: baseText.displaySmall?.copyWith(fontSize: 28));
+    final textTheme = baseText.copyWith(
+      displaySmall: baseText.displaySmall?.copyWith(fontSize: 28),
+      bodyLarge: baseText.bodyLarge?.copyWith(fontSize: 17),
+      bodyMedium: baseText.bodyMedium?.copyWith(fontSize: 15),
+      bodySmall: baseText.bodySmall?.copyWith(fontSize: 13),
+    );
 
     return ThemeData(
       useMaterial3: true,

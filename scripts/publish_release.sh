@@ -17,12 +17,15 @@ cd "$(dirname "$0")/.."
 
 SERVER="mcp@100.121.165.7"
 REMOTE_DIR="~/piggybank-backend/downloads"
-# Plain HTTP on the raw Tailscale IP, not the fynboscreative.co.za domain --
-# that domain's public DNS points to an unrelated server (see
-# lib/core/api/api_config.dart's comment on this same fact), so Caddy can
-# never get a TLS cert for it here. This matches how the app itself already
-# talks to the backend (http://100.121.165.7:8000/api).
-DOWNLOAD_HOST="http://100.121.165.7/downloads"
+# Plain HTTP on the Tailscale MagicDNS name (falls back to the raw Tailscale
+# IP below), not the fynboscreative.co.za domain -- that domain's public DNS
+# points to an unrelated server (see lib/core/api/api_config.dart's comment
+# on this same fact), so Caddy can never get a TLS cert for it here. Caddy's
+# /downloads site block (piggybank-backend's Caddyfile) matches both
+# addresses. This matches how the app itself already talks to the backend
+# (http://100.121.165.7:8000/api).
+DOWNLOAD_HOST="http://tiaanbossies-h81m-ds2.tail886b94.ts.net/downloads"
+DOWNLOAD_HOST_IP_FALLBACK="http://100.121.165.7/downloads"
 
 VERSION=$(grep '^version:' pubspec.yaml | awk '{print $2}' | cut -d+ -f1)
 BUILD_NUMBER=$(grep '^version:' pubspec.yaml | awk '{print $2}' | cut -d+ -f2)
@@ -53,4 +56,5 @@ EOF
 echo
 echo "Done. On the phone (connected to Tailscale), open in a browser:"
 echo "  ${DOWNLOAD_HOST}/piggybank-latest.apk"
+echo "  (fallback if MagicDNS doesn't resolve: ${DOWNLOAD_HOST_IP_FALLBACK}/piggybank-latest.apk)"
 echo "Tap the downloaded file to install (enable \"install unknown apps\" for the browser if prompted)."
