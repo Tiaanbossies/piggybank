@@ -100,7 +100,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 ),
                 AnimatedSize(
                   duration: AppMotion.stateChange,
-                  curve: Curves.easeOut,
+                  curve: AppMotion.easeOut,
                   alignment: Alignment.topCenter,
                   child: _error == null
                       ? const SizedBox(width: double.infinity)

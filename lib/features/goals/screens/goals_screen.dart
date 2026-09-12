@@ -31,8 +31,8 @@ class GoalsBody extends ConsumerWidget {
       onRefresh: () => ref.refresh(goalsProvider.future),
       child: AnimatedSwitcher(
         duration: AppMotion.stateChange,
-        switchInCurve: Curves.easeOut,
-        switchOutCurve: Curves.easeOut,
+        switchInCurve: AppMotion.easeOut,
+        switchOutCurve: AppMotion.easeOut,
         child: goalsAsync.when(
           loading: () => const Center(key: ValueKey('loading'), child: CircularProgressIndicator()),
           error: (err, _) => Center(

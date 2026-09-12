@@ -61,8 +61,8 @@ class BudgetsBody extends ConsumerWidget {
             onRefresh: () => ref.refresh(budgetProgressProvider.future),
             child: AnimatedSwitcher(
               duration: AppMotion.stateChange,
-              switchInCurve: Curves.easeOut,
-              switchOutCurve: Curves.easeOut,
+              switchInCurve: AppMotion.easeOut,
+              switchOutCurve: AppMotion.easeOut,
               child: progressAsync.when(
                 loading: () => const Center(key: ValueKey('loading'), child: CircularProgressIndicator()),
                 error: (err, _) => Center(

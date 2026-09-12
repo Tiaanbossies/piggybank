@@ -86,8 +86,8 @@ class _NetWorthHero extends ConsumerWidget {
     final netWorthAsync = ref.watch(netWorthProvider);
     return AnimatedSwitcher(
       duration: AppMotion.stateChange,
-      switchInCurve: Curves.easeOut,
-      switchOutCurve: Curves.easeOut,
+      switchInCurve: AppMotion.easeOut,
+      switchOutCurve: AppMotion.easeOut,
       child: netWorthAsync.when(
         loading: () => const SizedBox(
           key: ValueKey('loading'),
@@ -147,8 +147,8 @@ class _CashflowStatStrip extends ConsumerWidget {
     final semantic = Theme.of(context).extension<AppSemanticColors>();
     return AnimatedSwitcher(
       duration: AppMotion.stateChange,
-      switchInCurve: Curves.easeOut,
-      switchOutCurve: Curves.easeOut,
+      switchInCurve: AppMotion.easeOut,
+      switchOutCurve: AppMotion.easeOut,
       child: cashflowAsync.when(
         loading: () => const SizedBox.shrink(key: ValueKey('loading')),
         error: (_, _) => const SizedBox.shrink(key: ValueKey('error')),
@@ -203,8 +203,8 @@ class _ProgressBlock extends ConsumerWidget {
 
     return AnimatedSwitcher(
       duration: AppMotion.stateChange,
-      switchInCurve: Curves.easeOut,
-      switchOutCurve: Curves.easeOut,
+      switchInCurve: AppMotion.easeOut,
+      switchOutCurve: AppMotion.easeOut,
       child: goalsAsync.when(
         loading: () => const SizedBox.shrink(key: ValueKey('loading')),
         error: (_, _) => const SizedBox.shrink(key: ValueKey('error')),

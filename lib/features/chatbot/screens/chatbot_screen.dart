@@ -57,8 +57,8 @@ class _ChatbotScreenState extends ConsumerState<ChatbotScreen> {
       if (!_scrollController.hasClients) return;
       _scrollController.animateTo(
         _scrollController.position.maxScrollExtent,
-        duration: const Duration(milliseconds: 200),
-        curve: Curves.easeOut,
+        duration: AppMotion.stateChange,
+        curve: AppMotion.easeOut,
       );
     });
   }
@@ -228,7 +228,7 @@ class _ChatBubbleState extends State<_ChatBubble> with SingleTickerProviderState
     duration: AppMotion.stateChange,
     value: widget.animate ? 0 : 1,
   );
-  late final Animation<double> _curved = CurvedAnimation(parent: _controller, curve: Curves.easeOut);
+  late final Animation<double> _curved = CurvedAnimation(parent: _controller, curve: AppMotion.easeOut);
 
   @override
   void initState() {
