@@ -96,6 +96,18 @@ void main() {
       expect(computeRedirect(clear, '/onboarding'), '/');
     });
 
+    test('register → /onboarding → completeOnboarding → / sequence', () {
+      // Mirrors the real flow: register() sets onboardingRequired, the
+      // gate sends the user to /onboarding, and completeOnboarding()
+      // clearing the flag (via copyWith, same as AuthController does)
+      // releases them back to the shell.
+      final afterRegister = state(onboardingRequired: true);
+      expect(computeRedirect(afterRegister, '/'), '/onboarding');
+
+      final afterCompleteOnboarding = afterRegister.copyWith(onboardingRequired: false);
+      expect(computeRedirect(afterCompleteOnboarding, '/onboarding'), '/');
+    });
+
     test('no redirect loop: redirect target always resolves to a stable location', () {
       // Every (status, locked, consentsRequired) combination should map to
       // exactly one stable target: applying computeRedirect a second time
