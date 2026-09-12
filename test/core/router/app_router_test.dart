@@ -8,8 +8,14 @@ void main() {
       AuthStatus status = AuthStatus.authenticated,
       bool locked = false,
       bool consentsRequired = false,
+      bool onboardingRequired = false,
     }) {
-      return AuthState(status: status, locked: locked, consentsRequired: consentsRequired);
+      return AuthState(
+        status: status,
+        locked: locked,
+        consentsRequired: consentsRequired,
+        onboardingRequired: onboardingRequired,
+      );
     }
 
     test('unknown status never redirects (splash)', () {
@@ -52,19 +58,42 @@ void main() {
       expect(computeRedirect(consentsRequired, '/consent'), isNull);
     });
 
-    test('fully cleared (unlocked, consented) leaves the shell alone', () {
+    test('consentsRequired wins over onboardingRequired', () {
+      final both = state(consentsRequired: true, onboardingRequired: true);
+      expect(computeRedirect(both, '/'), '/consent');
+      expect(computeRedirect(both, '/onboarding'), '/consent');
+      // Already at /consent: no-op, same property /lock relies on.
+      expect(computeRedirect(both, '/consent'), isNull);
+    });
+
+    test('locked wins over onboardingRequired', () {
+      final both = state(locked: true, onboardingRequired: true);
+      expect(computeRedirect(both, '/'), '/lock');
+      expect(computeRedirect(both, '/onboarding'), '/lock');
+    });
+
+    test('unlocked, consented + onboardingRequired redirects to /onboarding from anywhere but /onboarding', () {
+      final onboardingRequired = state(onboardingRequired: true);
+      expect(computeRedirect(onboardingRequired, '/'), '/onboarding');
+      expect(computeRedirect(onboardingRequired, '/invest'), '/onboarding');
+      expect(computeRedirect(onboardingRequired, '/settings'), '/onboarding');
+      expect(computeRedirect(onboardingRequired, '/onboarding'), isNull);
+    });
+
+    test('fully cleared (unlocked, consented, onboarded) leaves the shell alone', () {
       final clear = state();
       expect(computeRedirect(clear, '/'), isNull);
       expect(computeRedirect(clear, '/invest'), isNull);
       expect(computeRedirect(clear, '/settings'), isNull);
     });
 
-    test('fully cleared bounces away from /login, /register, /lock, and /consent to /', () {
+    test('fully cleared bounces away from /login, /register, /lock, /consent, and /onboarding to /', () {
       final clear = state();
       expect(computeRedirect(clear, '/login'), '/');
       expect(computeRedirect(clear, '/register'), '/');
       expect(computeRedirect(clear, '/lock'), '/');
       expect(computeRedirect(clear, '/consent'), '/');
+      expect(computeRedirect(clear, '/onboarding'), '/');
     });
 
     test('no redirect loop: redirect target always resolves to a stable location', () {
@@ -77,13 +106,13 @@ void main() {
       final combinations = [
         state(status: AuthStatus.unknown),
         state(status: AuthStatus.unauthenticated),
-        state(locked: true, consentsRequired: true),
-        state(locked: true, consentsRequired: false),
-        state(locked: false, consentsRequired: true),
-        state(locked: false, consentsRequired: false),
+        for (final locked in [true, false])
+          for (final consentsRequired in [true, false])
+            for (final onboardingRequired in [true, false])
+              state(locked: locked, consentsRequired: consentsRequired, onboardingRequired: onboardingRequired),
       ];
       for (final s in combinations) {
-        for (final location in ['/', '/login', '/register', '/lock', '/consent', '/invest']) {
+        for (final location in ['/', '/login', '/register', '/lock', '/consent', '/onboarding', '/invest']) {
           final target = computeRedirect(s, location);
           final resolvedLocation = target ?? location;
           final secondPass = computeRedirect(s, resolvedLocation);

@@ -6,17 +6,23 @@ import '../api/api_config.dart';
 import '../api/api_error.dart';
 import 'auth_api.dart';
 import 'auth_state.dart';
+import 'onboarding_store.dart';
 import 'secure_storage.dart';
 
 class AuthController extends StateNotifier<AuthState> {
-  AuthController({required this._authApi, required this._secureStorage, required this._localAuth})
-      : super(AuthState.initial) {
+  AuthController({
+    required this._authApi,
+    required this._secureStorage,
+    required this._localAuth,
+    required this._onboardingStore,
+  }) : super(AuthState.initial) {
     restoreSession();
   }
 
   final AuthApi _authApi;
   final SecureStorage _secureStorage;
   final LocalAuthentication _localAuth;
+  final OnboardingStore _onboardingStore;
 
   /// Called once at app startup: if a refresh token is already stored,
   /// silently re-authenticate and require an app-lock unlock before the UI
@@ -42,6 +48,7 @@ class AuthController extends StateNotifier<AuthState> {
       user: user,
       locked: true,
       consentsRequired: consentsRequired,
+      onboardingRequired: _onboardingStore.isPending(user.id),
     );
   }
 
@@ -56,20 +63,26 @@ class AuthController extends StateNotifier<AuthState> {
       user: user,
       locked: false,
       consentsRequired: consentsRequired,
+      onboardingRequired: _onboardingStore.isPending(user.id),
     );
   }
 
+  /// Unlike [login], this is the only path that ever creates a pending
+  /// onboarding flag — a brand-new account has, by definition, an unfinished
+  /// tour the moment it's created (see [OnboardingStore]).
   Future<void> register({required String email, required String password, String? fullName}) async {
     final pair = await _authApi.register(email: email, password: password, fullName: fullName);
     await _secureStorage.writeRefreshToken(pair.refreshToken);
     final user = await _authApi.me(pair.accessToken);
     final consentsRequired = await _checkConsentsRequired(pair.accessToken);
+    await _onboardingStore.markPending(user.id);
     state = AuthState(
       status: AuthStatus.authenticated,
       accessToken: pair.accessToken,
       user: user,
       locked: false,
       consentsRequired: consentsRequired,
+      onboardingRequired: true,
     );
   }
 
@@ -98,6 +111,16 @@ class AuthController extends StateNotifier<AuthState> {
     if (token == null) return;
     final consentsRequired = await _checkConsentsRequired(token);
     state = state.copyWith(consentsRequired: consentsRequired);
+  }
+
+  /// Clears the onboarding gate — called by the tour screen on both "Get
+  /// Started" and "Skip." Guarded on [AuthState.user] being non-null the same
+  /// way [refreshConsentStatus] guards on [AuthState.accessToken].
+  Future<void> completeOnboarding() async {
+    final id = state.user?.id;
+    if (id == null) return;
+    await _onboardingStore.clearPending(id);
+    state = state.copyWith(onboardingRequired: false);
   }
 
   /// Passed into [ApiClient] as its `onConsentsRequired` fallback: fires
@@ -196,6 +219,7 @@ final authControllerProvider = StateNotifierProvider<AuthController, AuthState>(
     authApi: ref.read(authApiProvider),
     secureStorage: ref.read(secureStorageProvider),
     localAuth: ref.read(localAuthProvider),
+    onboardingStore: ref.read(onboardingStoreProvider),
   );
 });
 
