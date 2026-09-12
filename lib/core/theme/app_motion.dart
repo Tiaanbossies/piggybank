@@ -1,4 +1,4 @@
-import 'package:flutter/animation.dart';
+import 'package:flutter/widgets.dart';
 
 /// Shared motion tokens (durations + curves) so animated widgets across the
 /// app pull from one vocabulary instead of hand-typing values per widget.
@@ -21,4 +21,11 @@ abstract final class AppMotion {
 
   /// Smooth value transitions (progress bars, numeric fills).
   static const valueTransition = Duration(milliseconds: 400);
+}
+
+/// Checks the OS-level reduced-motion request. Only the lock-screen PIN
+/// shake honoured this before now — other implicit animations added since
+/// (crossfades, entrance animations) skipped the check entirely.
+extension ReducedMotion on BuildContext {
+  bool get reducedMotion => MediaQuery.of(this).disableAnimations;
 }

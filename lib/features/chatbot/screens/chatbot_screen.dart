@@ -57,8 +57,8 @@ class _ChatbotScreenState extends ConsumerState<ChatbotScreen> {
       if (!_scrollController.hasClients) return;
       _scrollController.animateTo(
         _scrollController.position.maxScrollExtent,
-        duration: const Duration(milliseconds: 200),
-        curve: Curves.easeOut,
+        duration: context.reducedMotion ? Duration.zero : AppMotion.stateChange,
+        curve: AppMotion.easeOut,
       );
     });
   }
@@ -228,12 +228,20 @@ class _ChatBubbleState extends State<_ChatBubble> with SingleTickerProviderState
     duration: AppMotion.stateChange,
     value: widget.animate ? 0 : 1,
   );
-  late final Animation<double> _curved = CurvedAnimation(parent: _controller, curve: Curves.easeOut);
+  late final Animation<double> _curved = CurvedAnimation(parent: _controller, curve: AppMotion.easeOut);
 
   @override
   void initState() {
     super.initState();
-    if (widget.animate) _controller.forward();
+    if (!widget.animate) return;
+    // MediaQuery isn't reliably available yet in initState, so this checks
+    // the platform accessibility flag directly rather than via BuildContext
+    // (same underlying signal MediaQuery.disableAnimations reads from).
+    if (WidgetsBinding.instance.platformDispatcher.accessibilityFeatures.disableAnimations) {
+      _controller.value = 1;
+    } else {
+      _controller.forward();
+    }
   }
 
   @override
@@ -373,9 +381,12 @@ class _ErrorBubble extends StatelessWidget {
               const SizedBox(height: 4),
               InkWell(
                 onTap: onRetry,
-                child: Text(
-                  'Retry',
-                  style: TextStyle(color: semantic?.danger, fontWeight: FontWeight.w700, decoration: TextDecoration.underline),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  child: Text(
+                    'Retry',
+                    style: TextStyle(color: semantic?.danger, fontWeight: FontWeight.w700, decoration: TextDecoration.underline),
+                  ),
                 ),
               ),
             ],

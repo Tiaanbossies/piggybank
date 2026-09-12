@@ -5,6 +5,7 @@ import '../../../core/api/api_error.dart';
 import '../../../core/format/money.dart';
 import '../../../core/theme/app_motion.dart';
 import '../../../shared/widgets/progress_card.dart';
+import '../../../shared/widgets/state_views.dart';
 import '../models/goal.dart';
 import '../providers/goals_provider.dart';
 
@@ -30,21 +31,27 @@ class GoalsBody extends ConsumerWidget {
     return RefreshIndicator(
       onRefresh: () => ref.refresh(goalsProvider.future),
       child: AnimatedSwitcher(
-        duration: AppMotion.stateChange,
-        switchInCurve: Curves.easeOut,
-        switchOutCurve: Curves.easeOut,
+        duration: context.reducedMotion ? Duration.zero : AppMotion.stateChange,
+        switchInCurve: AppMotion.easeOut,
+        switchOutCurve: AppMotion.easeOut,
         child: goalsAsync.when(
           loading: () => const Center(key: ValueKey('loading'), child: CircularProgressIndicator()),
           error: (err, _) => Center(
             key: const ValueKey('error'),
-            child: Text(err is ApiError ? err.message : 'Failed to load goals'),
+            child: InlineError(message: err is ApiError ? err.message : 'Failed to load goals'),
           ),
           data: (goals) {
             if (goals.isEmpty) {
               return ListView(
                 key: const ValueKey('empty'),
                 padding: const EdgeInsets.all(16),
-                children: const [Center(child: Padding(padding: EdgeInsets.only(top: 48), child: Text('No goals yet.')))],
+                children: const [
+                  EmptyState(
+                    icon: Icons.flag_outlined,
+                    title: 'No goals yet.',
+                    hint: 'Tap "Add goal" below to set one up.',
+                  ),
+                ],
               );
             }
             return ListView(

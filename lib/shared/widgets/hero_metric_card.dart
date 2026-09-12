@@ -28,11 +28,11 @@ class HeroMetricCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label, style: const TextStyle(color: Colors.white70, fontSize: 14)),
+          Text(label, style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.white70)),
           const SizedBox(height: 6),
           Text(
             value,
-            style: const TextStyle(color: Colors.white, fontSize: 32, fontWeight: FontWeight.w800),
+            style: Theme.of(context).textTheme.headlineLarge?.copyWith(color: Colors.white, fontWeight: FontWeight.w800),
           ),
           if (deltaText != null) ...[
             const SizedBox(height: 10),
@@ -44,7 +44,7 @@ class HeroMetricCard extends StatelessWidget {
               ),
               child: Text(
                 deltaText!,
-                style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600),
+                style: Theme.of(context).textTheme.labelMedium?.copyWith(color: Colors.white, fontWeight: FontWeight.w600),
               ),
             ),
           ],

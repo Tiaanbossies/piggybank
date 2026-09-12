@@ -196,7 +196,7 @@ class _PinBoxesState extends State<_PinBoxes> with SingleTickerProviderStateMixi
       TweenSequenceItem(tween: Tween(begin: 8, end: -6), weight: 1),
       TweenSequenceItem(tween: Tween(begin: -6, end: 6), weight: 1),
       TweenSequenceItem(tween: Tween(begin: 6, end: 0), weight: 1),
-    ]).animate(CurvedAnimation(parent: _shakeController, curve: Curves.easeOut));
+    ]).animate(CurvedAnimation(parent: _shakeController, curve: AppMotion.easeOut));
   }
 
   @override

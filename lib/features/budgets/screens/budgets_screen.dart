@@ -6,6 +6,7 @@ import '../../../core/api/api_error.dart';
 import '../../../core/format/money.dart';
 import '../../../core/theme/app_motion.dart';
 import '../../../shared/widgets/progress_card.dart';
+import '../../../shared/widgets/state_views.dart';
 import '../../transactions/category_icons.dart';
 import '../models/budget.dart';
 import '../providers/budgets_provider.dart';
@@ -60,42 +61,25 @@ class BudgetsBody extends ConsumerWidget {
           child: RefreshIndicator(
             onRefresh: () => ref.refresh(budgetProgressProvider.future),
             child: AnimatedSwitcher(
-              duration: AppMotion.stateChange,
-              switchInCurve: Curves.easeOut,
-              switchOutCurve: Curves.easeOut,
+              duration: context.reducedMotion ? Duration.zero : AppMotion.stateChange,
+              switchInCurve: AppMotion.easeOut,
+              switchOutCurve: AppMotion.easeOut,
               child: progressAsync.when(
                 loading: () => const Center(key: ValueKey('loading'), child: CircularProgressIndicator()),
                 error: (err, _) => Center(
                   key: const ValueKey('error'),
-                  child: Text(err is ApiError ? err.message : 'Failed to load budgets'),
+                  child: InlineError(message: err is ApiError ? err.message : 'Failed to load budgets'),
                 ),
                 data: (budgets) {
                   if (budgets.isEmpty) {
                     return ListView(
                       key: const ValueKey('empty'),
                       padding: const EdgeInsets.all(16),
-                      children: [
-                        Center(
-                          child: Padding(
-                            padding: const EdgeInsets.only(top: 48),
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(
-                                  Icons.account_balance_wallet_outlined,
-                                  size: 48,
-                                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                                ),
-                                const SizedBox(height: 12),
-                                const Text('No budgets for this month.'),
-                                const SizedBox(height: 4),
-                                Text(
-                                  'Tap "Add budget" below to set one up.',
-                                  style: Theme.of(context).textTheme.bodySmall,
-                                ),
-                              ],
-                            ),
-                          ),
+                      children: const [
+                        EmptyState(
+                          icon: Icons.account_balance_wallet_outlined,
+                          title: 'No budgets for this month.',
+                          hint: 'Tap "Add budget" below to set one up.',
                         ),
                       ],
                     );

@@ -10,6 +10,7 @@ Future<bool> confirmDestroy(BuildContext context, {required String title, String
   final result = await showDialog<bool>(
     context: context,
     builder: (context) => AlertDialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       title: Text(title),
       content: Text(message ?? 'This cannot be undone.'),
       actions: [

@@ -9,11 +9,11 @@ turned into self-contained implementation plans by `improve-animations`. Stamped
 
 | # | Title | Severity | Status |
 | --- | --- | --- | --- |
-| [001](001-async-state-crossfade.md) | Crossfade loading/data/empty states | HIGH | TODO |
-| [002](002-lock-screen-wrong-pin-shake.md) | Shake the PIN boxes on a wrong PIN | HIGH | TODO |
-| [003](003-progress-card-value-transition.md) | Animate ProgressCard's bar value | MEDIUM | TODO |
-| [004](004-chat-bubble-entrance.md) | Entrance animation for new chat bubbles | MEDIUM | TODO |
-| [005](005-login-error-entrance.md) | Grow-in the login error message | LOW | TODO |
+| [001](001-async-state-crossfade.md) | Crossfade loading/data/empty states | HIGH | DONE (`animations/improve-motion`, merged `db701ac`) |
+| [002](002-lock-screen-wrong-pin-shake.md) | Shake the PIN boxes on a wrong PIN | HIGH | DONE (`animations/improve-motion`, merged `db701ac`) |
+| [003](003-progress-card-value-transition.md) | Animate ProgressCard's bar value | MEDIUM | DONE (`animations/improve-motion`, merged `db701ac`) |
+| [004](004-chat-bubble-entrance.md) | Entrance animation for new chat bubbles | MEDIUM | DONE (`animations/improve-motion`, merged `db701ac`) |
+| [005](005-login-error-entrance.md) | Grow-in the login error message | LOW | DONE (`animations/improve-motion`, merged `db701ac`) |
 | [006](006-delete-exit-animation.md) | Delete-row exit animation | N/A | RETIRED — see plan for why |
 
 ## Recommended execution order
