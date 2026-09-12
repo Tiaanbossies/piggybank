@@ -10,6 +10,7 @@ import '../../../shared/widgets/group_card.dart';
 import '../../../shared/widgets/hero_metric_card.dart';
 import '../../../shared/widgets/progress_card.dart';
 import '../../../shared/widgets/quick_link_tile.dart';
+import '../../../shared/widgets/state_views.dart';
 import '../../accounts/screens/accounts_screen.dart';
 import '../../assets/screens/assets_screen.dart';
 import '../../budgets/providers/budgets_provider.dart';
@@ -94,9 +95,9 @@ class _NetWorthHero extends ConsumerWidget {
           height: 64,
           child: Center(child: CircularProgressIndicator()),
         ),
-        error: (err, _) => Text(
+        error: (err, _) => InlineError(
           key: const ValueKey('error'),
-          err is ApiError ? err.message : 'Failed to load net worth',
+          message: err is ApiError ? err.message : 'Failed to load net worth',
         ),
         data: (netWorth) => HeroMetricCard(
           key: const ValueKey('data'),
@@ -150,8 +151,20 @@ class _CashflowStatStrip extends ConsumerWidget {
       switchInCurve: AppMotion.easeOut,
       switchOutCurve: AppMotion.easeOut,
       child: cashflowAsync.when(
-        loading: () => const SizedBox.shrink(key: ValueKey('loading')),
-        error: (_, _) => const SizedBox.shrink(key: ValueKey('error')),
+        loading: () => const Card(
+          key: ValueKey('loading'),
+          child: Padding(
+            padding: EdgeInsets.all(16),
+            child: SizedBox(height: 56, child: Center(child: CircularProgressIndicator(strokeWidth: 2))),
+          ),
+        ),
+        error: (_, _) => const Card(
+          key: ValueKey('error'),
+          child: Padding(
+            padding: EdgeInsets.all(16),
+            child: InlineError(message: 'Failed to load cashflow'),
+          ),
+        ),
         data: (cashflow) => Card(
           key: const ValueKey('data'),
           child: Padding(
@@ -206,8 +219,20 @@ class _ProgressBlock extends ConsumerWidget {
       switchInCurve: AppMotion.easeOut,
       switchOutCurve: AppMotion.easeOut,
       child: goalsAsync.when(
-        loading: () => const SizedBox.shrink(key: ValueKey('loading')),
-        error: (_, _) => const SizedBox.shrink(key: ValueKey('error')),
+        loading: () => const Card(
+          key: ValueKey('loading'),
+          child: Padding(
+            padding: EdgeInsets.all(16),
+            child: SizedBox(height: 56, child: Center(child: CircularProgressIndicator(strokeWidth: 2))),
+          ),
+        ),
+        error: (_, _) => const Card(
+          key: ValueKey('error'),
+          child: Padding(
+            padding: EdgeInsets.all(16),
+            child: InlineError(message: 'Failed to load your progress'),
+          ),
+        ),
         data: (goals) {
           if (goals.isNotEmpty) {
             final goal = goals.first;
@@ -233,8 +258,18 @@ class _BudgetProgressFallback extends ConsumerWidget {
     final progressAsync = ref.watch(budgetProgressProvider);
 
     return progressAsync.when(
-      loading: () => const SizedBox.shrink(),
-      error: (_, _) => const SizedBox.shrink(),
+      loading: () => const Card(
+        child: Padding(
+          padding: EdgeInsets.all(16),
+          child: SizedBox(height: 56, child: Center(child: CircularProgressIndicator(strokeWidth: 2))),
+        ),
+      ),
+      error: (_, _) => const Card(
+        child: Padding(
+          padding: EdgeInsets.all(16),
+          child: InlineError(message: 'Failed to load your budget progress'),
+        ),
+      ),
       data: (budgets) {
         if (budgets.isEmpty) return const SizedBox.shrink();
         final budget = budgets.first;
@@ -317,12 +352,19 @@ class _RecentTransactionsPreview extends ConsumerWidget {
           switchOutCurve: Curves.easeOut,
           child: recentAsync.when(
             loading: () => const Center(key: ValueKey('loading'), child: CircularProgressIndicator()),
-            error: (err, _) => Text(
+            error: (err, _) => Center(
               key: const ValueKey('error'),
-              err is ApiError ? err.message : 'Failed to load transactions',
+              child: InlineError(message: err is ApiError ? err.message : 'Failed to load transactions'),
             ),
             data: (page) {
-              if (page.items.isEmpty) return const Text('No transactions yet.', key: ValueKey('empty'));
+              if (page.items.isEmpty) {
+                return const EmptyState(
+                  key: ValueKey('empty'),
+                  icon: Icons.receipt_long_outlined,
+                  title: 'No transactions yet.',
+                  topPadding: 24,
+                );
+              }
               final semantic = Theme.of(context).extension<AppSemanticColors>();
               return GroupCard(
                 key: const ValueKey('list'),
