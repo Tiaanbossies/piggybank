@@ -113,13 +113,19 @@ working tree clean.
   month.', hint: 'Tap "Add budget" below to set one up.')` — icon, title, and a hint
   pointing at the FAB are all present. **The prior prompt-optimizer draft of this plan
   incorrectly listed M1 as open work; it is not. Skip it.**
-- **L1 (dead space on Accounts/Notifications/Subscription/Loan Calculator) has a
-  self-contradiction in the audit doc itself** — line 118 says a dark-mode QA pass
-  "confirms the L1 fix reads correctly in dark mode too" for Notifications, but line 129
-  still lists L1 as unresolved ("L1-L3 are polish-tier and can wait for a dedicated
-  design pass"). **Step 4 below exists specifically to resolve this ambiguity by
-  screenshotting the current state of all four screens live before generating anything**
-  — don't trust the audit doc's text at face value for this one item.
+- **L1's self-contradiction is now resolved (2026-09-13): Notifications is already
+  fixed, on `master`, merged.** The audit doc's line 118 ("confirms the L1 fix reads
+  correctly in dark mode too" for Notifications) was accurate — a since-merged branch
+  (`fix/notifications-dead-space`, commit `e9fa110`, confirmed via `git merge-base
+  --is-ancestor e9fa110 master` → yes) already added the exact fix:
+  `notifications_screen.dart` wraps its content in `LayoutBuilder` +
+  `ConstrainedBox(minHeight: constraints.maxHeight)` +
+  `Column(mainAxisAlignment: MainAxisAlignment.center)`, live-verified in the file
+  directly. Line 129's "L1-L3 are polish-tier" text is simply older than that merge.
+  **Step 4 below is now scoped to the three screens NOT confirmed fixed — Accounts,
+  Subscription, Loan Calculator — not all four.** Skip Notifications entirely; touching
+  an already-fixed, already-centered screen again would be pure regression risk for no
+  benefit.
 - Screen files for L1: `lib/features/accounts/screens/accounts_screen.dart`,
   `lib/features/settings/screens/notifications_screen.dart`,
   `lib/features/settings/screens/subscription_screen.dart`,
@@ -393,9 +399,10 @@ drift from a screen that's already correct.
 
 **Task list:**
 1. Run the app (emulator or Chrome DevTools MCP) in light and dark mode, and screenshot
-   all four L1 screens as they exist today: `accounts_screen.dart`,
-   `notifications_screen.dart`, `subscription_screen.dart`, `calculators_screen.dart`
-   (Loan Calculator).
+   the three L1 screens NOT already confirmed fixed: `accounts_screen.dart`,
+   `subscription_screen.dart`, `calculators_screen.dart` (Loan Calculator).
+   `notifications_screen.dart` is skipped — already fixed and verified live (see
+   Grounded section above); no need to re-screenshot it.
 2. For each, judge against the original finding's description ("roughly 50-70% of the
    viewport blank below their content on a tall phone") — note per-screen whether the
    issue is still present, partially addressed, or fully resolved.
@@ -413,9 +420,9 @@ drift from a screen that's already correct.
 the audit doc; no automated test applies to this research step.
 
 **Exit criteria:** A clear, current, per-screen "still open / already fixed" verdict for
-all four L1 screens, committed as an addendum in
-`docs/qa/QA_VISUAL_UIUX_AUDIT_2026-09-11.md`, replacing the audit doc's
-self-contradictory text as the source of truth for Step 5's scope.
+the three remaining L1 screens (Accounts, Subscription, Loan Calculator), committed as
+an addendum in `docs/qa/QA_VISUAL_UIUX_AUDIT_2026-09-11.md`, noting Notifications as
+already resolved rather than re-testing it.
 
 ---
 
