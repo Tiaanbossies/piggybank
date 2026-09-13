@@ -12,8 +12,10 @@ import '../../features/settings/screens/subscription_screen.dart';
 import '../../shared/widgets/group_card.dart';
 import '../auth/auth_controller.dart';
 
-/// Stub tabs for domains not yet built (Invest/Budgets/Insights land in
-/// later phases per the migration plan's parity matrix). Settings includes
+/// Stub tabs for domains not yet built at the time this was written
+/// (Invest/Budgets landed in later phases per the migration plan's parity
+/// matrix; an "Insights" Q&A-history tab was also built later but has since
+/// been deleted — see `chatbot_screen.dart`'s doc comment). Settings includes
 /// the working Logout action so Phase 1's auth loop is fully testable.
 class PlaceholderScreen extends StatelessWidget {
   const PlaceholderScreen({required this.title, super.key});
