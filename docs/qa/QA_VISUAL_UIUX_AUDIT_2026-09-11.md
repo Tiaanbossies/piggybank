@@ -70,6 +70,25 @@ with just 2 toggle rows looks especially sparse. Not a defect, but a layout oppo
 vertically centering short lists, or giving these screens a secondary module — rather than
 top-anchoring content under a FAB pinned to the bottom corner.
 
+**Step 4 re-verification (2026-09-13):** Notifications excluded from this pass — already
+confirmed fixed and merged (`fix/notifications-dead-space`, commit `e9fa110`; see the blueprint's
+Grounded section). Live-checked the remaining three screens on the `piggybank` Android emulator
+(1080x2400, API 36) logged in as the demo account, in both Light and Dark appearance modes.
+Screenshots committed under `qa_screens/l1_verify_*_{light,dark}_2026-09-13.png`.
+
+- **Accounts — still open.** 3 account rows end around 45% down the viewport; the remaining
+  ~50-55% is blank before the "Add account" FAB. Dark mode renders with correct contrast, no
+  light-mode leftovers.
+- **Subscription — still open, the worst of the three.** Plan card + "What Pro unlocks" list +
+  "Cancel subscription" button end well under half the screen height; roughly 55-60% of the
+  viewport is blank below. Same in both themes.
+- **Loan Calculator — still open.** The three input fields + Calculate button end around
+  35-40% down; the segmented Loan Calculator/Accelerator control at the top does not add enough
+  content to offset it. Roughly 45-50% blank below the button in both themes.
+
+Verdict: all three remain open exactly as originally described — no drift, no partial fixes.
+Ready for Step 5's Stitch pass as scoped (Accounts, Subscription, Loan Calculator only).
+
 ### L2. Filled-vs-outline icon inconsistency
 **Screens:** header avatar on `invest.png`, `budgets.png`, `insights.png`, `accounts.png`
 **Why it matters:** the profile-avatar button is a solid filled green circle with a white
