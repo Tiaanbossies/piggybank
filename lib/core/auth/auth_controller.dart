@@ -211,7 +211,7 @@ class AuthController extends StateNotifier<AuthState> {
 }
 
 final secureStorageProvider = Provider<SecureStorage>((ref) => SecureStorage());
-final authApiProvider = Provider<AuthApi>((ref) => AuthApi());
+final authApiProvider = Provider<AuthApi>((ref) => AuthApi(fallbackBaseUrl: ApiConfig.fallbackBaseUrl));
 final localAuthProvider = Provider<LocalAuthentication>((ref) => LocalAuthentication());
 
 final authControllerProvider = StateNotifierProvider<AuthController, AuthState>((ref) {
@@ -231,5 +231,6 @@ final apiClientProvider = Provider<ApiClient>((ref) {
     refreshAccessToken: controller.refreshAccessToken,
     onSessionExpired: controller.handleSessionExpired,
     onConsentsRequired: controller.markConsentsRequired,
+    fallbackBaseUrl: ApiConfig.fallbackBaseUrl,
   );
 });

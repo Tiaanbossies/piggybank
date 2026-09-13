@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:piggybank/features/budgets/data/budgets_api.dart';
 import 'package:piggybank/features/budgets/models/budget.dart';
 import 'package:piggybank/features/budgets/providers/budgets_provider.dart';
@@ -19,6 +20,8 @@ import 'package:piggybank/features/transactions/data/transactions_api.dart';
 import 'package:piggybank/features/transactions/models/transaction.dart';
 import 'package:piggybank/features/transactions/providers/transactions_provider.dart';
 import 'package:piggybank/features/trends/screens/trends_screen.dart';
+import 'package:piggybank/features/updates/data/updates_api.dart';
+import 'package:piggybank/features/updates/models/latest_release.dart';
 import 'package:piggybank/shared/widgets/hero_metric_card.dart';
 import 'package:piggybank/shared/widgets/progress_card.dart';
 
@@ -31,6 +34,8 @@ class _MockGoalsApi extends Mock implements GoalsApi {}
 class _MockBudgetsApi extends Mock implements BudgetsApi {}
 
 class _MockTransactionsApi extends Mock implements TransactionsApi {}
+
+class _MockUpdatesApi extends Mock implements UpdatesApi {}
 
 NetWorthSummary _netWorth(double value) => NetWorthSummary(
       totalAssets: Decimal.parse(value.toString()),
@@ -108,12 +113,14 @@ void main() {
   late _MockGoalsApi mockGoalsApi;
   late _MockBudgetsApi mockBudgetsApi;
   late _MockTransactionsApi mockTransactionsApi;
+  late _MockUpdatesApi mockUpdatesApi;
 
   List<Override> overrides() => [
         summariesApiProvider.overrideWithValue(mockSummariesApi),
         goalsApiProvider.overrideWithValue(mockGoalsApi),
         budgetsApiProvider.overrideWithValue(mockBudgetsApi),
         transactionsApiProvider.overrideWithValue(mockTransactionsApi),
+        updatesApiProvider.overrideWithValue(mockUpdatesApi),
       ];
 
   /// Stubs every dashboard-consumed API call with a successful, empty-ish
@@ -124,6 +131,7 @@ void main() {
     List<Goal>? goals,
     List<BudgetProgress>? budgets,
     List<Transaction>? recentTransactions,
+    LatestRelease? latestRelease,
   }) {
     when(() => mockSummariesApi.netWorth()).thenAnswer((_) async => netWorth ?? _netWorth(10000));
     when(() => mockSummariesApi.cashflow())
@@ -133,6 +141,9 @@ void main() {
     when(() => mockTransactionsApi.list(limit: any(named: 'limit'))).thenAnswer(
       (_) async => TransactionsPage(total: recentTransactions?.length ?? 0, items: recentTransactions ?? const []),
     );
+    // Defaults to "no release published yet" so pre-existing tests that
+    // don't care about the update banner never see it.
+    when(() => mockUpdatesApi.latest()).thenAnswer((_) async => latestRelease);
   }
 
   setUp(() {
@@ -140,6 +151,16 @@ void main() {
     mockGoalsApi = _MockGoalsApi();
     mockBudgetsApi = _MockBudgetsApi();
     mockTransactionsApi = _MockTransactionsApi();
+    mockUpdatesApi = _MockUpdatesApi();
+    // This install's own build number, as `about_screen.dart` reads it via
+    // the same `PackageInfo.fromPlatform()` call the update banner uses.
+    PackageInfo.setMockInitialValues(
+      appName: 'Piggybank',
+      packageName: 'za.co.fynboscreative.piggybank',
+      version: '1.3.0',
+      buildNumber: '41',
+      buildSignature: '',
+    );
     stubDefaults();
   });
 
@@ -252,6 +273,58 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.byType(TrendsScreen), findsOneWidget);
+    });
+  });
+
+  group('Update banner', () {
+    LatestRelease release({required String buildNumber}) => LatestRelease(
+          version: '1.4.0',
+          buildNumber: buildNumber,
+          filename: 'piggybank-1.4.0.apk',
+          publishedAt: '2026-09-13T12:00:00Z',
+          downloadUrl: 'http://tiaanbossies-h81m-ds2.tail886b94.ts.net/downloads/piggybank-1.4.0.apk',
+        );
+
+    testWidgets('shows when a newer build is published', (tester) async {
+      stubDefaults(latestRelease: release(buildNumber: '42'));
+
+      await pumpApp(tester, const DashboardScreen(), overrides: overrides(), useAppTheme: true);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Update available'), findsOneWidget);
+      expect(find.text('Version 1.4.0 is ready to download.'), findsOneWidget);
+    });
+
+    testWidgets('stays hidden when the current build is already up to date', (tester) async {
+      stubDefaults(latestRelease: release(buildNumber: '41'));
+
+      await pumpApp(tester, const DashboardScreen(), overrides: overrides(), useAppTheme: true);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Update available'), findsNothing);
+    });
+
+    testWidgets('stays hidden when no release has ever been published', (tester) async {
+      stubDefaults();
+
+      await pumpApp(tester, const DashboardScreen(), overrides: overrides(), useAppTheme: true);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Update available'), findsNothing);
+    });
+
+    testWidgets('the close button dismisses it for the rest of this session', (tester) async {
+      stubDefaults(latestRelease: release(buildNumber: '42'));
+
+      await pumpApp(tester, const DashboardScreen(), overrides: overrides(), useAppTheme: true);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Update available'), findsOneWidget);
+
+      await tester.tap(find.byIcon(Icons.close));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Update available'), findsNothing);
     });
   });
 
