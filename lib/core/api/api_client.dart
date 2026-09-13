@@ -2,6 +2,37 @@ import 'package:dio/dio.dart';
 
 import 'api_error.dart';
 
+/// Retries a connection-level failure (no HTTP response reached at all —
+/// DNS failure, connect timeout, connection refused, etc.) against
+/// [fallbackBaseUrl], resolving/advancing [handler] and returning `true` if
+/// it took action, or returning `false` (leaving [handler] untouched) when
+/// there's nothing to do — no fallback configured, this was a real HTTP
+/// error response, or the fallback was already tried once for this request.
+/// Shared by [ApiClient] and the raw-Dio `AuthApi` (see that class's own
+/// doc comment for why it can't just route through [ApiClient] itself) so
+/// both get identical MagicDNS-resolution-failure resilience — see
+/// `ApiConfig.fallbackBaseUrl`'s doc comment for why this exists at all.
+Future<bool> tryConnectionFallback(
+  Dio dio,
+  DioException err,
+  ErrorInterceptorHandler handler,
+  String? fallbackBaseUrl,
+) async {
+  if (fallbackBaseUrl == null || err.response != null || err.requestOptions.extra['_fallbackTried'] == true) {
+    return false;
+  }
+  try {
+    final retryOptions = err.requestOptions;
+    retryOptions.baseUrl = fallbackBaseUrl;
+    retryOptions.extra['_fallbackTried'] = true;
+    final response = await dio.fetch(retryOptions);
+    handler.resolve(response);
+  } on DioException catch (fallbackError) {
+    handler.next(fallbackError);
+  }
+  return true;
+}
+
 /// Thin Dio wrapper implementing the same auth contract as
 /// `frontend/src/api/client.ts`: attach the in-memory bearer token to every
 /// request, and on a 401 (other than the request already being a retry),
@@ -16,6 +47,7 @@ class ApiClient {
     required this._refreshAccessToken,
     required this._onSessionExpired,
     void Function()? onConsentsRequired,
+    this.fallbackBaseUrl,
     Dio? dio,
     // ignore: prefer_initializing_formals
   })  : _onConsentsRequired = onConsentsRequired,
@@ -38,6 +70,14 @@ class ApiClient {
   final Future<bool> Function() _refreshAccessToken;
   final void Function() _onSessionExpired;
 
+  /// Raw-IP (or otherwise alternate) base URL to retry a request against
+  /// when it fails at the connection level (no HTTP response reached at
+  /// all) — see `ApiConfig.fallbackBaseUrl`'s doc comment for why this
+  /// exists: a MagicDNS domain that fails to resolve on some devices/
+  /// networks even though the underlying IP is reachable. `null` disables
+  /// this entirely (the default for tests and any dev-override baseUrl).
+  final String? fallbackBaseUrl;
+
   /// Optional notify-only hook: on a 403 consents-required response, calls
   /// this and lets the error still surface normally (no retry). Nullable so
   /// existing [ApiClient] constructions (tests, in particular) don't need
@@ -55,6 +95,8 @@ class ApiClient {
   }
 
   Future<void> _onError(DioException err, ErrorInterceptorHandler handler) async {
+    if (await tryConnectionFallback(dio, err, handler, fallbackBaseUrl)) return;
+
     if (err.response?.statusCode == 403) {
       final apiError = ApiError.fromResponse(403, err.response?.data);
       if (apiError.isConsentsRequired) _onConsentsRequired?.call();

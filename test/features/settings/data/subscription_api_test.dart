@@ -70,7 +70,10 @@ void main() {
 
       final result = await api.startCheckout();
 
-      expect(result, Uri.parse('http://100.121.165.7:8000/api/subscription/checkout/abc-123'));
+      expect(
+        result,
+        Uri.parse('http://tiaanbossies-h81m-ds2.tail886b94.ts.net:8000/api/subscription/checkout/abc-123'),
+      );
       expect(adapter.requestLog.single.path, '/subscription/checkout');
       expect(adapter.requestLog.single.method, 'POST');
     });

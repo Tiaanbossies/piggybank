@@ -26,6 +26,22 @@ class _FakeAdapter implements HttpClientAdapter {
   void close({bool force = false}) {}
 }
 
+/// Adapter driven by a per-request callback — used where the response (or
+/// failure) needs to depend on which `baseUrl` the request was made
+/// against, unlike [_FakeAdapter]'s fixed response sequence.
+class _CallbackAdapter implements HttpClientAdapter {
+  _CallbackAdapter(this._handler);
+  final Future<ResponseBody> Function(RequestOptions options) _handler;
+
+  @override
+  Future<ResponseBody> fetch(RequestOptions options, Stream<Uint8List>? requestStream, Future<void>? cancelFuture) {
+    return _handler(options);
+  }
+
+  @override
+  void close({bool force = false}) {}
+}
+
 ResponseBody _json(int status, Map<String, dynamic> data) {
   return ResponseBody.fromString(jsonEncode(data), status, headers: {
     Headers.contentTypeHeader: [Headers.jsonContentType],
@@ -149,6 +165,94 @@ void main() {
       expect(consentsRequiredCalls, 1);
       expect(refreshCalls, 0);
       expect(adapter.callCount, 1);
+    });
+  });
+
+  group('ApiClient connection-level fallback', () {
+    test('a connection-level failure retries once against fallbackBaseUrl and succeeds', () async {
+      // `RequestOptions` is mutated in place for the retry (the interceptor
+      // sets `.baseUrl` on the very same instance `err.requestOptions`
+      // pointed at, same as the existing 401-refresh retry above) — so the
+      // base URLs actually used must be captured as values at call time,
+      // not by keeping references to the `RequestOptions` objects
+      // themselves, which would all end up reflecting the final mutation.
+      final baseUrlsSeen = <String>[];
+      final adapter = _CallbackAdapter((options) async {
+        baseUrlsSeen.add(options.baseUrl);
+        if (options.baseUrl == 'https://fallback.test') {
+          return _json(200, {'ok': true});
+        }
+        throw DioException(requestOptions: options, type: DioExceptionType.connectionError);
+      });
+      final client = ApiClient(
+        baseUrl: 'https://api.test',
+        getAccessToken: () => 'token',
+        refreshAccessToken: () async => false,
+        onSessionExpired: () {},
+        fallbackBaseUrl: 'https://fallback.test',
+      );
+      client.dio.httpClientAdapter = adapter;
+
+      final response = await client.dio.get('/ping');
+
+      expect(response.statusCode, 200);
+      expect(baseUrlsSeen, ['https://api.test', 'https://fallback.test']);
+    });
+
+    test('retries at most once — a fallback that also fails surfaces as a network error, not a loop', () async {
+      var callCount = 0;
+      final adapter = _CallbackAdapter((options) async {
+        callCount++;
+        throw DioException(requestOptions: options, type: DioExceptionType.connectionError);
+      });
+      final client = ApiClient(
+        baseUrl: 'https://api.test',
+        getAccessToken: () => 'token',
+        refreshAccessToken: () async => false,
+        onSessionExpired: () {},
+        fallbackBaseUrl: 'https://fallback.test',
+      );
+      client.dio.httpClientAdapter = adapter;
+
+      await expectLater(client.dio.get('/ping'), throwsA(isA<DioException>()));
+      expect(callCount, 2);
+    });
+
+    test('with no fallbackBaseUrl configured, a connection-level failure is not retried', () async {
+      var callCount = 0;
+      final adapter = _CallbackAdapter((options) async {
+        callCount++;
+        throw DioException(requestOptions: options, type: DioExceptionType.connectionError);
+      });
+      final client = ApiClient(
+        baseUrl: 'https://api.test',
+        getAccessToken: () => 'token',
+        refreshAccessToken: () async => false,
+        onSessionExpired: () {},
+      );
+      client.dio.httpClientAdapter = adapter;
+
+      await expectLater(client.dio.get('/ping'), throwsA(isA<DioException>()));
+      expect(callCount, 1);
+    });
+
+    test('a real HTTP error response is never retried against the fallback', () async {
+      var callCount = 0;
+      final adapter = _CallbackAdapter((options) async {
+        callCount++;
+        return _json(500, {'detail': 'boom'});
+      });
+      final client = ApiClient(
+        baseUrl: 'https://api.test',
+        getAccessToken: () => 'token',
+        refreshAccessToken: () async => false,
+        onSessionExpired: () {},
+        fallbackBaseUrl: 'https://fallback.test',
+      );
+      client.dio.httpClientAdapter = adapter;
+
+      await expectLater(client.dio.get('/ping'), throwsA(isA<DioException>()));
+      expect(callCount, 1);
     });
   });
 

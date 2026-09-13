@@ -21,14 +21,26 @@ class TokenPair {
 /// leaving login/register/refresh/password-reset to hang indefinitely on a
 /// stalled connection).
 class AuthApi {
-  AuthApi({Dio? dio})
+  AuthApi({Dio? dio, String? fallbackBaseUrl})
       : _dio = dio ??
             Dio(BaseOptions(
               baseUrl: ApiConfig.baseUrl,
               connectTimeout: const Duration(seconds: 8),
               sendTimeout: const Duration(seconds: 15),
               receiveTimeout: const Duration(seconds: 15),
-            ));
+            )) {
+    // Same MagicDNS-resolution-failure resilience as [ApiClient] — this
+    // class deliberately doesn't go through [ApiClient] (see class doc
+    // comment above), so it needs its own copy of the same fallback retry
+    // rather than inheriting it for free. A no-op when [fallbackBaseUrl] is
+    // null (every existing test, and any dev-override baseUrl).
+    _dio.interceptors.add(InterceptorsWrapper(
+      onError: (err, handler) async {
+        if (await tryConnectionFallback(_dio, err, handler, fallbackBaseUrl)) return;
+        handler.next(err);
+      },
+    ));
+  }
 
   final Dio _dio;
 

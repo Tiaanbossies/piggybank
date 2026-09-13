@@ -1,6 +1,7 @@
 import 'package:decimal/decimal.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/api/api_error.dart';
 import '../../../core/format/money.dart';
@@ -8,6 +9,7 @@ import '../../../core/theme/app_motion.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/group_card.dart';
 import '../../../shared/widgets/hero_metric_card.dart';
+import '../../../shared/widgets/icon_chip.dart';
 import '../../../shared/widgets/progress_card.dart';
 import '../../../shared/widgets/quick_link_tile.dart';
 import '../../../shared/widgets/state_views.dart';
@@ -22,6 +24,8 @@ import '../../transactions/category_icons.dart';
 import '../../transactions/providers/transactions_provider.dart';
 import '../../transactions/screens/transactions_screen.dart';
 import '../../trends/screens/trends_screen.dart';
+import '../../updates/models/latest_release.dart';
+import '../../updates/providers/updates_provider.dart';
 
 /// Fixed v1 layout per DESIGN.md § Dashboard/Home: hero net-worth card,
 /// compact stat strip, one progress card, recent-transactions preview.
@@ -63,6 +67,7 @@ class DashboardScreen extends ConsumerWidget {
           child: ListView(
             padding: const EdgeInsets.all(16),
             children: const [
+              _UpdateBanner(),
               _NetWorthHero(),
               SizedBox(height: 16),
               _CashflowStatStrip(),
@@ -74,6 +79,89 @@ class DashboardScreen extends ConsumerWidget {
               _QuickLinksRow(),
               SizedBox(height: 24),
               _RecentTransactionsPreview(),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// "A newer build exists" notice, shown only when [updateAvailableProvider]
+/// resolves to a real [LatestRelease] (i.e. its build number is genuinely
+/// greater than this install's own). Deliberately not persisted anywhere —
+/// dismissing only hides it for the remainder of this app session; per
+/// Step 8's own plan note, a fresh launch re-shows it if still out of date,
+/// since this is a manual, low-frequency check, not a nagging prompt.
+/// Notify + manual download only: tapping "Download" opens `downloadUrl` in
+/// the platform browser via `url_launcher` — no in-app APK download or
+/// install code exists anywhere in this app.
+class _UpdateBanner extends ConsumerStatefulWidget {
+  const _UpdateBanner();
+
+  @override
+  ConsumerState<_UpdateBanner> createState() => _UpdateBannerState();
+}
+
+class _UpdateBannerState extends ConsumerState<_UpdateBanner> {
+  bool _dismissed = false;
+  bool _opening = false;
+
+  Future<void> _openDownload(String url) async {
+    setState(() => _opening = true);
+    try {
+      await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+    } finally {
+      if (mounted) setState(() => _opening = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_dismissed) return const SizedBox.shrink();
+
+    final release = ref.watch(updateAvailableProvider).valueOrNull;
+    if (release == null) return const SizedBox.shrink();
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Card(
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const IconChip(icon: Icons.system_update_outlined, size: 40),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Update available', style: Theme.of(context).textTheme.titleSmall),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Version ${release.version} is ready to download.',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                    const SizedBox(height: 4),
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: TextButton(
+                        onPressed: _opening ? null : () => _openDownload(release.downloadUrl),
+                        style: TextButton.styleFrom(padding: EdgeInsets.zero, minimumSize: const Size(0, 32)),
+                        child: _opening
+                            ? const SizedBox(height: 16, width: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                            : const Text('Download'),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.close, size: 18),
+                tooltip: 'Dismiss',
+                onPressed: () => setState(() => _dismissed = true),
+              ),
             ],
           ),
         ),
