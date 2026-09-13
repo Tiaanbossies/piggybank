@@ -12,9 +12,7 @@ import '../models/chat_message.dart';
 import '../providers/chatbot_provider.dart';
 
 /// Blueprint Step 8. An ongoing conversational thread — bubbles left/right by
-/// role, most-recent at the bottom — deliberately distinct from Insights'
-/// planned "Q&A history list" layout (a flat list of one-off question/answer
-/// pairs, no back-and-forth). Backend is confirmed synchronous/non-streaming
+/// role, most-recent at the bottom. Backend is confirmed synchronous/non-streaming
 /// (`ChatbotApi` docs), so a send shows a single typing-indicator bubble
 /// then the complete reply, never token-by-token.
 ///
@@ -22,9 +20,12 @@ import '../providers/chatbot_provider.dart';
 /// `/assistant` branch and `app_shell.dart`'s destinations list). Previously
 /// reached only via a Settings row (`GroupRow`, `Navigator.push`); that row
 /// was removed once this became a primary tab, to avoid two navigation
-/// paths to the same screen. Formerly sat alongside Insights' one-off
-/// Q&A-history screen at the 4th tab slot; Insights' code is unrouted but
-/// still present under `lib/features/insights/` if ever revisited.
+/// paths to the same screen. Formerly sat alongside an older Q&A-history
+/// "Insights" screen at the 4th tab slot — that screen overlapped with this
+/// one ("ask about your finances" in two places) and has since been deleted
+/// entirely, not just unrouted (see the nav/Stitch/OTA-update blueprint's
+/// Step 2). A differently-scoped, differently-named trends/analytics screen
+/// may be added later under `lib/features/trends/`, not this path.
 class ChatbotScreen extends ConsumerStatefulWidget {
   const ChatbotScreen({super.key});
 
