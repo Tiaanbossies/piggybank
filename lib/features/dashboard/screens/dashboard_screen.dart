@@ -21,6 +21,7 @@ import '../../summaries/providers/summaries_provider.dart';
 import '../../transactions/category_icons.dart';
 import '../../transactions/providers/transactions_provider.dart';
 import '../../transactions/screens/transactions_screen.dart';
+import '../../trends/screens/trends_screen.dart';
 
 /// Fixed v1 layout per DESIGN.md § Dashboard/Home: hero net-worth card,
 /// compact stat strip, one progress card, recent-transactions preview.
@@ -67,7 +68,9 @@ class DashboardScreen extends ConsumerWidget {
               _CashflowStatStrip(),
               SizedBox(height: 16),
               _ProgressBlock(),
-              SizedBox(height: 24),
+              SizedBox(height: 8),
+              _TrendsEntryCard(),
+              SizedBox(height: 16),
               _QuickLinksRow(),
               SizedBox(height: 24),
               _RecentTransactionsPreview(),
@@ -282,6 +285,33 @@ class _BudgetProgressFallback extends ConsumerWidget {
               : '${formatZAR(budget.spent)} / ${formatZAR(budget.budgetAmount)}',
         );
       },
+    );
+  }
+}
+
+/// Entry point to the Trends analytics screen. A pushed route
+/// (`Navigator.push`, like Accounts/Assets/Liabilities below) rather than a
+/// sixth bottom-nav tab — DESIGN.md § Navigation locks the shell at five
+/// destinations. Given its own full-width row rather than a fifth quick-link
+/// tile because it's a destination, not a domain shortcut.
+class _TrendsEntryCard extends StatelessWidget {
+  const _TrendsEntryCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return GroupCard(
+      children: [
+        GroupRow(
+          leadingIcon: Icons.trending_up,
+          title: 'Trends',
+          // Kept short deliberately: GroupRow ellipsizes its subtitle at one
+          // line, and the longer phrasing truncated mid-word on a 1080px
+          // phone (verified live on the emulator).
+          subtitle: 'Net worth, budgets and spending',
+          trailing: const Icon(Icons.chevron_right),
+          onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const TrendsScreen())),
+        ),
+      ],
     );
   }
 }

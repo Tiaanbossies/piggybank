@@ -18,6 +18,7 @@ import 'package:piggybank/features/summaries/providers/summaries_provider.dart';
 import 'package:piggybank/features/transactions/data/transactions_api.dart';
 import 'package:piggybank/features/transactions/models/transaction.dart';
 import 'package:piggybank/features/transactions/providers/transactions_provider.dart';
+import 'package:piggybank/features/trends/screens/trends_screen.dart';
 import 'package:piggybank/shared/widgets/hero_metric_card.dart';
 import 'package:piggybank/shared/widgets/progress_card.dart';
 
@@ -229,10 +230,45 @@ void main() {
     });
   });
 
+  group('Trends entry point', () {
+    testWidgets('renders a Trends row that pushes the Trends screen (no new nav tab)', (tester) async {
+      // The pushed screen fetches on mount; stub its sources so the
+      // navigation assertion isn't racing an unstubbed call.
+      when(() => mockSummariesApi.netWorthHistory(months: any(named: 'months')))
+          .thenAnswer((_) async => const []);
+      when(() => mockSummariesApi.budgetUsage(month: any(named: 'month')))
+          .thenAnswer((_) async => BudgetUsageSummary.empty);
+      when(() => mockSummariesApi.recurringExpenses(month: any(named: 'month')))
+          .thenAnswer((_) async => const []);
+      when(() => mockSummariesApi.highCostExpenses(month: any(named: 'month'), topN: any(named: 'topN')))
+          .thenAnswer((_) async => const []);
+
+      await pumpApp(tester, const DashboardScreen(), overrides: overrides(), useAppTheme: true);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Trends'), findsOneWidget);
+
+      await tester.tap(find.text('Trends'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(TrendsScreen), findsOneWidget);
+    });
+  });
+
   group('Pull-to-refresh', () {
     testWidgets(
         'reloads every section independently: one failing section does not block the others',
         (tester) async {
+      // This test asserts on the hero (top of the list) and the recent-
+      // transactions preview (bottom) in the same pass. Since the Trends
+      // entry row was added the two no longer both fit inside the default
+      // 800x600 surface plus its cache extent, and the bottom section is
+      // simply never built. Give it a phone-height surface rather than
+      // scrolling, which would push the hero out of the tree instead.
+      tester.view.physicalSize = const Size(800, 1400);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+
       // Initial successful load for every section.
       stubDefaults(
         netWorth: _netWorth(1000),
