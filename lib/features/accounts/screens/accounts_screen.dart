@@ -55,50 +55,68 @@ class _AccountsScreenState extends ConsumerState<AccountsScreen> {
               final active = accounts.where((a) => a.isActive).toList();
               final inactive = accounts.where((a) => !a.isActive).toList();
               final totalBalance = active.fold(Decimal.zero, (sum, a) => sum + a.balance);
-              return ListView(
-                padding: const EdgeInsets.all(16),
-                children: [
-                  HeroMetricCard(label: 'Total balance', value: formatZAR(totalBalance)),
-                  const SizedBox(height: 24),
-                  Text('Active accounts', style: Theme.of(context).textTheme.labelMedium),
-                  const SizedBox(height: 12),
-                  if (active.isEmpty)
-                    const Text('No accounts yet.')
-                  else
-                    GroupCard(children: [for (final account in active) _AccountRow(account: account)]),
-                  if (inactive.isNotEmpty) ...[
-                    const SizedBox(height: 12),
-                    InkWell(
-                      onTap: () => setState(() => _inactiveExpanded = !_inactiveExpanded),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 4),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Row(
-                              children: [
-                                Text('Inactive accounts', style: Theme.of(context).textTheme.labelMedium),
-                                const SizedBox(width: 6),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                                  decoration: BoxDecoration(
-                                    color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                                    borderRadius: BorderRadius.circular(10),
-                                  ),
-                                  child: Text('${inactive.length}', style: Theme.of(context).textTheme.labelSmall),
+              return LayoutBuilder(
+                builder: (context, constraints) {
+                  return SingleChildScrollView(
+                    padding: const EdgeInsets.all(16),
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          HeroMetricCard(label: 'Total balance', value: formatZAR(totalBalance)),
+                          const SizedBox(height: 24),
+                          Text('Active accounts', style: Theme.of(context).textTheme.labelMedium),
+                          const SizedBox(height: 12),
+                          if (active.isEmpty)
+                            const Text('No accounts yet.')
+                          else
+                            GroupCard(children: [for (final account in active) _AccountRow(account: account)]),
+                          if (inactive.isNotEmpty) ...[
+                            const SizedBox(height: 12),
+                            InkWell(
+                              onTap: () => setState(() => _inactiveExpanded = !_inactiveExpanded),
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(vertical: 4),
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        Text('Inactive accounts', style: Theme.of(context).textTheme.labelMedium),
+                                        const SizedBox(width: 6),
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                          decoration: BoxDecoration(
+                                            color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                                            borderRadius: BorderRadius.circular(10),
+                                          ),
+                                          child: Text(
+                                            '${inactive.length}',
+                                            style: Theme.of(context).textTheme.labelSmall,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    Icon(_inactiveExpanded ? Icons.expand_less : Icons.expand_more, size: 20),
+                                  ],
                                 ),
-                              ],
+                              ),
                             ),
-                            Icon(_inactiveExpanded ? Icons.expand_less : Icons.expand_more, size: 20),
+                            const SizedBox(height: 12),
+                            if (_inactiveExpanded)
+                              GroupCard(children: [for (final account in inactive) _AccountRow(account: account)]),
                           ],
-                        ),
+                          if (active.isNotEmpty) ...[
+                            const SizedBox(height: 24),
+                            _AccountsOverviewStrip(active: active, totalBalance: totalBalance),
+                          ],
+                        ],
                       ),
                     ),
-                    const SizedBox(height: 12),
-                    if (_inactiveExpanded)
-                      GroupCard(children: [for (final account in inactive) _AccountRow(account: account)]),
-                  ],
-                ],
+                  );
+                },
               );
             },
           ),
@@ -172,6 +190,85 @@ class _AccountRow extends ConsumerWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// Secondary module below the active-accounts list, per L1 (dead space on
+/// short-content screens) — a compact stat strip in the same shell/spacing
+/// language as the Dashboard's `_CashflowStatStrip`, computed client-side
+/// from the already-fetched [active] list (no new API call).
+class _AccountsOverviewStrip extends StatelessWidget {
+  const _AccountsOverviewStrip({required this.active, required this.totalBalance});
+
+  final List<Account> active;
+  final Decimal totalBalance;
+
+  @override
+  Widget build(BuildContext context) {
+    final semantic = Theme.of(context).extension<AppSemanticColors>();
+    final largest = active.reduce((a, b) => a.balance > b.balance ? a : b);
+    final average = active.isEmpty ? 0.0 : totalBalance.toDouble() / active.length;
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Accounts overview', style: Theme.of(context).textTheme.labelMedium),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: _StatBlock(
+                    label: 'Accounts',
+                    value: '${active.length}',
+                  ),
+                ),
+                Expanded(
+                  child: _StatBlock(
+                    label: 'Average balance',
+                    value: formatZAR(average),
+                  ),
+                ),
+                Expanded(
+                  child: _StatBlock(
+                    label: 'Largest',
+                    value: largest.name,
+                    valueColor: semantic?.textMuted,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _StatBlock extends StatelessWidget {
+  const _StatBlock({required this.label, required this.value, this.valueColor});
+
+  final String label;
+  final String value;
+  final Color? valueColor;
+
+  @override
+  Widget build(BuildContext context) {
+    final semantic = Theme.of(context).extension<AppSemanticColors>();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: TextStyle(color: semantic?.textMuted, fontSize: 12)),
+        const SizedBox(height: 4),
+        Text(
+          value,
+          style: Theme.of(context).textTheme.titleMedium?.copyWith(color: valueColor),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+      ],
     );
   }
 }

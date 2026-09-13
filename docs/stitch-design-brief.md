@@ -133,7 +133,7 @@ breakpoint concern. Within that constraint:
 - No overlapping elements — every element in its own clear vertical zone.
 - Contain content within comfortable side padding (16–24px), never edge-to-edge except
   the hero metric card and full-bleed images.
-- The bottom-nav shell (5 tabs: Home, Invest, Budgets, Insights, Settings) is fixed and
+- The bottom-nav shell (5 tabs: Home, Invest, Budgets, Assistant, Settings) is fixed and
   non-negotiable — Material 3 `NavigationBar`, active tab in Ledger Green.
 - Tab-root screens carry an avatar-placeholder + centred title + notification-bell top
   bar; pushed/detail screens carry a back-arrow + title bar. Settings is a tab-root but
