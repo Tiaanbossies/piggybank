@@ -19,6 +19,9 @@ abstract final class AppMotion {
   /// Branch/state swaps (loading→data, error text, crossfades).
   static const stateChange = Duration(milliseconds: 200);
 
+  /// Route push/pop transitions and bottom-nav tab switches.
+  static const pageTransition = Duration(milliseconds: 250);
+
   /// Smooth value transitions (progress bars, numeric fills).
   static const valueTransition = Duration(milliseconds: 400);
 }

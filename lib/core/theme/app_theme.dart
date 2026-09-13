@@ -4,6 +4,7 @@
 /// "Revision — 2026-08-16" header for what changed and why.
 library;
 
+import 'package:animations/animations.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
@@ -145,6 +146,15 @@ abstract final class AppTheme {
         ),
       ),
       dividerTheme: DividerThemeData(color: border, space: 1),
+      pageTransitionsTheme: const PageTransitionsTheme(
+        builders: {
+          TargetPlatform.android: _ReducedMotionAwarePageTransitionsBuilder(),
+          TargetPlatform.iOS: _ReducedMotionAwarePageTransitionsBuilder(),
+          TargetPlatform.linux: _ReducedMotionAwarePageTransitionsBuilder(),
+          TargetPlatform.macOS: _ReducedMotionAwarePageTransitionsBuilder(),
+          TargetPlatform.windows: _ReducedMotionAwarePageTransitionsBuilder(),
+        },
+      ),
       extensions: [
         AppSemanticColors(
           success: isDark ? AppColors.darkSuccess : AppColors.lightSuccess,
@@ -155,6 +165,43 @@ abstract final class AppTheme {
         ),
       ],
     );
+  }
+}
+
+/// Upgrades every push/pop route transition (both go_router's default page
+/// wrapper and the plain `Navigator.push(MaterialPageRoute(...))` calls used
+/// throughout `placeholder_screens.dart`) from the platform-default slide to
+/// a shared-axis (horizontal) transition — one theme-level change, no
+/// per-route edits needed, since `MaterialPageRoute` reads
+/// `Theme.of(context).pageTransitionsTheme`.
+///
+/// The animation *type* comes from `SharedAxisPageTransitionsBuilder`
+/// (`package:animations`); the `animations` package doesn't expose reduced-
+/// motion awareness itself, so it's added here, matching how every other
+/// animation in this app already checks `context.reducedMotion`.
+///
+/// Note: the transition *duration* is owned by the underlying route (Flutter
+/// hardcodes `MaterialPageRoute.transitionDuration` at 300ms) — a
+/// `PageTransitionsBuilder` can change the transition's visual style but not
+/// its timing without subclassing `MaterialPageRoute` itself, which is out of
+/// scope for a single theme-level change. `AppMotion.pageTransition` (250ms)
+/// is used instead for the tab-switch fade in `app_shell.dart`, which this
+/// app does fully control.
+class _ReducedMotionAwarePageTransitionsBuilder extends PageTransitionsBuilder {
+  const _ReducedMotionAwarePageTransitionsBuilder();
+
+  static const _delegate = SharedAxisPageTransitionsBuilder(transitionType: SharedAxisTransitionType.horizontal);
+
+  @override
+  Widget buildTransitions<T>(
+    PageRoute<T>? route,
+    BuildContext? context,
+    Animation<double> animation,
+    Animation<double> secondaryAnimation,
+    Widget child,
+  ) {
+    if (context != null && MediaQuery.disableAnimationsOf(context)) return child;
+    return _delegate.buildTransitions<T>(route, context, animation, secondaryAnimation, child);
   }
 }
 
