@@ -117,53 +117,61 @@ class _LoanCalculatorTabState extends State<_LoanCalculatorTab> {
 
   @override
   Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
-            children: [
-              const IconChip(icon: Icons.calculate_outlined),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  'Work out the monthly payment for a loan',
-                  style: Theme.of(context).textTheme.bodyMedium,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return SingleChildScrollView(
+          padding: const EdgeInsets.all(16),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minHeight: constraints.maxHeight),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(
+                  children: [
+                    const IconChip(icon: Icons.calculate_outlined),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        'Work out the monthly payment for a loan',
+                        style: Theme.of(context).textTheme.bodyMedium,
+                      ),
+                    ),
+                  ],
                 ),
-              ),
-            ],
+                const SizedBox(height: 24),
+                TextField(
+                  controller: _principalController,
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  decoration: const InputDecoration(labelText: 'Loan amount (ZAR)'),
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: _rateController,
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  decoration: const InputDecoration(labelText: 'Annual interest rate (%)'),
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: _termController,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(labelText: 'Term (months)'),
+                ),
+                const SizedBox(height: 24),
+                ElevatedButton(onPressed: _calculate, child: const Text('Calculate')),
+                if (_error != null) ...[
+                  const SizedBox(height: 12),
+                  Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
+                ],
+                if (_pmt != null) ...[
+                  const SizedBox(height: 24),
+                  HeroMetricCard(label: 'Monthly payment', value: formatZAR(_pmt)),
+                ],
+              ],
+            ),
           ),
-          const SizedBox(height: 24),
-          TextField(
-            controller: _principalController,
-            keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            decoration: const InputDecoration(labelText: 'Loan amount (ZAR)'),
-          ),
-          const SizedBox(height: 16),
-          TextField(
-            controller: _rateController,
-            keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            decoration: const InputDecoration(labelText: 'Annual interest rate (%)'),
-          ),
-          const SizedBox(height: 16),
-          TextField(
-            controller: _termController,
-            keyboardType: TextInputType.number,
-            decoration: const InputDecoration(labelText: 'Term (months)'),
-          ),
-          const SizedBox(height: 24),
-          ElevatedButton(onPressed: _calculate, child: const Text('Calculate')),
-          if (_error != null) ...[
-            const SizedBox(height: 12),
-            Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
-          ],
-          if (_pmt != null) ...[
-            const SizedBox(height: 24),
-            HeroMetricCard(label: 'Monthly payment', value: formatZAR(_pmt)),
-          ],
-        ],
-      ),
+        );
+      },
     );
   }
 }
@@ -239,63 +247,71 @@ class _LoanAcceleratorTabState extends State<_LoanAcceleratorTab> {
   @override
   Widget build(BuildContext context) {
     final result = _result;
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
-            children: [
-              const IconChip(icon: Icons.speed_outlined),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  'See how much extra monthly payments save',
-                  style: Theme.of(context).textTheme.bodyMedium,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return SingleChildScrollView(
+          padding: const EdgeInsets.all(16),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minHeight: constraints.maxHeight),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(
+                  children: [
+                    const IconChip(icon: Icons.speed_outlined),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        'See how much extra monthly payments save',
+                        style: Theme.of(context).textTheme.bodyMedium,
+                      ),
+                    ),
+                  ],
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 24),
-          TextField(
-            controller: _outstandingController,
-            keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            decoration: const InputDecoration(labelText: 'Outstanding balance (ZAR)'),
-          ),
-          const SizedBox(height: 16),
-          TextField(
-            controller: _rateController,
-            keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            decoration: const InputDecoration(labelText: 'Annual interest rate (%)'),
-          ),
-          const SizedBox(height: 16),
-          TextField(
-            controller: _remainingController,
-            keyboardType: TextInputType.number,
-            decoration: const InputDecoration(labelText: 'Remaining term (months)'),
-          ),
-          const SizedBox(height: 16),
-          TextField(
-            controller: _extraController,
-            keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            decoration: const InputDecoration(labelText: 'Extra monthly payment (ZAR)'),
-          ),
-          const SizedBox(height: 24),
-          ElevatedButton(onPressed: _calculate, child: const Text('Calculate')),
-          if (_error != null) ...[
-            const SizedBox(height: 12),
-            Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
-          ],
-          if (result != null) ...[
-            const SizedBox(height: 24),
-            HeroMetricCard(
-              label: 'Interest saved',
-              value: formatZAR(result.interestSaved),
-              deltaText: '${result.monthsSaved.round()} months saved',
+                const SizedBox(height: 24),
+                TextField(
+                  controller: _outstandingController,
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  decoration: const InputDecoration(labelText: 'Outstanding balance (ZAR)'),
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: _rateController,
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  decoration: const InputDecoration(labelText: 'Annual interest rate (%)'),
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: _remainingController,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(labelText: 'Remaining term (months)'),
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: _extraController,
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  decoration: const InputDecoration(labelText: 'Extra monthly payment (ZAR)'),
+                ),
+                const SizedBox(height: 24),
+                ElevatedButton(onPressed: _calculate, child: const Text('Calculate')),
+                if (_error != null) ...[
+                  const SizedBox(height: 12),
+                  Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
+                ],
+                if (result != null) ...[
+                  const SizedBox(height: 24),
+                  HeroMetricCard(
+                    label: 'Interest saved',
+                    value: formatZAR(result.interestSaved),
+                    deltaText: '${result.monthsSaved.round()} months saved',
+                  ),
+                ],
+              ],
             ),
-          ],
-        ],
-      ),
+          ),
+        );
+      },
     );
   }
 }

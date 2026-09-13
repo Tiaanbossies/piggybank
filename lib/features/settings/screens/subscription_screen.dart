@@ -97,75 +97,94 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
               child: Text(err is ApiError ? err.message : 'Something went wrong. Please try again.'),
             ),
           ),
-          data: (sub) => ListView(
-            padding: const EdgeInsets.all(16),
-            children: [
-              Text(
-                'CURRENT PLAN',
-                style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  color: Theme.of(context).extension<AppSemanticColors>()?.textMuted,
-                  letterSpacing: 0.8,
-                ),
-              ),
-              const SizedBox(height: 8),
-              GroupCard(
-                children: [
-                  GroupRow(
-                    leadingIcon: Icons.workspace_premium_outlined,
-                    title: _tierLabel(sub.tier),
-                    subtitle: sub.currentPeriodEnd != null
-                        ? '${_statusLabel(sub.status)} · renews ${sub.currentPeriodEnd!.toLocal().toString().split(' ').first}'
-                        : _statusLabel(sub.status),
-                    trailing: _TierBadge(tier: sub.tier),
+          data: (sub) => LayoutBuilder(
+            builder: (context, constraints) {
+              return SingleChildScrollView(
+                padding: const EdgeInsets.all(16),
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Text(
+                        'CURRENT PLAN',
+                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                          color: Theme.of(context).extension<AppSemanticColors>()?.textMuted,
+                          letterSpacing: 0.8,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      GroupCard(
+                        children: [
+                          GroupRow(
+                            leadingIcon: Icons.workspace_premium_outlined,
+                            title: _tierLabel(sub.tier),
+                            subtitle: sub.currentPeriodEnd != null
+                                ? '${_statusLabel(sub.status)} · renews ${sub.currentPeriodEnd!.toLocal().toString().split(' ').first}'
+                                : _statusLabel(sub.status),
+                            trailing: _TierBadge(tier: sub.tier),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      Text('What Pro unlocks', style: Theme.of(context).textTheme.labelMedium),
+                      const SizedBox(height: 8),
+                      _FeatureComparisonCard(isPro: sub.tier == SubscriptionTier.pro),
+                      const SizedBox(height: 16),
+                      if (_actionError != null) ...[
+                        Text(_actionError!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
+                        const SizedBox(height: 12),
+                      ],
+                      if (_awaitingConfirmation) ...[
+                        Text(
+                          'Waiting for PayFast to confirm your payment. Complete checkout in the '
+                          'browser, then refresh here.',
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
+                        const SizedBox(height: 12),
+                        SizedBox(
+                          width: double.infinity,
+                          child: OutlinedButton.icon(
+                            onPressed: _refreshStatus,
+                            icon: const Icon(Icons.refresh, size: 18),
+                            label: const Text('Refresh status'),
+                          ),
+                        ),
+                      ] else if (sub.tier == SubscriptionTier.free)
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton.icon(
+                            onPressed: _submitting ? null : _upgrade,
+                            icon: _submitting ? null : const Icon(Icons.arrow_forward, size: 18),
+                            label: _submitting
+                                ? const SizedBox(
+                                    height: 20,
+                                    width: 20,
+                                    child: CircularProgressIndicator(strokeWidth: 2),
+                                  )
+                                : const Text('Upgrade to Pro'),
+                          ),
+                        )
+                      else
+                        SizedBox(
+                          width: double.infinity,
+                          child: OutlinedButton(
+                            onPressed: _submitting ? null : _cancel,
+                            child: _submitting
+                                ? const SizedBox(
+                                    height: 20,
+                                    width: 20,
+                                    child: CircularProgressIndicator(strokeWidth: 2),
+                                  )
+                                : const Text('Cancel subscription'),
+                          ),
+                        ),
+                    ],
                   ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              Text('What Pro unlocks', style: Theme.of(context).textTheme.labelMedium),
-              const SizedBox(height: 8),
-              _FeatureComparisonCard(isPro: sub.tier == SubscriptionTier.pro),
-              const SizedBox(height: 16),
-              if (_actionError != null) ...[
-                Text(_actionError!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
-                const SizedBox(height: 12),
-              ],
-              if (_awaitingConfirmation) ...[
-                Text(
-                  'Waiting for PayFast to confirm your payment. Complete checkout in the '
-                  'browser, then refresh here.',
-                  style: Theme.of(context).textTheme.bodySmall,
                 ),
-                const SizedBox(height: 12),
-                SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton.icon(
-                    onPressed: _refreshStatus,
-                    icon: const Icon(Icons.refresh, size: 18),
-                    label: const Text('Refresh status'),
-                  ),
-                ),
-              ] else if (sub.tier == SubscriptionTier.free)
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton.icon(
-                    onPressed: _submitting ? null : _upgrade,
-                    icon: _submitting ? null : const Icon(Icons.arrow_forward, size: 18),
-                    label: _submitting
-                        ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                        : const Text('Upgrade to Pro'),
-                  ),
-                )
-              else
-                SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton(
-                    onPressed: _submitting ? null : _cancel,
-                    child: _submitting
-                        ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                        : const Text('Cancel subscription'),
-                  ),
-                ),
-            ],
+              );
+            },
           ),
         ),
       ),
