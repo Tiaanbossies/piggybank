@@ -62,7 +62,7 @@ class _AppShellState extends State<AppShell> with SingleTickerProviderStateMixin
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: FadeTransition(opacity: _opacity, child: widget.navigationShell),
+      body: FadeTransition(key: const ValueKey('appShellFade'), opacity: _opacity, child: widget.navigationShell),
       bottomNavigationBar: NavigationBar(
         selectedIndex: widget.navigationShell.currentIndex,
         onDestinationSelected: (index) =>
