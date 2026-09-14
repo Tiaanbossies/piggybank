@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:piggybank/features/imports/data/imports_api.dart';
+import 'package:piggybank/features/imports/models/categorize_result.dart';
 import 'package:piggybank/features/imports/models/import_job.dart';
 import 'package:piggybank/features/imports/providers/imports_provider.dart';
 
@@ -68,21 +69,25 @@ void main() {
     });
   });
 
-  group('importsApiProvider normalize wiring (called directly by ImportsScreen)', () {
+  group('importsApiProvider categorize-batch wiring (called directly by ImportsScreen)', () {
     // uploadCsv/ocrReceipt are intentionally not exercised here — both go
     // through `dio.MultipartFile.fromFile`, which requires a real file on
     // disk selected via file_picker/image_picker (native platform plugins,
     // not faked by this test harness). See docs/qa/QA_LOG.md for that gap.
 
-    test('normalizeCategories forwards the importId and returns the parsed counts', () async {
-      when(() => mockApi.normalizeCategories(any()))
-          .thenAnswer((_) async => {'normalized': 3, 'rules_added': 1});
+    test('categorizeTransactionsBatch returns the parsed batch result', () async {
+      when(() => mockApi.categorizeTransactionsBatch()).thenAnswer(
+        (_) async => const CategorizeBatchResult(processed: 3, categorized: 2, skippedInvalid: 1, remaining: 0),
+      );
 
       final api = container.read(importsApiProvider);
-      final result = await api.normalizeCategories('j1');
+      final result = await api.categorizeTransactionsBatch();
 
-      expect(result, {'normalized': 3, 'rules_added': 1});
-      verify(() => mockApi.normalizeCategories('j1')).called(1);
+      expect(result.processed, 3);
+      expect(result.categorized, 2);
+      expect(result.skippedInvalid, 1);
+      expect(result.remaining, 0);
+      verify(() => mockApi.categorizeTransactionsBatch()).called(1);
     });
   });
 }

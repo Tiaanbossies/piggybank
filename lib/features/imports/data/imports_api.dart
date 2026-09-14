@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 
 import '../../../core/api/api_client.dart';
+import '../models/categorize_result.dart';
 import '../models/import_job.dart';
 import '../models/ocr_result.dart';
 
@@ -64,14 +65,10 @@ class ImportsApi {
     }
   }
 
-  Future<Map<String, int>> normalizeCategories(String importId) async {
+  Future<CategorizeBatchResult> categorizeTransactionsBatch() async {
     try {
-      final response = await _client.dio.post('/imports/$importId/normalize-categories');
-      final data = response.data as Map<String, dynamic>;
-      return {
-        'normalized': data['normalized'] as int,
-        'rules_added': data['rules_added'] as int,
-      };
+      final response = await _client.dio.post('/transactions/categorize-batch');
+      return CategorizeBatchResult.fromJson(response.data as Map<String, dynamic>);
     } on DioException catch (e) {
       throw ApiClient.errorFrom(e);
     }

@@ -615,22 +615,36 @@ class _ResultCard extends ConsumerStatefulWidget {
 }
 
 class _ResultCardState extends ConsumerState<_ResultCard> {
-  bool _normalizing = false;
-  String? _normalizeMsg;
+  // Iteration cap so a bug in the `remaining` bookkeeping (client or server)
+  // can't spin this loop forever — see plan Step 4 task 2.
+  static const _maxCategorizeLoops = 20;
 
-  Future<void> _normalize() async {
+  bool _categorizing = false;
+  String? _categorizeMsg;
+
+  Future<void> _categorizeAll() async {
     setState(() {
-      _normalizing = true;
-      _normalizeMsg = null;
+      _categorizing = true;
+      _categorizeMsg = null;
     });
+    var totalProcessed = 0;
+    var totalCategorized = 0;
     try {
-      final res = await ref.read(importsApiProvider).normalizeCategories(widget.job.id);
-      setState(() =>
-          _normalizeMsg = 'AI normalized ${res['normalized']} descriptions → ${res['rules_added']} rules added.');
+      for (var i = 0; i < _maxCategorizeLoops; i++) {
+        final res = await ref.read(importsApiProvider).categorizeTransactionsBatch();
+        totalProcessed += res.processed;
+        totalCategorized += res.categorized;
+        if (res.remaining <= 0) break;
+      }
+      setState(() => _categorizeMsg =
+          'AI categorized $totalCategorized of $totalProcessed transactions checked across all your imports.');
     } on ApiError catch (e) {
-      setState(() => _normalizeMsg = e.message);
+      final prefix = totalProcessed > 0 ? 'Categorized $totalCategorized so far. ' : '';
+      setState(() => _categorizeMsg = e.statusCode == 429
+          ? '${prefix}You\'ve hit the rate limit — try again in a minute.'
+          : '$prefix${e.message}');
     } finally {
-      if (mounted) setState(() => _normalizing = false);
+      if (mounted) setState(() => _categorizing = false);
     }
   }
 
@@ -667,12 +681,12 @@ class _ResultCardState extends ConsumerState<_ResultCard> {
             ],
             const SizedBox(height: 12),
             OutlinedButton(
-              onPressed: _normalizing ? null : _normalize,
-              child: Text(_normalizing ? 'Normalizing...' : 'Normalize with AI'),
+              onPressed: _categorizing ? null : _categorizeAll,
+              child: Text(_categorizing ? 'Categorizing...' : 'Categorize All Transactions with AI'),
             ),
-            if (_normalizeMsg != null) ...[
+            if (_categorizeMsg != null) ...[
               const SizedBox(height: 8),
-              Text(_normalizeMsg!),
+              Text(_categorizeMsg!),
             ],
           ],
         ),
