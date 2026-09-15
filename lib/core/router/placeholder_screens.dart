@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../features/consent/screens/consent_screen.dart';
+import '../../features/detection/screens/detection_settings_screen.dart';
 import '../../features/settings/screens/about_screen.dart';
 import '../../features/settings/screens/appearance_screen.dart';
 import '../../features/settings/screens/import_history_screen.dart';
@@ -114,6 +115,13 @@ class SettingsScreen extends ConsumerWidget {
                   title: 'Notifications',
                   onTap: () => Navigator.of(context).push(
                     MaterialPageRoute(builder: (_) => const NotificationsScreen()),
+                  ),
+                ),
+                GroupRow(
+                  leadingIcon: Icons.auto_awesome_outlined,
+                  title: 'Notification & email detection',
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const DetectionSettingsScreen()),
                   ),
                 ),
               ],

@@ -106,3 +106,37 @@ If we materially change these terms or the Privacy Policy, we'll ask you to revi
 /// The two v1 consent documents, in the order they should be presented.
 /// Matches `backend/app/consents/required.py`'s `REQUIRED_DOCUMENTS`.
 const consentDocuments = [privacyPolicyDocument, termsOfServiceDocument];
+
+/// Opt-in consent for the notification/email transaction-detection feature
+/// (plan §1.4/§2.1 in `piggybank-backend/plans/notification-email-
+/// transaction-detection.md`). Deliberately NOT in [consentDocuments] —
+/// it's posted to the same `POST /consents/` endpoint, but only from the
+/// detection setup screen, and gates only `require_detection_consent`
+/// endpoints, not the whole app.
+const notificationEmailDetectionConsentDocument = ConsentDocument(
+  documentType: 'notification_email_detection',
+  documentVersion: '1.0',
+  label: 'Notification & email transaction detection',
+  summary: 'Let Piggybank read notifications/emails from apps and senders you specifically choose, to suggest transactions.',
+  body: '''
+Draft — version 1.0. Describes an opt-in feature: nothing here happens until you also add at least one app or email sender to the allowlist on the setup screen.
+
+WHAT THIS FEATURE DOES
+
+When enabled and set up, Piggybank reads notification banners from the specific banking/investment apps you choose (never any other app) and, once you connect Gmail, emails from the specific sender addresses you choose (never your whole inbox). It uses a locally-hosted AI model to try to extract a transaction, dividend, or trade from that text.
+
+Nothing is created automatically. Every extracted item lands in a review queue you must confirm or discard yourself before it becomes a real transaction, dividend, or trade in your data.
+
+WHAT'S EXCLUDED BY DESIGN
+
+Notifications from apps you haven't explicitly added are never read, parsed, captured, or sent anywhere — filtering happens on your device before anything leaves it. The same applies to email: only messages from senders you've explicitly added are ever looked at, and only your own account's Gmail, never anyone else's.
+
+WHERE THE TEXT GOES
+
+Notification/email text you've allowlisted is sent to Piggybank's backend and processed by the same self-hosted AI model used for other in-app AI features (see the main Privacy Policy) — never a third-party AI vendor, never leaves South Africa for this feature specifically.
+
+TURNING IT OFF
+
+Remove an app or sender from the allowlist at any time to stop it being read; disconnecting Gmail (Settings) revokes that access entirely. This consent itself has no separate withdrawal step today — removing every allowlisted source and disconnecting Gmail achieves the same practical effect.
+''',
+);
