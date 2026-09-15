@@ -3,6 +3,7 @@ import 'package:dio/dio.dart';
 import '../../../core/api/api_client.dart';
 import '../models/categorize_result.dart';
 import '../models/import_job.dart';
+import '../models/merchant_cleanup_result.dart';
 import '../models/ocr_result.dart';
 
 class ImportsApi {
@@ -69,6 +70,15 @@ class ImportsApi {
     try {
       final response = await _client.dio.post('/transactions/categorize-batch');
       return CategorizeBatchResult.fromJson(response.data as Map<String, dynamic>);
+    } on DioException catch (e) {
+      throw ApiClient.errorFrom(e);
+    }
+  }
+
+  Future<MerchantCleanupResult> cleanMerchantNames() async {
+    try {
+      final response = await _client.dio.post('/transactions/clean-merchant-names');
+      return MerchantCleanupResult.fromJson(response.data as Map<String, dynamic>);
     } on DioException catch (e) {
       throw ApiClient.errorFrom(e);
     }

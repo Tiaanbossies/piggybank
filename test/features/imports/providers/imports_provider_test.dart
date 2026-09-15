@@ -4,6 +4,7 @@ import 'package:mocktail/mocktail.dart';
 import 'package:piggybank/features/imports/data/imports_api.dart';
 import 'package:piggybank/features/imports/models/categorize_result.dart';
 import 'package:piggybank/features/imports/models/import_job.dart';
+import 'package:piggybank/features/imports/models/merchant_cleanup_result.dart';
 import 'package:piggybank/features/imports/providers/imports_provider.dart';
 
 class MockImportsApi extends Mock implements ImportsApi {}
@@ -88,6 +89,21 @@ void main() {
       expect(result.skippedInvalid, 1);
       expect(result.remaining, 0);
       verify(() => mockApi.categorizeTransactionsBatch()).called(1);
+    });
+
+    test('cleanMerchantNames returns the parsed cleanup result', () async {
+      when(() => mockApi.cleanMerchantNames()).thenAnswer(
+        (_) async => const MerchantCleanupResult(processed: 4, cleaned: 3, skippedInvalid: 1, remaining: 0),
+      );
+
+      final api = container.read(importsApiProvider);
+      final result = await api.cleanMerchantNames();
+
+      expect(result.processed, 4);
+      expect(result.cleaned, 3);
+      expect(result.skippedInvalid, 1);
+      expect(result.remaining, 0);
+      verify(() => mockApi.cleanMerchantNames()).called(1);
     });
   });
 }

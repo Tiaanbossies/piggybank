@@ -618,9 +618,38 @@ class _ResultCardState extends ConsumerState<_ResultCard> {
   // Iteration cap so a bug in the `remaining` bookkeeping (client or server)
   // can't spin this loop forever — see plan Step 4 task 2.
   static const _maxCategorizeLoops = 20;
+  static const _maxCleanupLoops = 20;
 
   bool _categorizing = false;
   String? _categorizeMsg;
+  bool _cleaningMerchants = false;
+  String? _cleanupMsg;
+
+  Future<void> _cleanMerchantNames() async {
+    setState(() {
+      _cleaningMerchants = true;
+      _cleanupMsg = null;
+    });
+    var totalProcessed = 0;
+    var totalCleaned = 0;
+    try {
+      for (var i = 0; i < _maxCleanupLoops; i++) {
+        final res = await ref.read(importsApiProvider).cleanMerchantNames();
+        totalProcessed += res.processed;
+        totalCleaned += res.cleaned;
+        if (res.remaining <= 0) break;
+      }
+      setState(() => _cleanupMsg =
+          'AI cleaned up $totalCleaned of $totalProcessed merchant names across your imports.');
+    } on ApiError catch (e) {
+      final prefix = totalProcessed > 0 ? 'Cleaned $totalCleaned so far. ' : '';
+      setState(() => _cleanupMsg = e.statusCode == 429
+          ? '${prefix}You\'ve hit the rate limit — try again in a minute.'
+          : '$prefix${e.message}');
+    } finally {
+      if (mounted) setState(() => _cleaningMerchants = false);
+    }
+  }
 
   Future<void> _categorizeAll() async {
     setState(() {
@@ -680,6 +709,20 @@ class _ResultCardState extends ConsumerState<_ResultCard> {
               Text(formatZAR(job.importedBalance), style: moneyTextStyle(context, fontSize: 24)),
             ],
             const SizedBox(height: 12),
+            // Order matters: for most SA bank CSV templates the raw bank
+            // narrative text lives only in `category` until it's overwritten
+            // by categorization, so merchant-name cleanup must run first or
+            // it usually finds nothing left to clean — see
+            // plans/piggybank-backend-merchant-name-cleanup.md.
+            OutlinedButton(
+              onPressed: _cleaningMerchants ? null : _cleanMerchantNames,
+              child: Text(_cleaningMerchants ? 'Cleaning merchant names...' : 'Clean Up Merchant Names with AI'),
+            ),
+            if (_cleanupMsg != null) ...[
+              const SizedBox(height: 8),
+              Text(_cleanupMsg!),
+            ],
+            const SizedBox(height: 8),
             OutlinedButton(
               onPressed: _categorizing ? null : _categorizeAll,
               child: Text(_categorizing ? 'Categorizing...' : 'Categorize All Transactions with AI'),
