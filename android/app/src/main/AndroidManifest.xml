@@ -31,6 +31,23 @@
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
+
+        <!-- Notification/email detection feature (plan §3, Phase D). Not
+             declared as a foreground service — NotificationListenerService
+             is a system-bound service kept alive by notification access
+             itself; adding foregroundServiceType would need an active
+             startForeground() call to mean anything, which this doesn't
+             do. Revisit only if real-device testing (Phase F) shows the
+             listener actually getting killed. -->
+        <service
+            android:name=".DetectionNotificationListenerService"
+            android:label="Piggybank transaction detection"
+            android:exported="false"
+            android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
+            <intent-filter>
+                <action android:name="android.service.notification.NotificationListenerService"/>
+            </intent-filter>
+        </service>
     </application>
     <uses-permission android:name="android.permission.CAMERA"/>
     <uses-permission android:name="android.permission.INTERNET"/>
