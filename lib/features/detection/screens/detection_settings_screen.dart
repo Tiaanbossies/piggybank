@@ -287,6 +287,7 @@ class _DetectionSettingsScreenState extends ConsumerState<DetectionSettingsScree
                       subtitle: Text(source.appPackageName),
                       trailing: IconButton(
                         icon: const Icon(Icons.delete_outline),
+                        tooltip: 'Remove app',
                         onPressed: () => _removeSource(source),
                       ),
                     ),
@@ -334,6 +335,7 @@ class _DetectionSettingsScreenState extends ConsumerState<DetectionSettingsScree
                       subtitle: Text(source.senderEmail),
                       trailing: IconButton(
                         icon: const Icon(Icons.delete_outline),
+                        tooltip: 'Remove sender',
                         onPressed: () => _removeEmailSource(source),
                       ),
                     ),
