@@ -95,11 +95,11 @@ class _LockScreenState extends ConsumerState<LockScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // Same mascot image as Login, smaller — this is a
-                // returning-user screen, not a first impression.
+                // Sleeping pose, smaller — this is a returning-user screen,
+                // not a first impression.
                 ClipRRect(
                   borderRadius: BorderRadius.circular(16),
-                  child: Image.asset('assets/mascot.jpg', width: 80, height: 80, fit: BoxFit.cover),
+                  child: Image.asset('assets/mascot_sleeping.jpg', width: 80, height: 80, fit: BoxFit.cover),
                 ),
                 const SizedBox(height: 16),
                 Text(

@@ -124,7 +124,10 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                                     IconChip(icon: page.icon!),
                                     const SizedBox(height: 12),
                                   ],
-                                  PennyAvatar(size: isWelcome ? 160 : 96),
+                                  PennyAvatar(
+                                    size: isWelcome ? 160 : 96,
+                                    assetPath: isWelcome ? 'assets/mascot_welcoming.jpg' : 'assets/mascot.jpg',
+                                  ),
                                   const SizedBox(height: 24),
                                   SpeechBubble(title: page.title, body: page.body),
                                 ],

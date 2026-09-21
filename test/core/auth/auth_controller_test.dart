@@ -312,6 +312,31 @@ void main() {
       });
     });
 
+    group('lockApp', () {
+      test('sets the lock flag when authenticated', () async {
+        const email = 'test@example.com';
+        const password = 'password123';
+        const tokenPair = TokenPair(accessToken: 'token', refreshToken: 'refresh');
+        when(() => mockAuthApi.login(email: email, password: password)).thenAnswer((_) async => tokenPair);
+        when(() => mockSecureStorage.writeRefreshToken(any())).thenAnswer((_) async {});
+        when(() => mockAuthApi.me('token')).thenAnswer((_) async => FakeUser());
+        await authController.login(email: email, password: password);
+        expect(authController.state.locked, false);
+
+        authController.lockApp();
+
+        expect(authController.state.locked, true);
+      });
+
+      test('is a no-op when not authenticated', () {
+        expect(authController.state.isAuthenticated, false);
+
+        authController.lockApp();
+
+        expect(authController.state.locked, false);
+      });
+    });
+
     group('logout', () {
       test('logout clears refresh token and unauthenticates', () async {
         const email = 'test@example.com';

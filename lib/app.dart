@@ -3,6 +3,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'core/auth/auth_controller.dart';
+import 'core/auth/background_lock_timer.dart';
 import 'core/router/app_router.dart';
 import 'core/theme/app_theme.dart';
 import 'core/theme/theme_mode_provider.dart';
@@ -17,6 +19,7 @@ class PiggybankApp extends ConsumerStatefulWidget {
 
 class _PiggybankAppState extends ConsumerState<PiggybankApp> with WidgetsBindingObserver {
   Timer? _detectionFlushTimer;
+  final _backgroundLockTimer = BackgroundLockTimer();
 
   @override
   void initState() {
@@ -39,7 +42,14 @@ class _PiggybankAppState extends ConsumerState<PiggybankApp> with WidgetsBinding
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) _flushDetectionQueue();
+    if (state == AppLifecycleState.resumed) {
+      _flushDetectionQueue();
+      if (_backgroundLockTimer.onResumed()) {
+        ref.read(authControllerProvider.notifier).lockApp();
+      }
+    } else if (state == AppLifecycleState.paused) {
+      _backgroundLockTimer.onPaused();
+    }
   }
 
   void _flushDetectionQueue() {

@@ -7,9 +7,10 @@ import '../../../core/theme/app_motion.dart';
 /// already established in `login_screen.dart`, parameterized by size.
 /// Stateless from the outside — no Riverpod/go_router dependency.
 class PennyAvatar extends StatefulWidget {
-  const PennyAvatar({this.size = 120, super.key});
+  const PennyAvatar({this.size = 120, this.assetPath = 'assets/mascot.jpg', super.key});
 
   final double size;
+  final String assetPath;
 
   @override
   State<PennyAvatar> createState() => _PennyAvatarState();
@@ -49,7 +50,7 @@ class _PennyAvatarState extends State<PennyAvatar> with SingleTickerProviderStat
       builder: (context, child) => Transform.translate(offset: Offset(0, _bob.value), child: child),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(24),
-        child: Image.asset('assets/mascot.jpg', width: widget.size, height: widget.size, fit: BoxFit.cover),
+        child: Image.asset(widget.assetPath, width: widget.size, height: widget.size, fit: BoxFit.cover),
       ),
     );
   }

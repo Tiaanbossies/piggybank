@@ -70,7 +70,7 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
                 Center(
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(24),
-                    child: Image.asset('assets/mascot.jpg', width: 96, height: 96, fit: BoxFit.cover),
+                    child: Image.asset('assets/mascot_thinking.jpg', width: 96, height: 96, fit: BoxFit.cover),
                   ),
                 ),
                 const SizedBox(height: 24),

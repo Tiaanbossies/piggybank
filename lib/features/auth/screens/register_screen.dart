@@ -74,7 +74,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
               Center(
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(20),
-                  child: Image.asset('assets/mascot.jpg', width: 100, height: 100, fit: BoxFit.cover),
+                  child: Image.asset('assets/mascot_welcoming.jpg', width: 100, height: 100, fit: BoxFit.cover),
                 ),
               ),
               const SizedBox(height: 16),

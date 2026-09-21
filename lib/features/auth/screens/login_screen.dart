@@ -77,7 +77,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> with SingleTickerProv
                 Center(
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(24),
-                    child: Image.asset('assets/mascot.jpg', width: 120, height: 120, fit: BoxFit.cover),
+                    child: Image.asset('assets/mascot_welcoming.jpg', width: 120, height: 120, fit: BoxFit.cover),
                   ),
                 ),
                 const SizedBox(height: 16),
