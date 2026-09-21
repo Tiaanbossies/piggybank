@@ -17,7 +17,7 @@ re-reported here — see "Still open from prior audits" below for a one-line sta
 
 | Severity | Count | Theme |
 | --- | --- | --- |
-| High | 2 | A live backend 500 on the Trends screen; a systemic FAB/list-overlap bug across 9 screens |
+| High | 2 | A live backend 500 on the Trends screen; a systemic FAB/list-overlap bug across 8 screens |
 | Medium | 4 | Chatbot color/direction mismatch; Dashboard shows finished goals as in-progress; a cramped consent-row layout; truncated destructive/legal text on 3 rows |
 | Low | 0 new | (see "still open" section for pre-existing Low items) |
 | Fixed inline | 1 | Missing tooltips on two detection-settings delete buttons |
@@ -37,30 +37,45 @@ checked). Full findings and clean-baseline detail below.
 **Found via:** live walkthrough — Home → Trends → "Budget adherence" rendered
 `Internal server error`. Reproduced directly: `GET /summaries/budget-usage?month=2026-09` → 500
 (`?month=2026-08` also 500; April–July all 200).
-**Root cause (from server logs):**
+**Root cause (confirmed precisely, not just from the traceback):**
 ```
 sqlalchemy.exc.MultipleResultsFound: Multiple rows were found when one or none was required
   File "/app/app/summaries/router.py", line 150, in get_budget_usage
     ).scalar_one_or_none()
 ```
-The query assumes at most one `Budget` row per category/month but the demo account has
-duplicates for August and September 2026 — consistent with this account's history of repeated
-QA/seed runs (Import History shows the same CSV filename completing more than once). This is a
-real production risk, not just a demo-data artifact: any real user who ends up with a duplicate
-budget row (a double-submitted create call, a retried request, a future bulk-import path) hits
-the identical crash and loses the Trends screen's budget-adherence section for that month.
-**Not fixed here** — backend change, out of this Flutter-focused audit's scope. Flagging for a
-backend fix: either a DB-level unique constraint on (user, category, month) or `.first()`/
-explicit dedup in the query, plus a decision on what to do with existing duplicate rows.
+`get_budget_usage`'s query (`summaries/router.py:145-150`) filters only on `Budget.user_id` and
+`Budget.month`, with **no `Budget.parent_budget_id.is_(None)` filter** — so it matches the
+top-level `Budget` row *and* any of that month's sub-category child rows at once. The sibling
+query in `budgets/router.py:217` already guards against exactly this with
+`Budget.parent_budget_id.is_(None)`; `get_budget_usage` never picked up the same guard. This is a
+real production risk for any user with sub-budget categories for a given month — a normal,
+DESIGN.md-encouraged pattern ("Sub-categories render as indented progress cards within their
+parent's group"), not a demo-data-only edge case. *(Correction, logged 2026-09-21 during Stage 2
+planning: this report originally attributed the crash to "duplicate Budget rows from repeated
+seed runs" — a plausible-sounding but incorrect guess. The observable symptom, the 500, and the
+traceback are unchanged; only the root-cause narrative above has been corrected after reading the
+actual query.)*
+**Not fixed here** — backend change, out of this Flutter-focused audit's scope. See
+`plans/piggybank-production-audit-2026-09-21-fixit.md` Phase 1 for the fix (add the same
+`parent_budget_id.is_(None)` filter already used elsewhere in this codebase).
 
-### H2. `FloatingActionButton` overlaps and obscures list content on 9 screens
+### H2. `FloatingActionButton` overlaps and obscures list content on 8 screens
 
-**Where (all identical root cause):** `accounts_screen.dart`, `assets_screen.dart`,
-`budgets_home_screen.dart`, `liabilities_screen.dart`, `liability_detail_screen.dart`,
-`portfolio_detail_screen.dart`, `ra_ledger_screen.dart`, `tfsa_ledger_screen.dart`,
-`transactions_screen.dart`. Each uses `ListView(padding: const EdgeInsets.all(16), ...)` as the
-`Scaffold.body` alongside a `FloatingActionButton.extended` — a flat 16px padding with no extra
-bottom clearance for the FAB's own footprint.
+**Where:** `accounts_screen.dart` (a `SingleChildScrollView`, not a `ListView` — same missing
+bottom-clearance bug, different scroll widget), `assets_screen.dart`, `budgets_screen.dart` (the
+actual `BudgetsBody`/`GoalsBody` list widgets — **not** `budgets_home_screen.dart`, which only
+holds the segmented control + the FAB itself), `liabilities_screen.dart`,
+`liability_detail_screen.dart`, `portfolio_detail_screen.dart`, `ra_ledger_screen.dart`,
+`tfsa_ledger_screen.dart`. Each uses a flat `padding: const EdgeInsets.all(16)` on its scrollable
+body alongside a `FloatingActionButton.extended`, with no extra bottom clearance for the FAB's
+own footprint. *(Correction, logged 2026-09-21 during Stage 2 planning: this report originally
+listed 9 files including `transactions_screen.dart` and misidentified `accounts_screen.dart`/
+`budgets_home_screen.dart`'s actual widget shape. `transactions_screen.dart` was already fixed —
+it defines `_kFabClearance = 88` and applies `EdgeInsets.fromLTRB(16, 16, 16, 16 +
+_kFabClearance)`, citing the 2026-09-11 audit — and is excluded from the corrected list above.
+`accounts_screen.dart` uses `SingleChildScrollView`, not `ListView`; the actual Budgets list body
+lives in `budgets_screen.dart`, not `budgets_home_screen.dart`. Verified by direct file
+inspection, not re-derived from the original grep pass.)*
 **Found via:** live walkthrough, confirmed on 4 separate screens:
 - Portfolio Detail: "Add holding" FAB covers SBK.JO's subtitle and day-change %.
 - Budgets: "Add budget" FAB covers the Transport category row.
@@ -69,11 +84,12 @@ bottom clearance for the FAB's own footprint.
 - Transactions: "Add transaction" FAB covers the Monthly salary row and the next date header.
 **Why it matters:** every one of these lists grows with normal use (more accounts, more
 transactions, more holdings) — this isn't an edge case, it's the expected end state for an
-active user on 9 of the app's most-used screens.
-**Suggested fix (not applied — needs a UX call, not a blind one-liner):** either add bottom
-padding equal to the FAB's height + margin (commonly ~88-96px) to each list, or move to a
-non-overlapping `floatingActionButtonLocation`. One consistent choice across all 9 screens would
-also resolve the copy-paste drift risk of fixing each independently.
+active user on 8 of the app's most-used screens.
+**Suggested fix (not applied — needs a UX call, not a blind one-liner):** reuse
+`transactions_screen.dart`'s existing `_kFabClearance = 88` constant and
+`EdgeInsets.fromLTRB(16, 16, 16, 16 + _kFabClearance)` pattern across the remaining 8 screens,
+rather than inventing a second clearance value. This screen already solved the exact same problem
+once; the fix just never propagated to its siblings.
 
 ---
 
@@ -128,7 +144,8 @@ or a shorter button label), not a one-line change.
 
 ### M4. Destructive-action and legal-disclosure row subtitles get truncated to one line, in 3 places
 
-**Where:** `lib/shared/widgets/group_card.dart:76-85` hardcodes `maxLines: 1` /
+**Where:** `lib/shared/widgets/group_card.dart:79-86` hardcodes `maxLines: 1` on the subtitle
+(line 76's `maxLines: 1` is the separate *title* field) /
 `TextOverflow.ellipsis` on its subtitle. This is the right choice for the short labels it's used
 for almost everywhere (account institution names, transaction categories) — but three specific
 rows reuse it for genuinely longer descriptive text:
@@ -205,7 +222,7 @@ fix. `flutter analyze` re-run clean afterward (0 issues).
 
 ## Recommended next step
 
-H1 (backend 500) and H2 (FAB overlap, 9 screens) are the two items worth prioritizing in Stage
+H1 (backend 500) and H2 (FAB overlap, 8 screens) are the two items worth prioritizing in Stage
 2's phased fix plan — H1 for correctness/reliability risk, H2 for breadth of impact. M1-M4 are
 real but lower-urgency polish items, each needing a small product/design decision rather than a
 blind mechanical fix.
