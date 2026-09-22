@@ -193,7 +193,7 @@ class _SecurityScreenState extends ConsumerState<SecurityScreen> {
                   leadingIcon: Icons.delete_forever_outlined,
                   leadingDanger: true,
                   title: 'Delete my account',
-                  subtitle: 'Permanently erase your account and all your data',
+                  subtitle: 'Permanently deletes your data',
                   onTap: _busy ? null : _attemptDeleteAccount,
                 ),
               ],
