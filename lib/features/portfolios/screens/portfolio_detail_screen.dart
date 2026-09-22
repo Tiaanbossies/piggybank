@@ -34,6 +34,8 @@ class PortfolioDetailScreen extends ConsumerWidget {
   const PortfolioDetailScreen({required this.portfolio, super.key});
   final Portfolio portfolio;
 
+  static const double _kFabClearance = 88;
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final holdingsAsync = ref.watch(portfolioHoldingsProvider(portfolio.id));
@@ -77,7 +79,7 @@ class PortfolioDetailScreen extends ConsumerWidget {
             error: (err, _) => Center(child: Text(err is ApiError ? err.message : 'Failed to load holdings')),
             data: (holdings) {
               return ListView(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 16 + _kFabClearance),
                 children: [
                   Row(
                     children: [

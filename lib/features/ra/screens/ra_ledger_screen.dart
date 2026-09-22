@@ -20,6 +20,8 @@ import '../providers/ra_provider.dart';
 class RaLedgerScreen extends ConsumerWidget {
   const RaLedgerScreen({super.key});
 
+  static const double _kFabClearance = 88;
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final contributionsAsync = ref.watch(raContributionsProvider);
@@ -63,7 +65,7 @@ class RaLedgerScreen extends ConsumerWidget {
                   ),
               ];
               return ListView.builder(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 16 + _kFabClearance),
                 itemCount: sections.length,
                 itemBuilder: (context, index) => sections[index],
               );
