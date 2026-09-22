@@ -27,6 +27,8 @@ class LiabilityDetailScreen extends ConsumerWidget {
   const LiabilityDetailScreen({required this.liability, super.key});
   final Liability liability;
 
+  static const double _kFabClearance = 88;
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final paymentsAsync = ref.watch(liabilityPaymentsProvider(liability.id));
@@ -53,7 +55,7 @@ class LiabilityDetailScreen extends ConsumerWidget {
             error: (err, _) => Center(child: Text(err is ApiError ? err.message : 'Failed to load payments')),
             data: (payments) {
               return ListView(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 16 + _kFabClearance),
                 children: [
                   _Header(liability: liability),
                   const SizedBox(height: 24),

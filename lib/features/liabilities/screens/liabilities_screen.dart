@@ -41,6 +41,8 @@ const _liabilityTypeIcons = {
 class LiabilitiesScreen extends ConsumerWidget {
   const LiabilitiesScreen({super.key});
 
+  static const double _kFabClearance = 88;
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final liabilitiesAsync = ref.watch(liabilitiesProvider);
@@ -56,13 +58,13 @@ class LiabilitiesScreen extends ConsumerWidget {
             data: (liabilities) {
               if (liabilities.isEmpty) {
                 return ListView(
-                  padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 16 + _kFabClearance),
                   children: const [Center(child: Padding(padding: EdgeInsets.only(top: 48), child: Text('No liabilities yet.')))],
                 );
               }
               final total = liabilities.fold(Decimal.zero, (sum, l) => sum + l.outstandingAmount);
               return ListView(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 16 + _kFabClearance),
                 children: [
                   HeroMetricCard(label: 'Total liabilities', value: formatZAR(total)),
                   const SizedBox(height: 24),

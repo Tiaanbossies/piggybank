@@ -28,6 +28,8 @@ const _assetTypeIcons = {
 class AssetsScreen extends ConsumerWidget {
   const AssetsScreen({super.key});
 
+  static const double _kFabClearance = 88;
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final assetsAsync = ref.watch(assetsProvider);
@@ -43,13 +45,13 @@ class AssetsScreen extends ConsumerWidget {
             data: (assets) {
               if (assets.isEmpty) {
                 return ListView(
-                  padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 16 + _kFabClearance),
                   children: const [Center(child: Padding(padding: EdgeInsets.only(top: 48), child: Text('No assets yet.')))],
                 );
               }
               final total = assets.fold(Decimal.zero, (sum, a) => sum + a.currentValue);
               return ListView(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 16 + _kFabClearance),
                 children: [
                   HeroMetricCard(label: 'Total assets', value: formatZAR(total)),
                   const SizedBox(height: 24),

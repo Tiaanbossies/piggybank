@@ -31,6 +31,8 @@ const _monthNames = [
 class BudgetsBody extends ConsumerWidget {
   const BudgetsBody({super.key});
 
+  static const double _kFabClearance = 88;
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final month = ref.watch(selectedBudgetMonthProvider);
@@ -74,7 +76,7 @@ class BudgetsBody extends ConsumerWidget {
                   if (budgets.isEmpty) {
                     return ListView(
                       key: const ValueKey('empty'),
-                      padding: const EdgeInsets.all(16),
+                      padding: const EdgeInsets.fromLTRB(16, 16, 16, 16 + _kFabClearance),
                       children: const [
                         EmptyState(
                           icon: Icons.account_balance_wallet_outlined,
@@ -86,7 +88,7 @@ class BudgetsBody extends ConsumerWidget {
                   }
                   return ListView(
                     key: const ValueKey('list'),
-                    padding: const EdgeInsets.all(16),
+                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 16 + _kFabClearance),
                     children: [
                       _TotalSpentSummary(budgets: budgets),
                       const SizedBox(height: 4),

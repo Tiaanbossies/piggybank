@@ -20,6 +20,8 @@ import '../providers/tfsa_provider.dart';
 class TfsaLedgerScreen extends ConsumerWidget {
   const TfsaLedgerScreen({super.key});
 
+  static const double _kFabClearance = 88;
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final contributionsAsync = ref.watch(tfsaContributionsProvider);
@@ -62,7 +64,7 @@ class TfsaLedgerScreen extends ConsumerWidget {
                   ),
               ];
               return ListView.builder(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 16 + _kFabClearance),
                 itemCount: sections.length,
                 itemBuilder: (context, index) => sections[index],
               );

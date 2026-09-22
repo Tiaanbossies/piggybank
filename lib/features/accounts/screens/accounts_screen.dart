@@ -28,6 +28,8 @@ class AccountsScreen extends ConsumerStatefulWidget {
 }
 
 class _AccountsScreenState extends ConsumerState<AccountsScreen> {
+  static const double _kFabClearance = 88;
+
   bool _inactiveExpanded = false;
 
   @override
@@ -58,7 +60,7 @@ class _AccountsScreenState extends ConsumerState<AccountsScreen> {
               return LayoutBuilder(
                 builder: (context, constraints) {
                   return SingleChildScrollView(
-                    padding: const EdgeInsets.all(16),
+                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 16 + _kFabClearance),
                     child: ConstrainedBox(
                       constraints: BoxConstraints(minHeight: constraints.maxHeight),
                       child: Column(
