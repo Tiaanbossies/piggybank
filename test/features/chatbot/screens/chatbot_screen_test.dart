@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:piggybank/core/api/api_client.dart';
+import 'package:piggybank/core/theme/app_theme.dart';
 import 'package:piggybank/features/chatbot/data/chatbot_api.dart';
 import 'package:piggybank/features/chatbot/screens/chatbot_screen.dart';
 
@@ -44,7 +45,7 @@ ChatbotApi _apiWith(_FakeAdapter adapter) {
 
 Widget _wrap(ChatbotApi api) => ProviderScope(
       overrides: [chatbotApiProvider.overrideWithValue(api)],
-      child: const MaterialApp(home: ChatbotScreen()),
+      child: MaterialApp(theme: AppTheme.light(), home: const ChatbotScreen()),
     );
 
 void main() {
@@ -88,6 +89,43 @@ void main() {
       expect(find.text('Upgrade to PRO'), findsOneWidget);
       expect(find.text('Pro subscription required'), findsOneWidget);
       expect(find.byType(ChatbotScreen), findsOneWidget);
+    });
+
+    testWidgets('stat-card trend icon uses a neutral color regardless of up/down direction', (tester) async {
+      final adapter = _FakeAdapter([
+        () => _json(200, {
+              'reply': 'Spending: R 4,230 12% higher than last month',
+              'model': 'qwen2.5:3b-instruct-q4_K_M',
+              'web_search_enabled': false,
+            }),
+        () => _json(200, {
+              'reply': 'Net worth: R 4,230 12% lower than last month',
+              'model': 'qwen2.5:3b-instruct-q4_K_M',
+              'web_search_enabled': false,
+            }),
+      ]);
+      final theme = AppTheme.light();
+      final textMuted = theme.extension<AppSemanticColors>()!.textMuted;
+      final success = theme.extension<AppSemanticColors>()!.success;
+
+      await tester.pumpWidget(_wrap(_apiWith(adapter)));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(find.byType(TextField), 'How is my spending?');
+      await tester.tap(find.byIcon(Icons.send));
+      await tester.pumpAndSettle();
+
+      final upIcon = tester.widget<Icon>(find.byIcon(Icons.trending_up));
+      expect(upIcon.color, textMuted);
+      expect(upIcon.color, isNot(success));
+
+      await tester.enterText(find.byType(TextField), 'How is my net worth?');
+      await tester.tap(find.byIcon(Icons.send));
+      await tester.pumpAndSettle();
+
+      final downIcon = tester.widget<Icon>(find.byIcon(Icons.trending_down));
+      expect(downIcon.color, textMuted);
+      expect(downIcon.color, isNot(success));
     });
   });
 }

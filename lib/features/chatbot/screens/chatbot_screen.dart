@@ -335,10 +335,10 @@ class _StatCardReply extends StatelessWidget {
                     style: moneyTextStyle(context, fontSize: 20),
                   ),
                   const SizedBox(width: 8),
-                  Icon(isDown ? Icons.trending_down : Icons.trending_up, size: 16, color: semantic?.success),
+                  Icon(isDown ? Icons.trending_down : Icons.trending_up, size: 16, color: semantic?.textMuted),
                   Text(
                     ' ${match.namedGroup('pct')}%',
-                    style: TextStyle(color: semantic?.success, fontWeight: FontWeight.w700, fontSize: 12),
+                    style: TextStyle(color: semantic?.textMuted, fontWeight: FontWeight.w700, fontSize: 12),
                   ),
                 ],
               ),
