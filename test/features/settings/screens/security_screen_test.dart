@@ -115,6 +115,15 @@ void main() {
       expect(find.text('Remove PIN'), findsNothing);
     });
 
+    testWidgets('"Delete my account" shows the shortened subtitle, not the old truncation-prone one',
+        (tester) async {
+      await tester.pumpWidget(buildScreen(adapter: _FakeAdapter([])));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Permanently deletes your data'), findsOneWidget);
+      expect(find.text('Permanently erase your account and all your data'), findsNothing);
+    });
+
     testWidgets('shows "Change PIN" and "Remove PIN" once a PIN is set', (tester) async {
       authController.state = authController.state.copyWith(user: const User(
         id: 'u1', email: 'a@b.com', fullName: 'A B', role: 'user', isActive: true, hasPin: true,

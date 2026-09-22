@@ -95,6 +95,24 @@ class _ConsentScreenState extends ConsumerState<ConsentScreen> {
     }
   }
 
+  /// A shorter stand-in for [ConsentDocument.summary] for this row only —
+  /// `GroupRow` (group_card.dart) fixes its subtitle at `maxLines: 1` with
+  /// ellipsis, and the full summaries run too long to fit alongside the
+  /// leading icon and trailing chevron on narrow screens. The full summary
+  /// still appears unclipped in the first-run checklist's wrapping subtitle
+  /// (see the `CheckboxListTile` below), so this only shortens what's shown
+  /// once already accepted.
+  String _shortSummary(ConsentDocument doc) {
+    switch (doc.documentType) {
+      case 'privacy_policy':
+        return 'How we handle your data';
+      case 'terms_of_service':
+        return 'Rules for using the app';
+      default:
+        return doc.summary;
+    }
+  }
+
   void _showDocument(ConsentDocument doc) {
     showDialog<void>(
       context: context,
@@ -163,7 +181,7 @@ class _ConsentScreenState extends ConsumerState<ConsentScreen> {
                 GroupRow(
                   leadingIcon: Icons.description_outlined,
                   title: doc.label,
-                  subtitle: doc.summary,
+                  subtitle: _shortSummary(doc),
                   trailing: const Icon(Icons.chevron_right),
                   onTap: () => _showDocument(doc),
                 ),
