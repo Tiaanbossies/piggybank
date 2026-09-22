@@ -235,14 +235,40 @@ class _DetectionSettingsScreenState extends ConsumerState<DetectionSettingsScree
         ),
         const SizedBox(height: 16),
         Card(
-          child: ListTile(
-            leading: Icon(_consentAccepted ? Icons.check_circle_outline : Icons.privacy_tip_outlined),
-            title: const Text('Feature consent'),
-            subtitle: Text(_consentAccepted ? 'Accepted' : 'Not yet accepted'),
-            trailing: _consentAccepted
-                ? null
-                : ElevatedButton(onPressed: _acceptConsent, child: const Text('Review & enable')),
-          ),
+          child: _consentAccepted
+              ? const ListTile(
+                  leading: Icon(Icons.check_circle_outline),
+                  title: Text('Feature consent'),
+                  subtitle: Text('Accepted'),
+                )
+              : Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Row(
+                        children: [
+                          const Icon(Icons.privacy_tip_outlined),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text('Feature consent', style: Theme.of(context).textTheme.titleMedium),
+                                const Text('Not yet accepted'),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: ElevatedButton(onPressed: _acceptConsent, child: const Text('Review & enable')),
+                      ),
+                    ],
+                  ),
+                ),
         ),
         if (_consentAccepted) ...[
           const SizedBox(height: 12),
