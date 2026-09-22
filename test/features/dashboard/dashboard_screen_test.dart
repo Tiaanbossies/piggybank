@@ -22,6 +22,7 @@ import 'package:piggybank/features/transactions/providers/transactions_provider.
 import 'package:piggybank/features/trends/screens/trends_screen.dart';
 import 'package:piggybank/features/updates/data/updates_api.dart';
 import 'package:piggybank/features/updates/models/latest_release.dart';
+import 'package:piggybank/shared/widgets/completed_goal_card.dart';
 import 'package:piggybank/shared/widgets/hero_metric_card.dart';
 import 'package:piggybank/shared/widgets/progress_card.dart';
 
@@ -54,6 +55,7 @@ Goal _goal({
   required String name,
   double target = 1000,
   double current = 250,
+  GoalStatus status = GoalStatus.active,
 }) =>
     Goal(
       id: id,
@@ -62,7 +64,7 @@ Goal _goal({
       currentAmount: Decimal.parse(current.toString()),
       targetDate: null,
       category: null,
-      status: GoalStatus.active,
+      status: status,
       notes: null,
       progressPct: (current / target) * 100,
     );
@@ -215,6 +217,29 @@ void main() {
       expect(find.byType(ProgressCard), findsOneWidget);
       final card = tester.widget<ProgressCard>(find.byType(ProgressCard));
       expect(card.title, 'Groceries');
+    });
+
+    testWidgets('renders the completed-goal treatment for a completed goal', (tester) async {
+      stubDefaults(goals: [_goal(id: 'g1', name: 'New Laptop', status: GoalStatus.completed)]);
+
+      await pumpApp(tester, const DashboardScreen(), overrides: overrides(), useAppTheme: true);
+      await tester.pumpAndSettle();
+
+      expect(find.byType(CompletedGoalCard), findsOneWidget);
+      expect(find.byType(ProgressCard), findsNothing);
+      final card = tester.widget<CompletedGoalCard>(find.byType(CompletedGoalCard));
+      expect(card.title, 'New Laptop');
+      expect(find.text('Goal complete!'), findsOneWidget);
+    });
+
+    testWidgets('renders the normal ProgressCard for an in-progress goal', (tester) async {
+      stubDefaults(goals: [_goal(id: 'g1', name: 'Emergency fund', status: GoalStatus.active)]);
+
+      await pumpApp(tester, const DashboardScreen(), overrides: overrides(), useAppTheme: true);
+      await tester.pumpAndSettle();
+
+      expect(find.byType(ProgressCard), findsOneWidget);
+      expect(find.byType(CompletedGoalCard), findsNothing);
     });
 
     testWidgets('shows nothing when neither a goal nor a budget exists', (tester) async {

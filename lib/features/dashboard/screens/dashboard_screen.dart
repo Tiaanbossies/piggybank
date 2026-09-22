@@ -7,6 +7,7 @@ import '../../../core/api/api_error.dart';
 import '../../../core/format/money.dart';
 import '../../../core/theme/app_motion.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../shared/widgets/completed_goal_card.dart';
 import '../../../shared/widgets/group_card.dart';
 import '../../../shared/widgets/hero_metric_card.dart';
 import '../../../shared/widgets/icon_chip.dart';
@@ -17,6 +18,7 @@ import '../../accounts/screens/accounts_screen.dart';
 import '../../assets/screens/assets_screen.dart';
 import '../../budgets/providers/budgets_provider.dart';
 import '../../calculators/screens/calculators_screen.dart';
+import '../../goals/models/goal.dart';
 import '../../goals/providers/goals_provider.dart';
 import '../../liabilities/screens/liabilities_screen.dart';
 import '../../summaries/providers/summaries_provider.dart';
@@ -326,12 +328,22 @@ class _ProgressBlock extends ConsumerWidget {
         ),
         data: (goals) {
           if (goals.isNotEmpty) {
+            // TODO(follow-up): goals.first is not filtered to exclude
+            // completed goals, so a fully-saved goal can keep occupying this
+            // "most relevant" slot instead of the Dashboard falling through
+            // to an actionable in-progress goal or budget. Out of scope for
+            // this fix, which only makes the completed state render
+            // correctly once shown — see the audit fix-it plan, Phase 3.
             final goal = goals.first;
+            final footnote = '${formatZAR(goal.currentAmount)} saved / ${formatZAR(goal.targetAmount)} goal';
+            if (goal.status == GoalStatus.completed) {
+              return CompletedGoalCard(key: const ValueKey('data'), title: goal.name, footnote: footnote);
+            }
             return ProgressCard(
               key: const ValueKey('data'),
               title: goal.name,
               pct: goal.progressPct / 100,
-              footnote: '${formatZAR(goal.currentAmount)} saved / ${formatZAR(goal.targetAmount)} goal',
+              footnote: footnote,
             );
           }
           return const _BudgetProgressFallback(key: ValueKey('data'));

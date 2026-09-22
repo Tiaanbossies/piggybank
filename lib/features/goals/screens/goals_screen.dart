@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/api/api_error.dart';
 import '../../../core/format/money.dart';
 import '../../../core/theme/app_motion.dart';
-import '../../../core/theme/app_theme.dart';
+import '../../../shared/widgets/completed_goal_card.dart';
 import '../../../shared/widgets/progress_card.dart';
 import '../../../shared/widgets/state_views.dart';
 import '../models/goal.dart';
@@ -77,65 +77,13 @@ class _GoalRow extends StatelessWidget {
     final footnote = '${formatZAR(goal.currentAmount)} saved / ${formatZAR(goal.targetAmount)} goal'
         '${targetDate == null ? '' : ' / by ${_formatDate(targetDate)}'}';
     final child = goal.status == GoalStatus.completed
-        ? _CompletedGoalCard(title: goal.name, footnote: footnote)
+        ? CompletedGoalCard(title: goal.name, footnote: footnote)
         : ProgressCard(
             title: goal.name,
             pct: goal.progressPct / 100,
             footnote: footnote,
           );
     return InkWell(onTap: () => showEditGoalSheet(context, goal), child: child);
-  }
-}
-
-/// Row card for a goal that has hit `GoalStatus.completed`, shown instead of
-/// the usual [ProgressCard] once there's nothing left to track progress
-/// toward. Matches [ProgressCard]'s card/padding shell (no shared `RowCard`
-/// widget exists to reuse) so it reads as the same list, not a new pattern.
-class _CompletedGoalCard extends StatelessWidget {
-  const _CompletedGoalCard({required this.title, required this.footnote});
-  final String title;
-  final String footnote;
-
-  @override
-  Widget build(BuildContext context) {
-    final semantic = Theme.of(context).extension<AppSemanticColors>();
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Row(
-          children: [
-            ClipRRect(
-              borderRadius: BorderRadius.circular(12),
-              child: Image.asset('assets/mascot_celebrating.jpg', width: 44, height: 44, fit: BoxFit.cover),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Expanded(child: Text(title, style: Theme.of(context).textTheme.titleMedium)),
-                      Text(
-                        'Goal complete!',
-                        style: TextStyle(
-                          color: Theme.of(context).colorScheme.primary,
-                          fontWeight: FontWeight.w600,
-                          fontSize: 13,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 4),
-                  Text(footnote, style: TextStyle(color: semantic?.textMuted, fontSize: 12)),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
   }
 }
 
