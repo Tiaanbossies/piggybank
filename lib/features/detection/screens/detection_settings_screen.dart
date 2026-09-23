@@ -30,6 +30,10 @@ class _DetectionSettingsScreenState extends ConsumerState<DetectionSettingsScree
   List<NotificationSource> _sources = [];
   List<EmailSource> _emailSources = [];
   GmailConnectionStatus _gmailStatus = const GmailConnectionStatus(connected: false);
+  /// Device-local, unlike _sources — the sender allowlist never leaves the
+  /// phone, so there is nothing on the server to reconcile it against.
+  Map<String, List<String>> _senderAllowlist = {};
+  Map<String, List<String>> _seenSenders = {};
   String? _error;
 
   @override
@@ -67,7 +71,10 @@ class _DetectionSettingsScreenState extends ConsumerState<DetectionSettingsScree
             c.documentVersion == notificationEmailDetectionConsentDocument.documentVersion,
       );
 
-      final listenerEnabled = await ref.read(notificationListenerChannelProvider).isEnabled();
+      final channel = ref.read(notificationListenerChannelProvider);
+      final listenerEnabled = await channel.isEnabled();
+      final senderAllowlist = await channel.senderAllowlist();
+      final seenSenders = await channel.seenSenders();
 
       List<NotificationSource> sources = [];
       List<EmailSource> emailSources = [];
@@ -94,6 +101,8 @@ class _DetectionSettingsScreenState extends ConsumerState<DetectionSettingsScree
         _consentAccepted = consentAccepted;
         _listenerEnabled = listenerEnabled;
         _sources = sources;
+        _senderAllowlist = senderAllowlist;
+        _seenSenders = seenSenders;
         _emailSources = emailSources;
         _gmailStatus = gmailStatus;
       });
@@ -120,6 +129,34 @@ class _DetectionSettingsScreenState extends ConsumerState<DetectionSettingsScree
   Future<void> _syncAllowlistToDevice(List<NotificationSource> sources) async {
     final packages = sources.where((s) => s.isActive).map((s) => s.appPackageName).toList();
     await ref.read(notificationListenerChannelProvider).updateAllowlist(packages);
+  }
+
+  String _senderSummary(String packageName) {
+    final allowed = _senderAllowlist[packageName] ?? const [];
+    if (allowed.isEmpty) return '$packageName — all senders';
+    return '$packageName — ${allowed.join(', ')}';
+  }
+
+  Future<void> _editSenders(NotificationSource source) async {
+    final result = await showDialog<List<String>>(
+      context: context,
+      builder: (context) => _SenderAllowlistDialog(
+        appLabel: source.appLabel,
+        seen: _seenSenders[source.appPackageName] ?? const [],
+        allowed: _senderAllowlist[source.appPackageName] ?? const [],
+      ),
+    );
+    if (result == null) return;
+
+    final next = {..._senderAllowlist};
+    if (result.isEmpty) {
+      next.remove(source.appPackageName);
+    } else {
+      next[source.appPackageName] = result;
+    }
+    await ref.read(notificationListenerChannelProvider).updateSenderAllowlist(next);
+    if (!mounted) return;
+    setState(() => _senderAllowlist = next);
   }
 
   Future<void> _addSource() async {
@@ -310,11 +347,21 @@ class _DetectionSettingsScreenState extends ConsumerState<DetectionSettingsScree
                   for (final source in _sources)
                     ListTile(
                       title: Text(source.appLabel),
-                      subtitle: Text(source.appPackageName),
-                      trailing: IconButton(
-                        icon: const Icon(Icons.delete_outline),
-                        tooltip: 'Remove app',
-                        onPressed: () => _removeSource(source),
+                      subtitle: Text(_senderSummary(source.appPackageName)),
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          IconButton(
+                            icon: const Icon(Icons.person_search_outlined),
+                            tooltip: 'Choose senders',
+                            onPressed: () => _editSenders(source),
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.delete_outline),
+                            tooltip: 'Remove app',
+                            onPressed: () => _removeSource(source),
+                          ),
+                        ],
                       ),
                     ),
                 ],
@@ -484,6 +531,87 @@ class _AddSourceDialogState extends State<_AddSourceDialog> {
             Navigator.of(context).pop((package: package, label: label));
           },
           child: const Text('Add'),
+        ),
+      ],
+    );
+  }
+}
+
+/// Picks which senders inside one app count as financial.
+///
+/// The list offered is the senders this phone has actually seen, because a
+/// bank's SMS short-name ("FNB", "Capitec", "32323") is not something anyone
+/// recalls on demand. Senders already allowed but not seen recently are kept
+/// in the list so that saving never quietly drops one.
+///
+/// Selecting nothing means "all senders" rather than "no senders": an empty
+/// allowlist is how the native filter says the check is off for this app,
+/// and a dialog that could silence an app entirely would be a foot-gun with
+/// no feedback — the app would simply stop producing transactions.
+class _SenderAllowlistDialog extends StatefulWidget {
+  const _SenderAllowlistDialog({
+    required this.appLabel,
+    required this.seen,
+    required this.allowed,
+  });
+
+  final String appLabel;
+  final List<String> seen;
+  final List<String> allowed;
+
+  @override
+  State<_SenderAllowlistDialog> createState() => _SenderAllowlistDialogState();
+}
+
+class _SenderAllowlistDialogState extends State<_SenderAllowlistDialog> {
+  late final List<String> _options = {...widget.allowed, ...widget.seen}.toList()..sort();
+  late final Set<String> _selected = {...widget.allowed};
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text('Senders in ${widget.appLabel}'),
+      content: SizedBox(
+        width: double.maxFinite,
+        child: _options.isEmpty
+            ? const Text(
+                'No senders seen from this app yet. Leave this until a few '
+                'notifications have come through, then everything it sends '
+                'will be listed here.',
+              )
+            : Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Leave all unticked to accept every sender.'),
+                  const SizedBox(height: 8),
+                  Flexible(
+                    child: ListView(
+                      shrinkWrap: true,
+                      children: [
+                        for (final sender in _options)
+                          CheckboxListTile(
+                            value: _selected.contains(sender),
+                            title: Text(sender),
+                            onChanged: (checked) => setState(() {
+                              if (checked ?? false) {
+                                _selected.add(sender);
+                              } else {
+                                _selected.remove(sender);
+                              }
+                            }),
+                          ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+      ),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+        FilledButton(
+          onPressed: () => Navigator.pop(context, _selected.toList()..sort()),
+          child: const Text('Save'),
         ),
       ],
     );
