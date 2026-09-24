@@ -157,6 +157,8 @@ class _EventCardState extends ConsumerState<_EventCard> {
                   if (extracted['date'] != null) _Field('Date', extracted['date'].toString()),
                   if (extracted['ticker'] != null) _Field('Ticker', extracted['ticker'].toString()),
                   if (extracted['description'] != null) _Field('Description', extracted['description'].toString()),
+                  if (extracted['suggested_category'] != null)
+                    _Field('Category', extracted['suggested_category'].toString()),
                 ],
               ),
             if (_error != null) ...[
@@ -238,6 +240,37 @@ class _ConfirmSheetState extends ConsumerState<_ConfirmSheet> {
   String _tradeType = 'buy';
   String? _error;
 
+  /// The backend's suggestion, from a learned rule or the AI categoriser
+  /// (`category_suggester.py`). Null for investment events, and for a
+  /// merchant seen for the first time while the categoriser was down.
+  String? get _suggestedCategory => widget.event.extractedJson?['suggested_category'] as String?;
+  String? get _suggestedSubcategory =>
+      widget.event.extractedJson?['suggested_subcategory'] as String?;
+
+  /// Only a learned rule ever suggests an account — the AI categoriser sees
+  /// the description text, which says nothing about which account was charged.
+  String? get _suggestedAccountId =>
+      widget.event.extractedJson?['suggested_account_id'] as String?;
+
+  /// `_accountId` can hold a suggested account that has since been deleted,
+  /// because the suggestion was written into the event at ingest time. A
+  /// DropdownButtonFormField asserts when its value isn't among its items,
+  /// and the backend 404s on an account the user no longer owns — so both
+  /// the dropdown and the submit go through this, not through `_accountId`.
+  String? get _validAccountId {
+    final accounts = ref.read(accountsProvider).valueOrNull;
+    if (accounts == null) return null;
+    return accounts.any((a) => a.id == _accountId) ? _accountId : null;
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _categoryController.text = _suggestedCategory ?? '';
+    _subcategoryController.text = _suggestedSubcategory ?? '';
+    _accountId = _suggestedAccountId;
+  }
+
   @override
   void dispose() {
     _categoryController.dispose();
@@ -255,7 +288,7 @@ class _ConfirmSheetState extends ConsumerState<_ConfirmSheet> {
         return;
       }
       Navigator.of(context).pop(_ConfirmResult(
-        accountId: _accountId,
+        accountId: _validAccountId,
         category: _categoryController.text.trim(),
         subcategory: _subcategoryController.text.trim().isEmpty ? null : _subcategoryController.text.trim(),
       ));
@@ -312,6 +345,7 @@ class _ConfirmSheetState extends ConsumerState<_ConfirmSheet> {
     final accountsAsync = ref.watch(accountsProvider);
     return [
       Autocomplete<String>(
+        initialValue: TextEditingValue(text: _suggestedCategory ?? ''),
         optionsBuilder: (value) {
           if (value.text.isEmpty) return commonCategories;
           return commonCategories.where((c) => c.toLowerCase().contains(value.text.toLowerCase()));
@@ -336,7 +370,7 @@ class _ConfirmSheetState extends ConsumerState<_ConfirmSheet> {
         loading: () => const LinearProgressIndicator(),
         error: (_, _) => const SizedBox.shrink(),
         data: (accounts) => DropdownButtonFormField<String>(
-          initialValue: _accountId,
+          initialValue: _validAccountId,
           decoration: const InputDecoration(labelText: 'Account (optional)'),
           items: [
             const DropdownMenuItem(child: Text('None')),

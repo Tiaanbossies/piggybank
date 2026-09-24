@@ -28,6 +28,35 @@ class NotificationListenerChannel {
   Future<void> updateAllowlist(List<String> packageNames) =>
       _channel.invokeMethod<void>('updateAllowlist', packageNames);
 
+  /// Pushes the per-app sender allowlist down to the native service, in
+  /// the same shape it stores: package name -> the senders allowed for it.
+  ///
+  /// An app with an empty list is treated natively as "no sender allowlist
+  /// configured", not "allow nothing" — clearing the list turns the sender
+  /// check off for that app rather than silencing it entirely.
+  Future<void> updateSenderAllowlist(Map<String, List<String>> byPackage) =>
+      _channel.invokeMethod<void>('updateSenderAllowlist', byPackage);
+
+  /// The per-app sender allowlist as the native side currently holds it.
+  /// Device-local, unlike the package allowlist, which the backend owns —
+  /// so this is the only copy, and nothing re-seeds it after a reinstall.
+  Future<Map<String, List<String>>> senderAllowlist() async {
+    final result = await _channel.invokeMethod<Map<dynamic, dynamic>>('senderAllowlist');
+    return (result ?? {}).map(
+      (key, value) => MapEntry(key as String, List<String>.from(value as List)),
+    );
+  }
+
+  /// The senders actually seen on this phone, per app. The settings screen
+  /// offers these instead of asking the user to recall a bank's SMS
+  /// short-name from memory.
+  Future<Map<String, List<String>>> seenSenders() async {
+    final result = await _channel.invokeMethod<Map<dynamic, dynamic>>('seenSenders');
+    return (result ?? {}).map(
+      (key, value) => MapEntry(key as String, List<String>.from(value as List)),
+    );
+  }
+
   /// Non-destructive read of the queued items (oldest first, capped at the
   /// backend's ~25-item ingest batch size). Callers must call
   /// [acknowledgeQueuedItems] only after a *successful* upload — peeking
