@@ -44,10 +44,15 @@ class EmptyState extends StatelessWidget {
 /// blank gap. Several async sections previously rendered `SizedBox.shrink()`
 /// on error (e.g. the Dashboard's cashflow strip and budget-progress
 /// block), giving no feedback at all when a fetch failed.
+///
+/// [onRetry] adds a Retry button (UX plan item 5): without one, a failed
+/// load on a bad-signal moment was a dead end until the user left the
+/// screen and came back. Callers pass a provider invalidate.
 class InlineError extends StatelessWidget {
-  const InlineError({required this.message, super.key});
+  const InlineError({required this.message, this.onRetry, super.key});
 
   final String message;
+  final VoidCallback? onRetry;
 
   @override
   Widget build(BuildContext context) {
@@ -60,6 +65,10 @@ class InlineError extends StatelessWidget {
           Icon(Icons.error_outline, size: 18, color: semantic?.danger),
           const SizedBox(width: 8),
           Flexible(child: Text(message, style: TextStyle(color: semantic?.danger))),
+          if (onRetry != null) ...[
+            const SizedBox(width: 4),
+            TextButton(onPressed: onRetry, child: const Text('Retry')),
+          ],
         ],
       ),
     );

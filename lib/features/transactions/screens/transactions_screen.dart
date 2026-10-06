@@ -6,6 +6,7 @@ import '../../../core/format/dates.dart';
 import '../../../core/format/money.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/group_card.dart';
+import '../../../shared/widgets/state_views.dart';
 import '../../accounts/providers/accounts_provider.dart';
 import '../../expenses/screens/expenses_summary_screen.dart';
 import '../../imports/screens/imports_screen.dart';
@@ -90,7 +91,18 @@ class TransactionsScreen extends ConsumerWidget {
                 },
                 child: currentPage.when(
                   loading: () => const Center(child: CircularProgressIndicator()),
-                  error: (err, _) => Center(child: Text(err is ApiError ? err.message : 'Failed to load transactions')),
+                  // Was plain text inside a RefreshIndicator over a
+                  // non-scrollable Center, so pull-to-refresh couldn't fire
+                  // either — the shared treatment, with a way out.
+                  error: (err, _) => Center(
+                    child: InlineError(
+                      message: err is ApiError ? err.message : 'Failed to load transactions',
+                      onRetry: () {
+                        ref.read(transactionPaginationProvider.notifier).reset();
+                        ref.invalidate(transactionsProvider);
+                      },
+                    ),
+                  ),
                   data: (page) {
                     final accumulated = ref.watch(accumulatedTransactionsProvider);
                     

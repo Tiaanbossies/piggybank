@@ -183,4 +183,21 @@ void main() {
     expect(find.text('Cash'), findsOneWidget);
     expect(find.text('No account'), findsNothing);
   });
+
+  testWidgets("accounts failing to load says so, with Retry, instead of hiding the field", (tester) async {
+    var calls = 0;
+    when(() => mockAccountsApi.list(includeInactive: any(named: 'includeInactive'))).thenAnswer((_) async {
+      calls++;
+      if (calls == 1) throw Exception('offline');
+      return [_cash];
+    });
+    await openSheet(tester);
+
+    expect(find.text("Couldn't load your accounts"), findsOneWidget);
+    await tester.tap(find.widgetWithText(TextButton, 'Retry'));
+    await tester.pumpAndSettle();
+
+    expect(find.text("Couldn't load your accounts"), findsNothing);
+    expect(find.text('No account'), findsOneWidget);
+  });
 }
