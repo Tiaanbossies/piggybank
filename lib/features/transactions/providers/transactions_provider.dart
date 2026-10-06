@@ -1,6 +1,8 @@
+import 'package:decimal/decimal.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/auth/auth_controller.dart';
+import '../../../core/format/dates.dart';
 import '../data/transactions_api.dart';
 import '../models/transaction.dart';
 
@@ -89,6 +91,21 @@ final transactionsProvider = FutureProvider.autoDispose<TransactionsPage>((ref) 
 /// never reflects filters set on the full Transactions screen.
 final recentTransactionsProvider = FutureProvider.autoDispose<TransactionsPage>((ref) {
   return ref.watch(transactionsApiProvider).list(limit: 5);
+});
+
+/// Total spent today — the Dashboard's daily headline (UX plan item 1).
+/// Summed client-side because `/summaries/cashflow` only knows the month.
+/// One page at the backend's maximum of 200 is a day's worth with room to
+/// spare; a day beyond that undercounts rather than paging the Dashboard.
+final todaySpendProvider = FutureProvider.autoDispose<Decimal>((ref) async {
+  final today = dateOnly(DateTime.now());
+  final page = await ref.watch(transactionsApiProvider).list(
+        transactionType: TransactionType.expense,
+        dateFrom: today,
+        dateTo: today,
+        limit: 200,
+      );
+  return page.items.fold<Decimal>(Decimal.zero, (sum, t) => sum + t.amount);
 });
 
 /// One account's recent transactions, for the read-only Account detail

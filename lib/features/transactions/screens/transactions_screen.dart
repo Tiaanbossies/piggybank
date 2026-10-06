@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/api/api_error.dart';
+import '../../../core/format/dates.dart';
 import '../../../core/format/money.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/group_card.dart';
@@ -174,17 +175,7 @@ class TransactionsScreen extends ConsumerWidget {
     return groups;
   }
 
-  String _formatGroupDate(DateTime date) {
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-    final yesterday = today.subtract(const Duration(days: 1));
-    if (date == today) return 'Today';
-    if (date == yesterday) return 'Yesterday';
-    const months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec', //
-    ];
-    return '${date.day} ${months[date.month - 1]} ${date.year}';
-  }
+  String _formatGroupDate(DateTime date) => dayLabel(date);
 }
 
 class _TransactionRow extends ConsumerWidget {
