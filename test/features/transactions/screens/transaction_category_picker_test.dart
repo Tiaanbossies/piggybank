@@ -1,18 +1,13 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:piggybank/features/transactions/screens/transactions_screen.dart';
+
+import '../../../test_helpers/pump_app.dart';
 
 void main() {
   group('Transaction Category Picker Widget', () {
     testWidgets('DropdownButtonFormField renders on transactions screen', (WidgetTester tester) async {
-      await tester.pumpWidget(
-        const ProviderScope(
-          child: MaterialApp(
-            home: TransactionsScreen(),
-          ),
-        ),
-      );
+      await pumpApp(tester, const TransactionsScreen());
 
       // Wait for the screen to fully load
       await tester.pumpAndSettle();
@@ -26,13 +21,7 @@ void main() {
     });
 
     testWidgets('Category dropdown has label "Category"', (WidgetTester tester) async {
-      await tester.pumpWidget(
-        const ProviderScope(
-          child: MaterialApp(
-            home: TransactionsScreen(),
-          ),
-        ),
-      );
+      await pumpApp(tester, const TransactionsScreen());
 
       await tester.pumpAndSettle();
 
@@ -45,13 +34,7 @@ void main() {
     });
 
     testWidgets('Dropdown is decorated with outline border', (WidgetTester tester) async {
-      await tester.pumpWidget(
-        const ProviderScope(
-          child: MaterialApp(
-            home: TransactionsScreen(),
-          ),
-        ),
-      );
+      await pumpApp(tester, const TransactionsScreen());
 
       await tester.pumpAndSettle();
 

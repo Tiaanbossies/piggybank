@@ -29,6 +29,7 @@ import '../../summaries/providers/summaries_provider.dart';
 import '../../transactions/category_icons.dart';
 import '../../transactions/providers/transactions_provider.dart';
 import '../../transactions/screens/transactions_screen.dart';
+import '../../transactions/widgets/transaction_sheet.dart';
 import '../../trends/screens/trends_screen.dart';
 import '../../updates/models/latest_release.dart';
 import '../../updates/providers/updates_provider.dart';
@@ -73,7 +74,10 @@ class DashboardScreen extends ConsumerWidget {
             ref.invalidate(pendingEventsProvider);
           },
           child: ListView(
-            padding: const EdgeInsets.all(16),
+            // The bottom inset clears the Add button (56) plus its margin,
+            // so it never sits over the last recent transaction — the
+            // overlap the 2026-09-21 audit logged as H2 on other screens.
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 96),
             children: const [
               _UpdateBanner(),
               _ReviewBanner(),
@@ -91,6 +95,13 @@ class DashboardScreen extends ConsumerWidget {
             ],
           ),
         ),
+      ),
+      // Quick add (UX plan item 2, decision D2): the cash coffee gets logged
+      // from where the day starts, not three screens down Transactions.
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () => showTransactionSheet(context),
+        icon: const Icon(Icons.add),
+        label: const Text('Add'),
       ),
     );
   }

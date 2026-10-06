@@ -26,6 +26,7 @@ import 'package:piggybank/features/summaries/providers/summaries_provider.dart';
 import 'package:piggybank/features/transactions/data/transactions_api.dart';
 import 'package:piggybank/features/transactions/models/transaction.dart';
 import 'package:piggybank/features/transactions/providers/transactions_provider.dart';
+import 'package:piggybank/features/transactions/widgets/transaction_sheet.dart';
 import 'package:piggybank/features/trends/screens/trends_screen.dart';
 import 'package:piggybank/features/updates/data/updates_api.dart';
 import 'package:piggybank/features/updates/models/latest_release.dart';
@@ -592,6 +593,19 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.byType(PendingReviewScreen), findsOneWidget);
+    });
+  });
+
+  group('Quick add', () {
+    testWidgets('the Add button opens the add-transaction sheet from Home', (tester) async {
+      await pumpApp(tester, const DashboardScreen(), overrides: overrides(), useAppTheme: true);
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.widgetWithText(FloatingActionButton, 'Add'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(TransactionSheet), findsOneWidget);
+      expect(find.text('Add transaction'), findsOneWidget);
     });
   });
 }
