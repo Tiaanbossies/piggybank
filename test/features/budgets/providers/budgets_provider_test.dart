@@ -225,4 +225,50 @@ void main() {
       verify(() => mockApi.delete('bud-1')).called(1);
     });
   });
+
+  group('SelectedMonthNotifier.syncToCurrentMonth (UX plan item 4)', () {
+    test('jumps to the new month once the calendar month has turned', () {
+      var now = DateTime(2026, 9, 30, 22);
+      final notifier = SelectedMonthNotifier(clock: () => now);
+      expect(notifier.state, DateTime(2026, 9, 1));
+
+      now = DateTime(2026, 10, 6, 7);
+      notifier.syncToCurrentMonth();
+
+      expect(notifier.state, DateTime(2026, 10, 1));
+    });
+
+    test('a turned month wins even over a month the user browsed to', () {
+      var now = DateTime(2026, 9, 30);
+      final notifier = SelectedMonthNotifier(clock: () => now)..previous(); // August
+
+      now = DateTime(2026, 10, 1);
+      notifier.syncToCurrentMonth();
+
+      expect(notifier.state, DateTime(2026, 10, 1));
+    });
+
+    test('within the same month, a browsed-to month is left alone', () {
+      final notifier = SelectedMonthNotifier(clock: () => DateTime(2026, 10, 6))..previous(); // September
+
+      notifier.syncToCurrentMonth();
+
+      expect(notifier.state, DateTime(2026, 9, 1));
+    });
+  });
+
+  group('currentMonthBudgetProgressProvider', () {
+    test("asks for this calendar month, not the Budgets tab's browsed month", () async {
+      final mockApi = _MockBudgetsApi();
+      final container = ProviderContainer(overrides: [budgetsApiProvider.overrideWithValue(mockApi)]);
+      addTearDown(container.dispose);
+      when(() => mockApi.progress(any())).thenAnswer((_) async => []);
+
+      container.read(selectedBudgetMonthProvider.notifier).previous();
+      await container.read(currentMonthBudgetProgressProvider.future);
+
+      final now = DateTime.now();
+      verify(() => mockApi.progress(DateTime(now.year, now.month, 1))).called(1);
+    });
+  });
 }

@@ -316,6 +316,46 @@ void main() {
   });
 
   group('Progress block (goal-or-budget fallback)', () {
+    testWidgets('an over-budget category beats an in-progress goal', (tester) async {
+      stubDefaults(
+        goals: [_goal(id: 'g1', name: 'Emergency fund')],
+        budgets: [_budget(id: 'b1', category: 'Groceries'), _budget(id: 'b2', category: 'Dining Out', overBudget: true)],
+      );
+
+      await pumpApp(tester, const DashboardScreen(), overrides: overrides(), useAppTheme: true);
+      await tester.pumpAndSettle();
+
+      final card = tester.widget<ProgressCard>(find.byType(ProgressCard));
+      expect(card.title, 'Dining Out');
+      expect(card.overBudget, isTrue);
+    });
+
+    testWidgets('a completed goal gives way to one still in progress', (tester) async {
+      stubDefaults(goals: [
+        _goal(id: 'g1', name: 'New laptop', current: 1000, status: GoalStatus.completed),
+        _goal(id: 'g2', name: 'House deposit'),
+      ]);
+
+      await pumpApp(tester, const DashboardScreen(), overrides: overrides(), useAppTheme: true);
+      await tester.pumpAndSettle();
+
+      expect(find.byType(CompletedGoalCard), findsNothing);
+      expect(tester.widget<ProgressCard>(find.byType(ProgressCard)).title, 'House deposit');
+    });
+
+    testWidgets('a completed goal gives way to a live budget too', (tester) async {
+      stubDefaults(
+        goals: [_goal(id: 'g1', name: 'New laptop', current: 1000, status: GoalStatus.completed)],
+        budgets: [_budget(id: 'b1', category: 'Groceries')],
+      );
+
+      await pumpApp(tester, const DashboardScreen(), overrides: overrides(), useAppTheme: true);
+      await tester.pumpAndSettle();
+
+      expect(find.byType(CompletedGoalCard), findsNothing);
+      expect(tester.widget<ProgressCard>(find.byType(ProgressCard)).title, 'Groceries');
+    });
+
     testWidgets('shows the goal when a goal exists, even if a budget also exists', (tester) async {
       stubDefaults(
         goals: [_goal(id: 'g1', name: 'Emergency fund')],

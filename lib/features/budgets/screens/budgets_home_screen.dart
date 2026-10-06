@@ -1,20 +1,41 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../goals/screens/goals_screen.dart';
+import '../providers/budgets_provider.dart';
 import 'budgets_screen.dart';
 
 /// Hosts the Budgets tab: a segmented toggle between Budgets and Goals
 /// (grouped together per the Phase 2 plan scope; DESIGN.md's 5-tab nav has
 /// no dedicated Goals slot).
-class BudgetsHomeScreen extends StatefulWidget {
+class BudgetsHomeScreen extends ConsumerStatefulWidget {
   const BudgetsHomeScreen({super.key});
 
   @override
-  State<BudgetsHomeScreen> createState() => _BudgetsHomeScreenState();
+  ConsumerState<BudgetsHomeScreen> createState() => _BudgetsHomeScreenState();
 }
 
-class _BudgetsHomeScreenState extends State<BudgetsHomeScreen> {
+class _BudgetsHomeScreenState extends ConsumerState<BudgetsHomeScreen> {
   int _segment = 0;
+
+  /// The tab stays alive in the shell's IndexedStack for as long as the
+  /// app process does — days, on a phone — so "open the app" is usually a
+  /// resume, not a rebuild. That's the moment a turned month must show.
+  late final AppLifecycleListener _lifecycle;
+
+  @override
+  void initState() {
+    super.initState();
+    _lifecycle = AppLifecycleListener(
+      onResume: () => ref.read(selectedBudgetMonthProvider.notifier).syncToCurrentMonth(),
+    );
+  }
+
+  @override
+  void dispose() {
+    _lifecycle.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
