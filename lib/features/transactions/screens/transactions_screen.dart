@@ -12,6 +12,7 @@ import '../../imports/screens/imports_screen.dart';
 import '../category_icons.dart';
 import '../models/transaction.dart';
 import '../providers/transactions_provider.dart';
+import '../widgets/transaction_sheet.dart';
 
 /// Grouped-list-cells pattern per DESIGN.md § Transactions: rows grouped by
 /// date (newest first), tapping a row opens an edit sheet reusing the same
@@ -147,11 +148,7 @@ class TransactionsScreen extends ConsumerWidget {
         ),
       ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => showModalBottomSheet(
-          context: context,
-          isScrollControlled: true,
-          builder: (_) => const _TransactionSheet(),
-        ),
+        onPressed: () => showTransactionSheet(context),
         label: const Text('Add transaction'),
         icon: const Icon(Icons.add),
       ),
@@ -207,210 +204,7 @@ class _TransactionRow extends ConsumerWidget {
           color: isIncome ? semantic?.success : (isExpense ? semantic?.danger : null),
         ),
       ),
-      onTap: () => showModalBottomSheet(
-        context: context,
-        isScrollControlled: true,
-        builder: (_) => _TransactionSheet(existing: transaction),
-      ),
-    );
-  }
-}
-
-class _TransactionSheet extends ConsumerStatefulWidget {
-  const _TransactionSheet({this.existing});
-  final Transaction? existing;
-
-  @override
-  ConsumerState<_TransactionSheet> createState() => _TransactionSheetState();
-}
-
-class _TransactionSheetState extends ConsumerState<_TransactionSheet> {
-  late final TextEditingController _categoryController;
-  late final TextEditingController _amountController;
-  late final TextEditingController _merchantController;
-  late final TextEditingController _notesController;
-  late TransactionType _type;
-  late DateTime _date;
-  String? _accountId;
-  bool _submitting = false;
-  bool _deleting = false;
-  String? _error;
-
-  @override
-  void initState() {
-    super.initState();
-    final existing = widget.existing;
-    _categoryController = TextEditingController(text: existing?.category ?? '');
-    _amountController = TextEditingController(text: existing != null ? existing.amount.toString() : '');
-    _merchantController = TextEditingController(text: existing?.merchantName ?? '');
-    _notesController = TextEditingController(text: existing?.notes ?? '');
-    _type = existing?.transactionType ?? TransactionType.expense;
-    _date = existing?.transactionDate ?? DateTime.now();
-    _accountId = existing?.accountId;
-  }
-
-  @override
-  void dispose() {
-    _categoryController.dispose();
-    _amountController.dispose();
-    _merchantController.dispose();
-    _notesController.dispose();
-    super.dispose();
-  }
-
-  Future<void> _submit() async {
-    setState(() {
-      _submitting = true;
-      _error = null;
-    });
-    try {
-      final api = ref.read(transactionsApiProvider);
-      if (widget.existing == null) {
-        await api.create(
-          accountId: _accountId,
-          transactionType: _type,
-          category: _categoryController.text.trim(),
-          amount: _amountController.text.trim(),
-          transactionDate: _date,
-          merchantName: _merchantController.text.trim().isEmpty ? null : _merchantController.text.trim(),
-          notes: _notesController.text.trim().isEmpty ? null : _notesController.text.trim(),
-        );
-      } else {
-        await api.update(
-          widget.existing!.id,
-          accountId: _accountId,
-          transactionType: _type,
-          category: _categoryController.text.trim(),
-          amount: _amountController.text.trim(),
-          transactionDate: _date,
-          merchantName: _merchantController.text.trim().isEmpty ? null : _merchantController.text.trim(),
-          notes: _notesController.text.trim().isEmpty ? null : _notesController.text.trim(),
-        );
-      }
-      ref.invalidate(transactionsProvider);
-      if (mounted) Navigator.of(context).pop();
-    } on ApiError catch (e) {
-      setState(() => _error = e.message);
-    } finally {
-      if (mounted) setState(() => _submitting = false);
-    }
-  }
-
-  Future<void> _delete() async {
-    final existing = widget.existing;
-    if (existing == null) return;
-    setState(() {
-      _deleting = true;
-      _error = null;
-    });
-    try {
-      await ref.read(transactionsApiProvider).delete(existing.id);
-      ref.invalidate(transactionsProvider);
-      if (mounted) Navigator.of(context).pop();
-    } on ApiError catch (e) {
-      setState(() => _error = e.message);
-    } finally {
-      if (mounted) setState(() => _deleting = false);
-    }
-  }
-
-  Future<void> _pickDate() async {
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: _date,
-      firstDate: DateTime(2000),
-      lastDate: DateTime.now().add(const Duration(days: 1)),
-    );
-    if (picked != null) setState(() => _date = picked);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final accountsAsync = ref.watch(accountsProvider);
-    final busy = _submitting || _deleting;
-
-    return Padding(
-      padding: EdgeInsets.only(left: 24, right: 24, top: 24, bottom: MediaQuery.of(context).viewInsets.bottom + 24),
-      child: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text(widget.existing == null ? 'Add transaction' : 'Edit transaction', style: Theme.of(context).textTheme.titleLarge),
-            const SizedBox(height: 16),
-            SegmentedButton<TransactionType>(
-              segments: const [
-                ButtonSegment(value: TransactionType.expense, label: Text('Expense')),
-                ButtonSegment(value: TransactionType.income, label: Text('Income')),
-                ButtonSegment(value: TransactionType.transfer, label: Text('Transfer')),
-              ],
-              selected: {_type},
-              onSelectionChanged: (selection) => setState(() => _type = selection.first),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: _amountController,
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              decoration: const InputDecoration(labelText: 'Amount (ZAR)'),
-            ),
-            const SizedBox(height: 16),
-            DropdownButtonFormField<String>(
-              initialValue: _categoryController.text.isEmpty ? null : _categoryController.text,
-              decoration: const InputDecoration(labelText: 'Category'),
-              items: ref.watch(transactionCategoriesProvider).map((category) {
-                return DropdownMenuItem(value: category, child: Text(category));
-              }).toList(),
-              onChanged: (value) {
-                if (value != null) {
-                  setState(() => _categoryController.text = value);
-                }
-              },
-              isExpanded: true,
-            ),
-            const SizedBox(height: 16),
-            TextField(controller: _merchantController, decoration: const InputDecoration(labelText: 'Merchant (optional)')),
-            const SizedBox(height: 16),
-            accountsAsync.when(
-              loading: () => const SizedBox.shrink(),
-              error: (_, _) => const SizedBox.shrink(),
-              data: (accounts) => DropdownButtonFormField<String?>(
-                initialValue: _accountId,
-                decoration: const InputDecoration(labelText: 'Account (optional)'),
-                items: [
-                  const DropdownMenuItem(value: null, child: Text('No account')),
-                  for (final a in accounts.where((a) => a.isActive)) DropdownMenuItem(value: a.id, child: Text(a.name)),
-                ],
-                onChanged: (value) => setState(() => _accountId = value),
-              ),
-            ),
-            const SizedBox(height: 16),
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              title: const Text('Date'),
-              subtitle: Text('${_date.year}-${_date.month.toString().padLeft(2, '0')}-${_date.day.toString().padLeft(2, '0')}'),
-              trailing: const Icon(Icons.calendar_today),
-              onTap: _pickDate,
-            ),
-            TextField(controller: _notesController, decoration: const InputDecoration(labelText: 'Notes (optional)'), maxLines: 2),
-            if (_error != null) ...[
-              const SizedBox(height: 12),
-              Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
-            ],
-            const SizedBox(height: 24),
-            ElevatedButton(
-              onPressed: busy ? null : _submit,
-              child: _submitting ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2)) : const Text('Save'),
-            ),
-            if (widget.existing != null) ...[
-              const SizedBox(height: 12),
-              TextButton(
-                onPressed: busy ? null : _delete,
-                child: Text('Delete', style: TextStyle(color: Theme.of(context).colorScheme.error)),
-              ),
-            ],
-          ],
-        ),
-      ),
+      onTap: () => showTransactionSheet(context, existing: transaction),
     );
   }
 }
