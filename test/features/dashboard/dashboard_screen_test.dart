@@ -6,10 +6,17 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:piggybank/core/api/api_error.dart';
+import 'package:piggybank/features/accounts/data/accounts_api.dart';
+import 'package:piggybank/features/accounts/providers/accounts_provider.dart';
 import 'package:piggybank/features/budgets/data/budgets_api.dart';
 import 'package:piggybank/features/budgets/models/budget.dart';
 import 'package:piggybank/features/budgets/providers/budgets_provider.dart';
 import 'package:piggybank/features/dashboard/screens/dashboard_screen.dart';
+import 'package:piggybank/features/detection/data/detection_api.dart';
+import 'package:piggybank/features/detection/models/detected_event.dart';
+import 'package:piggybank/features/detection/providers/detection_provider.dart';
+import 'package:piggybank/features/detection/screens/pending_review_screen.dart';
 import 'package:piggybank/features/goals/data/goals_api.dart';
 import 'package:piggybank/features/goals/models/goal.dart';
 import 'package:piggybank/features/goals/providers/goals_provider.dart';
@@ -37,6 +44,22 @@ class _MockBudgetsApi extends Mock implements BudgetsApi {}
 class _MockTransactionsApi extends Mock implements TransactionsApi {}
 
 class _MockUpdatesApi extends Mock implements UpdatesApi {}
+
+class _MockDetectionApi extends Mock implements DetectionApi {}
+
+class _MockAccountsApi extends Mock implements AccountsApi {}
+
+DetectedEvent _detected(String id, {DetectionStatus status = DetectionStatus.pending}) => DetectedEvent(
+      id: id,
+      sourceType: DetectionSourceType.notification,
+      sourceRef: 'za.co.fnb.connect.itest',
+      rawText: 'You spent R50.00 at Spar',
+      capturedAt: DateTime(2026, 10, 5, 9),
+      status: status,
+      extractedJson: const {'event_kind': 'transaction', 'amount': '50.00', 'description': 'Spar'},
+      eventKind: 'transaction',
+      errorReason: null,
+    );
 
 NetWorthSummary _netWorth(double value) => NetWorthSummary(
       totalAssets: Decimal.parse(value.toString()),
@@ -116,6 +139,8 @@ void main() {
   late _MockBudgetsApi mockBudgetsApi;
   late _MockTransactionsApi mockTransactionsApi;
   late _MockUpdatesApi mockUpdatesApi;
+  late _MockDetectionApi mockDetectionApi;
+  late _MockAccountsApi mockAccountsApi;
 
   List<Override> overrides() => [
         summariesApiProvider.overrideWithValue(mockSummariesApi),
@@ -123,6 +148,8 @@ void main() {
         budgetsApiProvider.overrideWithValue(mockBudgetsApi),
         transactionsApiProvider.overrideWithValue(mockTransactionsApi),
         updatesApiProvider.overrideWithValue(mockUpdatesApi),
+        detectionApiProvider.overrideWithValue(mockDetectionApi),
+        accountsApiProvider.overrideWithValue(mockAccountsApi),
       ];
 
   /// Stubs every dashboard-consumed API call with a successful, empty-ish
@@ -134,6 +161,7 @@ void main() {
     List<BudgetProgress>? budgets,
     List<Transaction>? recentTransactions,
     LatestRelease? latestRelease,
+    List<DetectedEvent>? pendingEvents,
   }) {
     when(() => mockSummariesApi.netWorth()).thenAnswer((_) async => netWorth ?? _netWorth(10000));
     when(() => mockSummariesApi.cashflow())
@@ -146,6 +174,10 @@ void main() {
     // Defaults to "no release published yet" so pre-existing tests that
     // don't care about the update banner never see it.
     when(() => mockUpdatesApi.latest()).thenAnswer((_) async => latestRelease);
+    // Defaults to an empty review queue so the "N to review" card stays
+    // hidden for every test that isn't about it.
+    when(() => mockDetectionApi.listPending()).thenAnswer((_) async => pendingEvents ?? const []);
+    when(() => mockAccountsApi.list(includeInactive: any(named: 'includeInactive'))).thenAnswer((_) async => []);
   }
 
   setUp(() {
@@ -154,6 +186,8 @@ void main() {
     mockBudgetsApi = _MockBudgetsApi();
     mockTransactionsApi = _MockTransactionsApi();
     mockUpdatesApi = _MockUpdatesApi();
+    mockDetectionApi = _MockDetectionApi();
+    mockAccountsApi = _MockAccountsApi();
     // This install's own build number, as `about_screen.dart` reads it via
     // the same `PackageInfo.fromPlatform()` call the update banner uses.
     PackageInfo.setMockInitialValues(
@@ -425,6 +459,50 @@ void main() {
       expect(find.text('Income'), findsNothing);
       expect(find.text('Expenses'), findsNothing);
       expect(find.byType(HeroMetricCard), findsOneWidget);
+    });
+  });
+
+  group('Review card', () {
+    testWidgets('is hidden when nothing is waiting for review', (tester) async {
+      await pumpApp(tester, const DashboardScreen(), overrides: overrides(), useAppTheme: true);
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('to review'), findsNothing);
+    });
+
+    testWidgets('counts only pending items, not skipped_invalid ones', (tester) async {
+      stubDefaults(pendingEvents: [
+        _detected('a'),
+        _detected('b'),
+        _detected('c', status: DetectionStatus.skippedInvalid),
+      ]);
+
+      await pumpApp(tester, const DashboardScreen(), overrides: overrides(), useAppTheme: true);
+      await tester.pumpAndSettle();
+
+      expect(find.text('2 new transactions to review'), findsOneWidget);
+    });
+
+    testWidgets('stays hidden when detection is unavailable', (tester) async {
+      when(() => mockDetectionApi.listPending())
+          .thenAnswer((_) async => throw const ApiError(statusCode: 403, message: 'consent required'));
+
+      await pumpApp(tester, const DashboardScreen(), overrides: overrides(), useAppTheme: true);
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('to review'), findsNothing);
+      expect(find.textContaining('consent required'), findsNothing);
+    });
+
+    testWidgets('tapping it opens the review screen', (tester) async {
+      stubDefaults(pendingEvents: [_detected('a')]);
+
+      await pumpApp(tester, const DashboardScreen(), overrides: overrides(), useAppTheme: true);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('1 new transaction to review'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(PendingReviewScreen), findsOneWidget);
     });
   });
 }
