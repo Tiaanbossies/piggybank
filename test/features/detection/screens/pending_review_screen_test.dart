@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
+import 'package:piggybank/core/api/api_error.dart';
 import 'package:piggybank/features/accounts/data/accounts_api.dart';
 import 'package:piggybank/features/accounts/providers/accounts_provider.dart';
 import 'package:piggybank/features/detection/data/detection_api.dart';
@@ -45,6 +46,30 @@ DetectedEvent _skippedInvalid({String id = 'evt-2'}) => DetectedEvent(
       eventKind: null,
       errorReason: 'model response unparseable',
     );
+
+/// A transaction the backend already categorised — the one-tap case.
+DetectedEvent _suggestedTransaction({String id = 'evt-3'}) => DetectedEvent(
+      id: id,
+      sourceType: DetectionSourceType.notification,
+      sourceRef: 'za.co.fnb.connect.itest',
+      rawText: 'You spent R80.00 at Spar',
+      capturedAt: DateTime(2026, 10, 5, 9),
+      status: DetectionStatus.pending,
+      extractedJson: const {
+        'event_kind': 'transaction',
+        'transaction_type': 'expense',
+        'amount': '80.00',
+        'description': 'Spar',
+        'suggested_category': 'Groceries',
+        'suggested_subcategory': 'Weekly shop',
+      },
+      eventKind: 'transaction',
+      errorReason: null,
+    );
+
+/// Longer than the screen's 4s Undo snackbar, so its `closed` future has
+/// completed and the held-back request has been sent.
+const _undoWindow = Duration(seconds: 5);
 
 void main() {
   late _MockDetectionApi mockApi;
@@ -103,6 +128,13 @@ void main() {
     await tester.tap(find.widgetWithText(TextButton, 'Discard'));
     await tester.pumpAndSettle();
 
+    // Hidden at once, but only sent once the Undo window closes.
+    expect(find.text('za.co.fnb.connect.itest'), findsNothing);
+    verifyNever(() => mockApi.discardEvent(any()));
+
+    await tester.pump(_undoWindow);
+    await tester.pumpAndSettle();
+
     verify(() => mockApi.discardEvent('evt-1')).called(1);
   });
 
@@ -146,6 +178,8 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.widgetWithText(ElevatedButton, 'Confirm').last);
     await tester.pumpAndSettle();
+    await tester.pump(_undoWindow);
+    await tester.pumpAndSettle();
 
     verify(() => mockApi.confirmEvent(
           'evt-1',
@@ -157,5 +191,147 @@ void main() {
           pricePerUnit: null,
           tradeType: null,
         )).called(1);
+  });
+
+  group('one-tap review', () {
+    void stubConfirm() {
+      when(() => mockApi.confirmEvent(
+            any(),
+            accountId: any(named: 'accountId'),
+            category: any(named: 'category'),
+            subcategory: any(named: 'subcategory'),
+            holdingId: any(named: 'holdingId'),
+            quantity: any(named: 'quantity'),
+            pricePerUnit: any(named: 'pricePerUnit'),
+            tradeType: any(named: 'tradeType'),
+          )).thenAnswer((_) async => _suggestedTransaction());
+    }
+
+    testWidgets('shows what a tap will file it as, plus an Edit escape hatch', (tester) async {
+      when(() => mockApi.listPending()).thenAnswer((_) async => [_suggestedTransaction()]);
+
+      await pumpApp(tester, const PendingReviewScreen(), overrides: overrides());
+      await tester.pumpAndSettle();
+
+      expect(find.text('Groceries › Weekly shop'), findsOneWidget);
+      expect(find.widgetWithText(TextButton, 'Edit'), findsOneWidget);
+    });
+
+    testWidgets('Confirm sends the suggestion straight away — no sheet', (tester) async {
+      when(() => mockApi.listPending()).thenAnswer((_) async => [_suggestedTransaction()]);
+      stubConfirm();
+
+      await pumpApp(tester, const PendingReviewScreen(), overrides: overrides());
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(ElevatedButton, 'Confirm'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Confirm transaction'), findsNothing); // the sheet's title
+      expect(find.textContaining('Confirmed · Spar · Groceries'), findsOneWidget);
+
+      await tester.pump(_undoWindow);
+      await tester.pumpAndSettle();
+
+      verify(() => mockApi.confirmEvent(
+            'evt-3',
+            accountId: null,
+            category: 'Groceries',
+            subcategory: 'Weekly shop',
+            holdingId: null,
+            quantity: null,
+            pricePerUnit: null,
+            tradeType: null,
+          )).called(1);
+    });
+
+    testWidgets('Undo puts the card back and never calls the backend', (tester) async {
+      when(() => mockApi.listPending()).thenAnswer((_) async => [_suggestedTransaction()]);
+      stubConfirm();
+
+      await pumpApp(tester, const PendingReviewScreen(), overrides: overrides());
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(ElevatedButton, 'Confirm'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Undo'));
+      await tester.pumpAndSettle();
+      await tester.pump(_undoWindow);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Groceries › Weekly shop'), findsOneWidget);
+      verifyNever(() => mockApi.confirmEvent(
+            any(),
+            accountId: any(named: 'accountId'),
+            category: any(named: 'category'),
+            subcategory: any(named: 'subcategory'),
+            holdingId: any(named: 'holdingId'),
+            quantity: any(named: 'quantity'),
+            pricePerUnit: any(named: 'pricePerUnit'),
+            tradeType: any(named: 'tradeType'),
+          ));
+    });
+
+    testWidgets('swipe right confirms, swipe left discards', (tester) async {
+      when(() => mockApi.listPending())
+          .thenAnswer((_) async => [_suggestedTransaction(), _suggestedTransaction(id: 'evt-4')]);
+      stubConfirm();
+      when(() => mockApi.discardEvent(any())).thenAnswer((_) async => _suggestedTransaction());
+
+      await pumpApp(tester, const PendingReviewScreen(), overrides: overrides());
+      await tester.pumpAndSettle();
+
+      await tester.drag(find.byKey(const ValueKey('dismiss-evt-3')), const Offset(600, 0));
+      await tester.pumpAndSettle();
+      // The second action closes the first snackbar, which commits it.
+      await tester.drag(find.byKey(const ValueKey('dismiss-evt-4')), const Offset(-600, 0));
+      await tester.pumpAndSettle();
+      await tester.pump(_undoWindow);
+      await tester.pumpAndSettle();
+
+      verify(() => mockApi.confirmEvent(
+            'evt-3',
+            accountId: any(named: 'accountId'),
+            category: 'Groceries',
+            subcategory: any(named: 'subcategory'),
+            holdingId: any(named: 'holdingId'),
+            quantity: any(named: 'quantity'),
+            pricePerUnit: any(named: 'pricePerUnit'),
+            tradeType: any(named: 'tradeType'),
+          )).called(1);
+      verify(() => mockApi.discardEvent('evt-4')).called(1);
+    });
+
+    testWidgets('a failed confirm brings the card back with the error', (tester) async {
+      when(() => mockApi.listPending()).thenAnswer((_) async => [_suggestedTransaction()]);
+      when(() => mockApi.confirmEvent(
+            any(),
+            accountId: any(named: 'accountId'),
+            category: any(named: 'category'),
+            subcategory: any(named: 'subcategory'),
+            holdingId: any(named: 'holdingId'),
+            quantity: any(named: 'quantity'),
+            pricePerUnit: any(named: 'pricePerUnit'),
+            tradeType: any(named: 'tradeType'),
+          )).thenAnswer((_) async => throw const ApiError(statusCode: 404, message: 'Account not found'));
+
+      await pumpApp(tester, const PendingReviewScreen(), overrides: overrides());
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(ElevatedButton, 'Confirm'));
+      await tester.pumpAndSettle();
+      await tester.pump(_undoWindow);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Groceries › Weekly shop'), findsOneWidget);
+      expect(find.text('Account not found'), findsOneWidget);
+    });
+
+    testWidgets('a transaction with no suggestion cannot be swiped to confirm', (tester) async {
+      when(() => mockApi.listPending()).thenAnswer((_) async => [_pendingTransaction()]);
+
+      await pumpApp(tester, const PendingReviewScreen(), overrides: overrides());
+      await tester.pumpAndSettle();
+
+      final dismissible = tester.widget<Dismissible>(find.byKey(const ValueKey('dismiss-evt-1')));
+      expect(dismissible.direction, DismissDirection.endToStart);
+    });
   });
 }
