@@ -39,7 +39,10 @@ class GoalsBody extends ConsumerWidget {
           loading: () => const Center(key: ValueKey('loading'), child: CircularProgressIndicator()),
           error: (err, _) => Center(
             key: const ValueKey('error'),
-            child: InlineError(message: err is ApiError ? err.message : 'Failed to load goals'),
+            child: InlineError(
+              message: err is ApiError ? err.message : 'Failed to load goals',
+              onRetry: () => ref.invalidate(goalsProvider),
+            ),
           ),
           data: (goals) {
             if (goals.isEmpty) {

@@ -263,6 +263,7 @@ class _NetWorthHero extends ConsumerWidget {
         error: (err, _) => InlineError(
           key: const ValueKey('error'),
           message: err is ApiError ? err.message : 'Failed to load net worth',
+          onRetry: () => ref.invalidate(netWorthProvider),
         ),
         data: (netWorth) => HeroMetricCard(
           key: const ValueKey('data'),
@@ -335,7 +336,11 @@ class _CashflowStatStrip extends ConsumerWidget {
                 // A dash rather than a spinner: the figure's slot keeps its
                 // height, so the month row below doesn't jump when it lands.
                 loading: () => Text('—', key: const ValueKey('loading'), style: moneyTextStyle(context, fontSize: 28)),
-                error: (_, _) => const InlineError(key: ValueKey('error'), message: "Couldn't load today's spending"),
+                error: (_, _) => InlineError(
+                  key: const ValueKey('error'),
+                  message: "Couldn't load today's spending",
+                  onRetry: () => ref.invalidate(todaySpendProvider),
+                ),
                 data: (spent) => Text(
                   formatZAR(spent),
                   key: const ValueKey('data'),
@@ -356,7 +361,11 @@ class _CashflowStatStrip extends ConsumerWidget {
                   height: 40,
                   child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
                 ),
-                error: (_, _) => const InlineError(key: ValueKey('error'), message: 'Failed to load cashflow'),
+                error: (_, _) => InlineError(
+                  key: const ValueKey('error'),
+                  message: 'Failed to load cashflow',
+                  onRetry: () => ref.invalidate(cashflowProvider),
+                ),
                 data: (cashflow) => Row(
                   key: const ValueKey('data'),
                   children: [
@@ -415,11 +424,16 @@ class _ProgressBlock extends ConsumerWidget {
         ),
       );
     } else if (goalsAsync.hasError && budgetsAsync.hasError) {
-      child = const Card(
-        key: ValueKey('error'),
+      child = Card(
+        key: const ValueKey('error'),
         child: Padding(
-          padding: EdgeInsets.all(16),
-          child: InlineError(message: 'Failed to load your progress'),
+          padding: const EdgeInsets.all(16),
+          child: InlineError(
+            message: 'Failed to load your progress',
+            onRetry: () => ref
+              ..invalidate(goalsProvider)
+              ..invalidate(currentMonthBudgetProgressProvider),
+          ),
         ),
       );
     } else {
@@ -570,7 +584,10 @@ class _RecentTransactionsPreview extends ConsumerWidget {
             loading: () => const Center(key: ValueKey('loading'), child: CircularProgressIndicator()),
             error: (err, _) => Center(
               key: const ValueKey('error'),
-              child: InlineError(message: err is ApiError ? err.message : 'Failed to load transactions'),
+              child: InlineError(
+                message: err is ApiError ? err.message : 'Failed to load transactions',
+                onRetry: () => ref.invalidate(recentTransactionsProvider),
+              ),
             ),
             data: (page) {
               if (page.items.isEmpty) {

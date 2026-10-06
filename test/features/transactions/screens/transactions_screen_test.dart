@@ -2,6 +2,7 @@ import 'package:decimal/decimal.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
+import 'package:piggybank/core/api/api_error.dart';
 import 'package:piggybank/features/transactions/data/transactions_api.dart';
 import 'package:piggybank/features/transactions/models/transaction.dart';
 import 'package:piggybank/features/transactions/providers/transactions_provider.dart';
@@ -204,5 +205,33 @@ void main() {
             offset: any(named: 'offset'),
           )).called(greaterThan(1));
     });
+  });
+
+  testWidgets('a failed load offers Retry, and Retry recovers (UX plan item 5)', (tester) async {
+    var calls = 0;
+    when(() => mockApi.list(
+          accountId: any(named: 'accountId'),
+          transactionType: any(named: 'transactionType'),
+          dateFrom: any(named: 'dateFrom'),
+          dateTo: any(named: 'dateTo'),
+          category: any(named: 'category'),
+          offset: any(named: 'offset'),
+        )).thenAnswer((_) async {
+      calls++;
+      if (calls == 1) throw const ApiError(statusCode: 0, message: 'Network error. Check your connection and try again.');
+      return TransactionsPage(total: 1, items: [
+        _tx(id: '1', type: TransactionType.expense, category: 'Groceries', merchantName: 'Woolworths', date: DateTime(2026, 8, 20)),
+      ]);
+    });
+
+    await pumpApp(tester, const TransactionsScreen(), overrides: [transactionsApiProvider.overrideWithValue(mockApi)]);
+    await tester.pumpAndSettle();
+    expect(find.textContaining('Network error'), findsOneWidget);
+
+    await tester.tap(find.widgetWithText(TextButton, 'Retry'));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('Network error'), findsNothing);
+    expect(find.text('Woolworths'), findsOneWidget);
   });
 }

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/api/api_error.dart';
+import '../../../shared/widgets/state_views.dart';
 import '../../accounts/models/account.dart';
 import '../../accounts/providers/accounts_provider.dart';
 import '../../summaries/providers/summaries_provider.dart';
@@ -252,7 +253,12 @@ class _TransactionSheetState extends ConsumerState<TransactionSheet> {
             const SizedBox(height: 16),
             accountsAsync.when(
               loading: () => const SizedBox.shrink(),
-              error: (_, _) => const SizedBox.shrink(),
+              // Not hidden: a silently missing Account field meant saving
+              // with no account and never knowing there should have been one.
+              error: (_, _) => InlineError(
+                message: "Couldn't load your accounts",
+                onRetry: () => ref.invalidate(accountsProvider),
+              ),
               data: (accounts) => DropdownButtonFormField<String?>(
                 initialValue: _validAccountId(accounts),
                 decoration: const InputDecoration(labelText: 'Account (optional)'),

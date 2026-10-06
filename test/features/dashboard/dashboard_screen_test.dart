@@ -648,4 +648,25 @@ void main() {
       expect(find.text('Add transaction'), findsOneWidget);
     });
   });
+
+  group('Retry (UX plan item 5)', () {
+    testWidgets('a failed cashflow section recovers in place via Retry', (tester) async {
+      var calls = 0;
+      when(() => mockSummariesApi.cashflow()).thenAnswer((_) async {
+        calls++;
+        if (calls == 1) throw Exception('offline');
+        return _cashflow(income: 8000, expense: 2500);
+      });
+
+      await pumpApp(tester, const DashboardScreen(), overrides: overrides(), useAppTheme: true);
+      await tester.pumpAndSettle();
+      expect(find.text('Failed to load cashflow'), findsOneWidget);
+
+      await tester.tap(find.widgetWithText(TextButton, 'Retry'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Failed to load cashflow'), findsNothing);
+      expect(find.text('R 8 000,00'), findsOneWidget);
+    });
+  });
 }
