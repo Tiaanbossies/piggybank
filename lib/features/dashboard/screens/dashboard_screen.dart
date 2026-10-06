@@ -17,6 +17,7 @@ import '../../../shared/widgets/quick_link_tile.dart';
 import '../../../shared/widgets/state_views.dart';
 import '../../accounts/screens/accounts_screen.dart';
 import '../../assets/screens/assets_screen.dart';
+import '../../budgets/models/budget.dart';
 import '../../budgets/providers/budgets_provider.dart';
 import '../../calculators/screens/calculators_screen.dart';
 import '../../detection/models/detected_event.dart';
@@ -69,7 +70,7 @@ class DashboardScreen extends ConsumerWidget {
             ref.invalidate(cashflowProvider);
             ref.invalidate(todaySpendProvider);
             ref.invalidate(goalsProvider);
-            ref.invalidate(budgetProgressProvider);
+            ref.invalidate(currentMonthBudgetProgressProvider);
             ref.invalidate(recentTransactionsProvider);
             ref.invalidate(pendingEventsProvider);
           },
@@ -388,93 +389,88 @@ class _CashflowStatStrip extends ConsumerWidget {
   }
 }
 
-/// Single most relevant progress card — an active goal takes priority,
-/// falling back to the current month's top-level budget, per DESIGN.md.
+/// The single most actionable progress card (UX plan item 4), in order:
+/// 1. a category over budget this month — the thing to act on today;
+/// 2. a goal still in progress;
+/// 3. this month's busiest budget;
+/// 4. a completed goal, only when there's nothing live to show.
+/// It used to be `goals.first` regardless of status, so a finished laptop
+/// fund sat here for weeks, and its budget fallback followed whichever
+/// month the Budgets tab had last been browsed to.
 class _ProgressBlock extends ConsumerWidget {
   const _ProgressBlock();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final goalsAsync = ref.watch(goalsProvider);
+    final budgetsAsync = ref.watch(currentMonthBudgetProgressProvider);
+
+    final Widget child;
+    if (goalsAsync.isLoading || budgetsAsync.isLoading) {
+      child = const Card(
+        key: ValueKey('loading'),
+        child: Padding(
+          padding: EdgeInsets.all(16),
+          child: SizedBox(height: 56, child: Center(child: CircularProgressIndicator(strokeWidth: 2))),
+        ),
+      );
+    } else if (goalsAsync.hasError && budgetsAsync.hasError) {
+      child = const Card(
+        key: ValueKey('error'),
+        child: Padding(
+          padding: EdgeInsets.all(16),
+          child: InlineError(message: 'Failed to load your progress'),
+        ),
+      );
+    } else {
+      // One side failing still leaves the other worth showing.
+      child = KeyedSubtree(
+        key: const ValueKey('data'),
+        child: _pick(goalsAsync.valueOrNull ?? const [], budgetsAsync.valueOrNull ?? const []),
+      );
+    }
 
     return AnimatedSwitcher(
       duration: context.reducedMotion ? Duration.zero : AppMotion.stateChange,
       switchInCurve: AppMotion.easeOut,
       switchOutCurve: AppMotion.easeOut,
-      child: goalsAsync.when(
-        loading: () => const Card(
-          key: ValueKey('loading'),
-          child: Padding(
-            padding: EdgeInsets.all(16),
-            child: SizedBox(height: 56, child: Center(child: CircularProgressIndicator(strokeWidth: 2))),
-          ),
-        ),
-        error: (_, _) => const Card(
-          key: ValueKey('error'),
-          child: Padding(
-            padding: EdgeInsets.all(16),
-            child: InlineError(message: 'Failed to load your progress'),
-          ),
-        ),
-        data: (goals) {
-          if (goals.isNotEmpty) {
-            // TODO(follow-up): goals.first is not filtered to exclude
-            // completed goals, so a fully-saved goal can keep occupying this
-            // "most relevant" slot instead of the Dashboard falling through
-            // to an actionable in-progress goal or budget. Out of scope for
-            // this fix, which only makes the completed state render
-            // correctly once shown — see the audit fix-it plan, Phase 3.
-            final goal = goals.first;
-            final footnote = '${formatZAR(goal.currentAmount)} saved / ${formatZAR(goal.targetAmount)} goal';
-            if (goal.status == GoalStatus.completed) {
-              return CompletedGoalCard(key: const ValueKey('data'), title: goal.name, footnote: footnote);
-            }
-            return ProgressCard(
-              key: const ValueKey('data'),
-              title: goal.name,
-              pct: goal.progressPct / 100,
-              footnote: footnote,
-            );
-          }
-          return const _BudgetProgressFallback(key: ValueKey('data'));
-        },
-      ),
+      child: child,
     );
   }
-}
 
-class _BudgetProgressFallback extends ConsumerWidget {
-  const _BudgetProgressFallback({super.key});
+  Widget _pick(List<Goal> goals, List<BudgetProgress> budgets) {
+    BudgetProgress? busiest(Iterable<BudgetProgress> candidates) =>
+        candidates.isEmpty ? null : candidates.reduce((a, b) => b.pctUsed > a.pctUsed ? b : a);
 
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final progressAsync = ref.watch(budgetProgressProvider);
+    final overBudget = busiest(budgets.where((b) => b.overBudget));
+    if (overBudget != null) return _budgetCard(overBudget);
 
-    return progressAsync.when(
-      loading: () => const Card(
-        child: Padding(
-          padding: EdgeInsets.all(16),
-          child: SizedBox(height: 56, child: Center(child: CircularProgressIndicator(strokeWidth: 2))),
-        ),
-      ),
-      error: (_, _) => const Card(
-        child: Padding(
-          padding: EdgeInsets.all(16),
-          child: InlineError(message: 'Failed to load your budget progress'),
-        ),
-      ),
-      data: (budgets) {
-        if (budgets.isEmpty) return const SizedBox.shrink();
-        final budget = budgets.first;
-        return ProgressCard(
-          title: budget.category ?? 'Total budget',
-          pct: budget.pctUsed / 100,
-          overBudget: budget.overBudget,
-          footnote: budget.overBudget
-              ? '${formatZAR(budget.remaining.abs())} over budget'
-              : '${formatZAR(budget.spent)} / ${formatZAR(budget.budgetAmount)}',
-        );
-      },
+    final inProgress = goals.where((g) => g.status != GoalStatus.completed);
+    if (inProgress.isNotEmpty) return _goalCard(inProgress.first);
+
+    final busiestBudget = busiest(budgets);
+    if (busiestBudget != null) return _budgetCard(busiestBudget);
+
+    if (goals.isNotEmpty) return _goalCard(goals.first);
+    return const SizedBox.shrink();
+  }
+
+  Widget _goalCard(Goal goal) {
+    final footnote = '${formatZAR(goal.currentAmount)} saved / ${formatZAR(goal.targetAmount)} goal';
+    if (goal.status == GoalStatus.completed) {
+      return CompletedGoalCard(title: goal.name, footnote: footnote);
+    }
+    return ProgressCard(title: goal.name, pct: goal.progressPct / 100, footnote: footnote);
+  }
+
+  Widget _budgetCard(BudgetProgress budget) {
+    return ProgressCard(
+      title: budget.category ?? 'Total budget',
+      pct: budget.pctUsed / 100,
+      overBudget: budget.overBudget,
+      footnote: budget.overBudget
+          ? '${formatZAR(budget.remaining.abs())} over budget'
+          : '${formatZAR(budget.spent)} / ${formatZAR(budget.budgetAmount)}',
     );
   }
 }
