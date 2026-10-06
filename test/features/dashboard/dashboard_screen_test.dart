@@ -133,6 +133,15 @@ Transaction _transaction({
       accountName: null,
     );
 
+/// The Dashboard is a lazily-built ListView, so sections below the default
+/// 800x600 test viewport are never built. Recent transactions sits at the
+/// bottom; tests that look for it need a phone-tall surface.
+void _useTallView(WidgetTester tester) {
+  tester.view.physicalSize = const Size(800, 2400);
+  tester.view.devicePixelRatio = 1.0;
+  addTearDown(tester.view.reset);
+}
+
 void main() {
   late _MockSummariesApi mockSummariesApi;
   late _MockGoalsApi mockGoalsApi;
@@ -162,6 +171,7 @@ void main() {
     List<Transaction>? recentTransactions,
     LatestRelease? latestRelease,
     List<DetectedEvent>? pendingEvents,
+    List<Transaction>? todayExpenses,
   }) {
     when(() => mockSummariesApi.netWorth()).thenAnswer((_) async => netWorth ?? _netWorth(10000));
     when(() => mockSummariesApi.cashflow())
@@ -174,6 +184,16 @@ void main() {
     // Defaults to "no release published yet" so pre-existing tests that
     // don't care about the update banner never see it.
     when(() => mockUpdatesApi.latest()).thenAnswer((_) async => latestRelease);
+    // The "Spent today" query — the only list() call that filters by type
+    // and date, so it never collides with the recent-transactions stub.
+    when(() => mockTransactionsApi.list(
+          transactionType: TransactionType.expense,
+          dateFrom: any(named: 'dateFrom'),
+          dateTo: any(named: 'dateTo'),
+          limit: 200,
+        )).thenAnswer(
+      (_) async => TransactionsPage(total: todayExpenses?.length ?? 0, items: todayExpenses ?? const []),
+    );
     // Defaults to an empty review queue so the "N to review" card stays
     // hidden for every test that isn't about it.
     when(() => mockDetectionApi.listPending()).thenAnswer((_) async => pendingEvents ?? const []);
@@ -224,6 +244,73 @@ void main() {
       expect(find.text('Expenses'), findsOneWidget);
       expect(find.text('R 8 000,00'), findsOneWidget);
       expect(find.text('R 2 500,00'), findsOneWidget);
+    });
+
+    testWidgets("leads with today's spending, summed from today's expenses", (tester) async {
+      stubDefaults(todayExpenses: [
+        _transaction(id: 'd1', category: 'Coffee', amount: 38.5),
+        _transaction(id: 'd2', category: 'Fuel', amount: 650),
+      ]);
+
+      await pumpApp(tester, const DashboardScreen(), overrides: overrides(), useAppTheme: true);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Spent today'), findsOneWidget);
+      expect(find.text('R 688,50'), findsOneWidget);
+      verify(() => mockTransactionsApi.list(
+            transactionType: TransactionType.expense,
+            dateFrom: any(named: 'dateFrom'),
+            dateTo: any(named: 'dateTo'),
+            limit: 200,
+          )).called(1);
+    });
+
+    testWidgets('a day with no spending reads R 0,00, not blank', (tester) async {
+      await pumpApp(tester, const DashboardScreen(), overrides: overrides(), useAppTheme: true);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Spent today'), findsOneWidget);
+      expect(find.text('R 0,00'), findsOneWidget);
+    });
+
+    testWidgets("a failed today query doesn't hide the month figures", (tester) async {
+      stubDefaults(cashflow: _cashflow(income: 8000, expense: 2500));
+      when(() => mockTransactionsApi.list(
+            transactionType: TransactionType.expense,
+            dateFrom: any(named: 'dateFrom'),
+            dateTo: any(named: 'dateTo'),
+            limit: 200,
+          )).thenAnswer((_) async => throw Exception('today boom'));
+
+      await pumpApp(tester, const DashboardScreen(), overrides: overrides(), useAppTheme: true);
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining("Couldn't load today's spending"), findsOneWidget);
+      expect(find.text('R 8 000,00'), findsOneWidget);
+    });
+  });
+
+  group('Recent row dates', () {
+    testWidgets('a transaction from today is labelled Today', (tester) async {
+      _useTallView(tester);
+      final t = Transaction(
+        id: 'now',
+        accountId: null,
+        transactionType: TransactionType.expense,
+        category: 'Coffee',
+        description: null,
+        amount: Decimal.parse('38.50'),
+        transactionDate: DateTime.now(),
+        merchantName: 'Seattle',
+        notes: null,
+        accountName: null,
+      );
+      stubDefaults(recentTransactions: [t]);
+
+      await pumpApp(tester, const DashboardScreen(), overrides: overrides(), useAppTheme: true);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Coffee · Today'), findsOneWidget);
     });
   });
 
@@ -288,6 +375,7 @@ void main() {
 
   group('Recent transactions preview', () {
     testWidgets('renders the 5 most recent transactions returned by the API', (tester) async {
+      _useTallView(tester);
       final items = List.generate(5, (i) => _transaction(id: 't$i', category: 'Cat$i', amount: (i + 1) * 10));
       stubDefaults(recentTransactions: items);
 
@@ -295,12 +383,13 @@ void main() {
       await tester.pumpAndSettle();
 
       for (final t in items) {
-        expect(find.text(t.category), findsOneWidget);
+        expect(find.textContaining(t.category), findsOneWidget);
       }
       verify(() => mockTransactionsApi.list(limit: 5)).called(1);
     });
 
     testWidgets('shows an empty message when there are no recent transactions', (tester) async {
+      _useTallView(tester);
       stubDefaults(recentTransactions: const []);
 
       await pumpApp(tester, const DashboardScreen(), overrides: overrides(), useAppTheme: true);
@@ -413,7 +502,7 @@ void main() {
 
       expect(tester.widget<HeroMetricCard>(find.byType(HeroMetricCard)).value, 'R 1 000,00');
       expect(find.text('Holiday'), findsOneWidget);
-      expect(find.text('Coffee'), findsOneWidget);
+      expect(find.textContaining('Coffee'), findsOneWidget);
 
       // Re-stub for the post-refresh fetch: cashflow now fails, but every
       // other section gets fresh, different data so we can prove it was
@@ -451,8 +540,8 @@ void main() {
       expect(tester.widget<HeroMetricCard>(find.byType(HeroMetricCard)).value, 'R 2 000,00');
       expect(find.text('New car'), findsOneWidget);
       expect(find.text('Holiday'), findsNothing);
-      expect(find.text('Rent'), findsOneWidget);
-      expect(find.text('Coffee'), findsNothing);
+      expect(find.textContaining('Rent'), findsOneWidget);
+      expect(find.textContaining('Coffee'), findsNothing);
 
       // The cashflow section itself fails silently (SizedBox.shrink on
       // error) rather than crashing the rest of the page.

@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/api/api_error.dart';
+import '../../../core/format/dates.dart';
 import '../../../core/format/money.dart';
 import '../../../core/theme/app_motion.dart';
 import '../../../core/theme/app_theme.dart';
@@ -65,6 +66,7 @@ class DashboardScreen extends ConsumerWidget {
           onRefresh: () async {
             ref.invalidate(netWorthProvider);
             ref.invalidate(cashflowProvider);
+            ref.invalidate(todaySpendProvider);
             ref.invalidate(goalsProvider);
             ref.invalidate(budgetProgressProvider);
             ref.invalidate(recentTransactionsProvider);
@@ -290,48 +292,67 @@ class _NetWorthTrend {
   }
 }
 
+/// Today's spend over this month's cashflow — the one thing on Home that
+/// changes every day, and so the reason to open it daily (UX plan item 1).
+/// Net worth barely moves day to day; "what did I spend today?" does.
+/// The two halves load and fail independently: a month the summaries
+/// endpoint can't produce shouldn't hide a today figure that loaded fine.
 class _CashflowStatStrip extends ConsumerWidget {
   const _CashflowStatStrip();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final cashflowAsync = ref.watch(cashflowProvider);
+    final todayAsync = ref.watch(todaySpendProvider);
     final semantic = Theme.of(context).extension<AppSemanticColors>();
-    return AnimatedSwitcher(
-      duration: context.reducedMotion ? Duration.zero : AppMotion.stateChange,
-      switchInCurve: AppMotion.easeOut,
-      switchOutCurve: AppMotion.easeOut,
-      child: cashflowAsync.when(
-        loading: () => const Card(
-          key: ValueKey('loading'),
-          child: Padding(
-            padding: EdgeInsets.all(16),
-            child: SizedBox(height: 56, child: Center(child: CircularProgressIndicator(strokeWidth: 2))),
-          ),
-        ),
-        error: (_, _) => const Card(
-          key: ValueKey('error'),
-          child: Padding(
-            padding: EdgeInsets.all(16),
-            child: InlineError(message: 'Failed to load cashflow'),
-          ),
-        ),
-        data: (cashflow) => Card(
-          key: const ValueKey('data'),
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Cashflow · This month', style: Theme.of(context).textTheme.labelMedium),
-                const SizedBox(height: 12),
-                Row(
+    final labelStyle = Theme.of(context).textTheme.labelMedium;
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Spent today', style: labelStyle),
+            const SizedBox(height: 2),
+            AnimatedSwitcher(
+              duration: context.reducedMotion ? Duration.zero : AppMotion.stateChange,
+              switchInCurve: AppMotion.easeOut,
+              switchOutCurve: AppMotion.easeOut,
+              child: todayAsync.when(
+                // A dash rather than a spinner: the figure's slot keeps its
+                // height, so the month row below doesn't jump when it lands.
+                loading: () => Text('—', key: const ValueKey('loading'), style: moneyTextStyle(context, fontSize: 28)),
+                error: (_, _) => const InlineError(key: ValueKey('error'), message: "Couldn't load today's spending"),
+                data: (spent) => Text(
+                  formatZAR(spent),
+                  key: const ValueKey('data'),
+                  style: moneyTextStyle(context, fontSize: 28),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text('This month', style: labelStyle),
+            const SizedBox(height: 8),
+            AnimatedSwitcher(
+              duration: context.reducedMotion ? Duration.zero : AppMotion.stateChange,
+              switchInCurve: AppMotion.easeOut,
+              switchOutCurve: AppMotion.easeOut,
+              child: cashflowAsync.when(
+                loading: () => const SizedBox(
+                  key: ValueKey('loading'),
+                  height: 40,
+                  child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+                ),
+                error: (_, _) => const InlineError(key: ValueKey('error'), message: 'Failed to load cashflow'),
+                data: (cashflow) => Row(
+                  key: const ValueKey('data'),
                   children: [
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('Income', style: Theme.of(context).textTheme.labelMedium),
+                          Text('Income', style: labelStyle),
                           Text(formatZAR(cashflow.incomeTotal), style: moneyTextStyle(context, fontSize: 18, color: semantic?.success)),
                         ],
                       ),
@@ -340,16 +361,16 @@ class _CashflowStatStrip extends ConsumerWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('Expenses', style: Theme.of(context).textTheme.labelMedium),
+                          Text('Expenses', style: labelStyle),
                           Text(formatZAR(cashflow.expenseTotal), style: moneyTextStyle(context, fontSize: 18)),
                         ],
                       ),
                     ),
                   ],
                 ),
-              ],
+              ),
             ),
-          ),
+          ],
         ),
       ),
     );
@@ -565,7 +586,12 @@ class _RecentTransactionsPreview extends ConsumerWidget {
                         isTransfer: t.transactionType.name == 'transfer',
                       ),
                       title: t.merchantName ?? t.description ?? t.category,
-                      subtitle: t.category,
+                      // Dated, so "did that coffee go in yet?" is answered
+                      // here instead of on the full Transactions list.
+                      subtitle: '${t.category} · ${dayLabel(
+                        t.transactionDate,
+                        withYear: t.transactionDate.year != DateTime.now().year,
+                      )}',
                       trailing: Text(
                         formatZAR(t.transactionType.name == 'expense' ? -t.amount.toDouble() : t.amount.toDouble()),
                         style: moneyTextStyle(
