@@ -11,6 +11,7 @@ import '../../../shared/widgets/state_views.dart';
 import '../../../shared/widgets/swipe_background.dart';
 import '../models/savings.dart';
 import '../providers/savings_provider.dart';
+import 'policy_screen.dart';
 
 /// The Savings plan (cost-cutting plan, item 2): what the user needs left
 /// over each month, what they actually have, and the recurring costs that
@@ -539,51 +540,71 @@ class _CostRow extends StatelessWidget {
     final isCut = cost.decision == RecurringCostDecision.cut;
     final isCandidate = cost.decision == RecurringCostDecision.cutCandidate;
     final seen = cost.lastSeenOn;
+    // Insurance costs carry policy details and the policy check (item 6).
+    final isInsurance = cost.kind == RecurringCostKind.insurance;
+    final row = Row(
+      children: [
+        IconChip(icon: kindIcon(cost.kind), size: 40, danger: isCandidate || cost.stillCharged),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(cost.name, style: Theme.of(context).textTheme.titleSmall, overflow: TextOverflow.ellipsis),
+              const SizedBox(height: 2),
+              Text(
+                _subtitle,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: isCut ? semantic?.success : (isCandidate ? semantic?.danger : semantic?.textMuted),
+                ),
+              ),
+              if (cost.stillCharged) ...[
+                const SizedBox(height: 4),
+                _Pill(
+                  label: seen == null ? 'Still charged' : 'Still charged · ${dayLabel(seen, withYear: false)}',
+                  color: semantic?.danger,
+                  background: semantic?.dangerChipBg,
+                ),
+              ],
+            ],
+          ),
+        ),
+        const SizedBox(width: 8),
+        Text(
+          formatZAR(cost.monthlyAmount),
+          style: TextStyle(
+            decoration: isCut ? TextDecoration.lineThrough : null,
+            color: isCut ? semantic?.textMuted : null,
+          ),
+        ),
+      ],
+    );
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: () => showRecurringCostSheet(context, existing: cost),
         child: Padding(
-          padding: const EdgeInsets.all(12),
-          child: Row(
-            children: [
-              IconChip(icon: kindIcon(cost.kind), size: 40, danger: isCandidate || cost.stillCharged),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+          padding: EdgeInsets.fromLTRB(12, 12, 12, isInsurance ? 4 : 12),
+          child: isInsurance
+              ? Column(
                   children: [
-                    Text(cost.name, style: Theme.of(context).textTheme.titleSmall, overflow: TextOverflow.ellipsis),
-                    const SizedBox(height: 2),
-                    Text(
-                      _subtitle,
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: isCut ? semantic?.success : (isCandidate ? semantic?.danger : semantic?.textMuted),
+                    row,
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: TextButton.icon(
+                        key: Key('policy-${cost.id}'),
+                        onPressed: () => Navigator.of(context).push(
+                          MaterialPageRoute<void>(builder: (_) => PolicyScreen(cost: cost)),
+                        ),
+                        icon: Icon(cost.policyId == null ? Icons.add : Icons.fact_check_outlined, size: 18),
+                        label: Text(cost.policyId == null ? 'Add policy details' : 'Policy check'),
                       ),
                     ),
-                    if (cost.stillCharged) ...[
-                      const SizedBox(height: 4),
-                      _Pill(
-                        label: seen == null ? 'Still charged' : 'Still charged · ${dayLabel(seen, withYear: false)}',
-                        color: semantic?.danger,
-                        background: semantic?.dangerChipBg,
-                      ),
-                    ],
                   ],
-                ),
-              ),
-              const SizedBox(width: 8),
-              Text(
-                formatZAR(cost.monthlyAmount),
-                style: TextStyle(
-                  decoration: isCut ? TextDecoration.lineThrough : null,
-                  color: isCut ? semantic?.textMuted : null,
-                ),
-              ),
-            ],
-          ),
+                )
+              : row,
         ),
       ),
     );
