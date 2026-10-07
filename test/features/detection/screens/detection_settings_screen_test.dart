@@ -35,6 +35,8 @@ void main() {
     mockDetectionApi = _MockDetectionApi();
     when(() => mockConsentsApi.listAccepted()).thenAnswer((_) async => []);
     when(() => mockChannel.isEnabled()).thenAnswer((_) async => false);
+    when(() => mockChannel.senderAllowlist()).thenAnswer((_) async => {});
+    when(() => mockChannel.seenSenders()).thenAnswer((_) async => {});
   });
 
   testWidgets('unaccepted Feature consent card renders without overflow on a narrow screen', (tester) async {
