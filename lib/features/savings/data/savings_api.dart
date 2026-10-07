@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 
 import '../../../core/api/api_client.dart';
+import '../models/policy.dart';
 import '../models/savings.dart';
 
 /// Client for `/savings/*` (backend `app/savings/router.py`).
@@ -115,6 +116,44 @@ class SavingsApi {
   Future<void> deleteRecurring(String costId) async {
     try {
       await _client.dio.delete('/savings/recurring/$costId');
+    } on DioException catch (e) {
+      throw ApiClient.errorFrom(e);
+    }
+  }
+
+  /// The policy details on an insurance cost, or null when none are added.
+  Future<InsurancePolicy?> getPolicy(String costId) async {
+    try {
+      final response = await _client.dio.get('/savings/recurring/$costId/policy');
+      final data = response.data;
+      return data == null ? null : InsurancePolicy.fromJson(data as Map<String, dynamic>);
+    } on DioException catch (e) {
+      throw ApiClient.errorFrom(e);
+    }
+  }
+
+  /// Adds or fully replaces the policy details on an insurance cost.
+  Future<InsurancePolicy> putPolicy(String costId, PolicyDetails details) async {
+    try {
+      final response = await _client.dio.put('/savings/recurring/$costId/policy', data: details.toJson());
+      return InsurancePolicy.fromJson(response.data as Map<String, dynamic>);
+    } on DioException catch (e) {
+      throw ApiClient.errorFrom(e);
+    }
+  }
+
+  Future<void> deletePolicy(String costId) async {
+    try {
+      await _client.dio.delete('/savings/recurring/$costId/policy');
+    } on DioException catch (e) {
+      throw ApiClient.errorFrom(e);
+    }
+  }
+
+  Future<PolicyCheck> checkPolicy(String policyId) async {
+    try {
+      final response = await _client.dio.get('/savings/policies/$policyId/check');
+      return PolicyCheck.fromJson(response.data as Map<String, dynamic>);
     } on DioException catch (e) {
       throw ApiClient.errorFrom(e);
     }

@@ -6,6 +6,7 @@ import 'package:piggybank/core/api/api_error.dart';
 import 'package:piggybank/features/savings/data/savings_api.dart';
 import 'package:piggybank/features/savings/models/savings.dart';
 import 'package:piggybank/features/savings/providers/savings_provider.dart';
+import 'package:piggybank/features/savings/screens/policy_screen.dart';
 import 'package:piggybank/features/savings/screens/savings_plan_screen.dart';
 
 import '../../test_helpers/pump_app.dart';
@@ -56,6 +57,7 @@ RecurringCost _cost(
   RecurringCostStatus status = RecurringCostStatus.confirmed,
   DateTime? lastSeen,
   bool stillCharged = false,
+  String? policyId,
 }) =>
     RecurringCost(
       id: id,
@@ -68,6 +70,7 @@ RecurringCost _cost(
       cutOn: null,
       lastSeenOn: lastSeen,
       stillCharged: stillCharged,
+      policyId: policyId,
     );
 
 RecurringCost _suggestion(String id, String name, {String amount = '199.00'}) =>
@@ -494,6 +497,36 @@ void main() {
       verify(() => api.putTarget(monthlyAmount: '9000', label: 'Rent', targetDate: null, incomeOverride: null))
           .called(1);
       expect(find.byType(TargetSheet), findsNothing);
+    });
+  });
+
+  group('Insurance costs', () {
+    testWidgets('only insurance gets the policy button, worded by whether details exist', (tester) async {
+      when(() => api.listRecurring()).thenAnswer((_) async => [
+            _cost('c1', 'Car insurance', kind: RecurringCostKind.insurance),
+            _cost('c2', 'Funeral plan', kind: RecurringCostKind.insurance, policyId: 'p2'),
+            _cost('c3', 'Netflix'),
+          ]);
+      await pump(tester);
+
+      expect(find.byKey(const Key('policy-c1')), findsOneWidget);
+      expect(find.widgetWithText(TextButton, 'Add policy details'), findsOneWidget);
+      expect(find.widgetWithText(TextButton, 'Policy check'), findsOneWidget);
+      expect(find.byKey(const Key('policy-c3')), findsNothing);
+    });
+
+    testWidgets('the button opens the policy screen, not the edit sheet', (tester) async {
+      when(() => api.listRecurring()).thenAnswer((_) async => [
+            _cost('c1', 'Car insurance', kind: RecurringCostKind.insurance),
+          ]);
+      when(() => api.getPolicy('c1')).thenAnswer((_) async => null);
+      await pump(tester);
+
+      await tester.tap(find.byKey(const Key('policy-c1')));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(PolicyScreen), findsOneWidget);
+      expect(find.byType(RecurringCostSheet), findsNothing);
     });
   });
 

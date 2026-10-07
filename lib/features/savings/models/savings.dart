@@ -88,6 +88,7 @@ class RecurringCost {
     required this.cutOn,
     this.lastSeenOn,
     this.stillCharged = false,
+    this.policyId,
   });
 
   final String id;
@@ -106,6 +107,9 @@ class RecurringCost {
   /// date. Computed by the server; false from a backend without detection.
   final bool stillCharged;
 
+  /// The insurance policy details on this cost, if the user added them.
+  final String? policyId;
+
   bool get isSuggestion => status == RecurringCostStatus.suggested;
 
   factory RecurringCost.fromJson(Map<String, dynamic> json) => RecurringCost(
@@ -119,6 +123,7 @@ class RecurringCost {
         cutOn: _date(json['cut_on']),
         lastSeenOn: _date(json['last_seen_on']),
         stillCharged: json['still_charged'] as bool? ?? false,
+        policyId: json['policy_id'] as String?,
       );
 }
 
