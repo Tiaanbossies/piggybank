@@ -86,6 +86,8 @@ class RecurringCost {
     required this.decision,
     required this.savedAmount,
     required this.cutOn,
+    this.lastSeenOn,
+    this.stillCharged = false,
   });
 
   final String id;
@@ -97,6 +99,15 @@ class RecurringCost {
   final Decimal? savedAmount;
   final DateTime? cutOn;
 
+  /// The latest bank charge detection matched to this cost.
+  final DateTime? lastSeenOn;
+
+  /// Cancelled (cut in full), yet the bank charged it again after the cut
+  /// date. Computed by the server; false from a backend without detection.
+  final bool stillCharged;
+
+  bool get isSuggestion => status == RecurringCostStatus.suggested;
+
   factory RecurringCost.fromJson(Map<String, dynamic> json) => RecurringCost(
         id: json['id'] as String,
         name: json['name'] as String,
@@ -106,6 +117,29 @@ class RecurringCost {
         decision: RecurringCostDecision.fromWire(json['decision'] as String),
         savedAmount: _moneyOrNull(json['saved_amount']),
         cutOn: _date(json['cut_on']),
+        lastSeenOn: _date(json['last_seen_on']),
+        stillCharged: json['still_charged'] as bool? ?? false,
+      );
+}
+
+/// Mirrors `backend/app/savings/schemas.py`'s `DetectResult`: what one
+/// "Find costs" run changed.
+class DetectResult {
+  const DetectResult({required this.suggested, required this.linked, required this.updated});
+
+  /// New suggestions waiting for the user.
+  final int suggested;
+
+  /// Costs the user typed in that were matched to their bank charges.
+  final int linked;
+
+  /// Existing costs seen charged again.
+  final int updated;
+
+  factory DetectResult.fromJson(Map<String, dynamic> json) => DetectResult(
+        suggested: json['suggested'] as int,
+        linked: json['linked'] as int,
+        updated: json['updated'] as int,
       );
 }
 

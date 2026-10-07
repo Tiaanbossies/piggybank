@@ -71,6 +71,37 @@ void main() {
     expect(c.kind, RecurringCostKind.debitOrder);
     expect(c.decision, RecurringCostDecision.cutCandidate);
     expect(c.savedAmount, isNull);
+    // A backend from before detection sends neither field.
+    expect(c.lastSeenOn, isNull);
+    expect(c.stillCharged, isFalse);
+    expect(c.isSuggestion, isFalse);
+  });
+
+  test('recurring cost parses detection fields', () {
+    final c = RecurringCost.fromJson(const {
+      'id': 'c2',
+      'name': 'Showmax',
+      'merchant_key': 'showmax',
+      'kind': 'subscription',
+      'monthly_amount': '99.00',
+      'source': 'detected',
+      'status': 'suggested',
+      'decision': 'undecided',
+      'saved_amount': null,
+      'cut_on': null,
+      'last_seen_on': '2026-10-02',
+      'still_charged': true,
+      'created_at': '2026-10-07T10:00:00Z',
+      'updated_at': '2026-10-07T10:00:00Z',
+    });
+    expect(c.lastSeenOn, DateTime(2026, 10, 2));
+    expect(c.stillCharged, isTrue);
+    expect(c.isSuggestion, isTrue);
+  });
+
+  test('detect result parses', () {
+    final r = DetectResult.fromJson(const {'suggested': 2, 'linked': 1, 'updated': 5});
+    expect([r.suggested, r.linked, r.updated], [2, 1, 5]);
   });
 
   test('an unknown kind from a newer backend falls back to other', () {

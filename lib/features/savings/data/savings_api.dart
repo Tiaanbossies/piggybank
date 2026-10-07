@@ -55,6 +55,18 @@ class SavingsApi {
     }
   }
 
+  /// Looks through the last six months of bank charges for monthly
+  /// repeats and adds the new ones as suggestions. Rate limited to
+  /// 10/minute on the server.
+  Future<DetectResult> detectRecurring() async {
+    try {
+      final response = await _client.dio.post('/savings/recurring/detect');
+      return DetectResult.fromJson(response.data as Map<String, dynamic>);
+    } on DioException catch (e) {
+      throw ApiClient.errorFrom(e);
+    }
+  }
+
   Future<RecurringCost> createRecurring({
     required String name,
     required String monthlyAmount,

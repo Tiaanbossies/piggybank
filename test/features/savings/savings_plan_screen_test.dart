@@ -53,17 +53,29 @@ RecurringCost _cost(
   RecurringCostDecision decision = RecurringCostDecision.undecided,
   String amount = '199.00',
   String? saved,
+  RecurringCostStatus status = RecurringCostStatus.confirmed,
+  DateTime? lastSeen,
+  bool stillCharged = false,
 }) =>
     RecurringCost(
       id: id,
       name: name,
       kind: kind,
       monthlyAmount: Decimal.parse(amount),
-      status: RecurringCostStatus.confirmed,
+      status: status,
       decision: decision,
       savedAmount: saved == null ? null : Decimal.parse(saved),
       cutOn: null,
+      lastSeenOn: lastSeen,
+      stillCharged: stillCharged,
     );
+
+RecurringCost _suggestion(String id, String name, {String amount = '199.00'}) =>
+    _cost(id, name, amount: amount, status: RecurringCostStatus.suggested, lastSeen: DateTime(2026, 9, 28));
+
+/// Longer than the screen's 4s Undo snackbar, so its `closed` future has
+/// resolved and the change has been sent.
+const _undoWindow = Duration(seconds: 5);
 
 void _useTallView(WidgetTester tester) {
   tester.view.physicalSize = const Size(800, 2400);
@@ -77,6 +89,7 @@ void main() {
   setUpAll(() {
     registerFallbackValue(RecurringCostKind.other);
     registerFallbackValue(RecurringCostDecision.undecided);
+    registerFallbackValue(RecurringCostStatus.confirmed);
   });
 
   setUp(() {
@@ -265,6 +278,195 @@ void main() {
             decision: any(named: 'decision'),
             savedAmount: any(named: 'savedAmount'),
           ));
+    });
+  });
+
+  group('Suggestions', () {
+    void stubStatusUpdate() {
+      when(() => api.updateRecurring(any(), status: any(named: 'status')))
+          .thenAnswer((_) async => _cost('s1', 'Netflix'));
+    }
+
+    testWidgets('sit above the confirmed costs with one-tap actions', (tester) async {
+      when(() => api.listRecurring()).thenAnswer((_) async => [
+            _suggestion('s1', 'Netflix'),
+            _suggestion('s2', 'Discovery Insure', amount: '1450.00'),
+            _cost('c1', 'Gym', amount: '450.00'),
+          ]);
+      await pump(tester);
+
+      expect(find.text('Found 2 recurring costs'), findsOneWidget);
+      expect(find.text('Subscription · last charged 28 Sep'), findsNWidgets(2));
+      expect(find.widgetWithText(FilledButton, 'Confirm'), findsNWidgets(2));
+      expect(find.widgetWithText(TextButton, 'Dismiss'), findsNWidgets(2));
+      // The confirmed cost renders below the suggestions.
+      final gymY = tester.getTopLeft(find.text('Gym')).dy;
+      expect(gymY, greaterThan(tester.getTopLeft(find.text('Discovery Insure')).dy));
+    });
+
+    testWidgets('Confirm hides the card, then sends once the Undo window closes', (tester) async {
+      when(() => api.listRecurring()).thenAnswer((_) async => [_suggestion('s1', 'Netflix')]);
+      stubStatusUpdate();
+      await pump(tester);
+
+      await tester.tap(find.widgetWithText(FilledButton, 'Confirm'));
+      await tester.pumpAndSettle();
+      expect(find.text('Found 1 recurring cost'), findsNothing);
+      expect(find.text('Confirmed · Netflix'), findsOneWidget);
+      verifyNever(() => api.updateRecurring(any(), status: any(named: 'status')));
+
+      await tester.pump(_undoWindow);
+      await tester.pumpAndSettle();
+      verify(() => api.updateRecurring('s1', status: RecurringCostStatus.confirmed)).called(1);
+      // Confirming moves fixed costs, so the overview is refetched too.
+      verify(() => api.overview()).called(2);
+    });
+
+    testWidgets('Undo puts the card back and sends nothing', (tester) async {
+      when(() => api.listRecurring()).thenAnswer((_) async => [_suggestion('s1', 'Netflix')]);
+      stubStatusUpdate();
+      await pump(tester);
+
+      await tester.tap(find.widgetWithText(TextButton, 'Dismiss'));
+      await tester.pumpAndSettle();
+      expect(find.text('Dismissed · Netflix'), findsOneWidget);
+      await tester.tap(find.text('Undo'));
+      await tester.pumpAndSettle();
+      await tester.pump(_undoWindow);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Found 1 recurring cost'), findsOneWidget);
+      verifyNever(() => api.updateRecurring(any(), status: any(named: 'status')));
+    });
+
+    testWidgets('swipe right confirms, swipe left dismisses', (tester) async {
+      when(() => api.listRecurring())
+          .thenAnswer((_) async => [_suggestion('s1', 'Netflix'), _suggestion('s2', 'Showmax')]);
+      stubStatusUpdate();
+      await pump(tester);
+
+      await tester.drag(find.byKey(const ValueKey('dismiss-s1')), const Offset(600, 0));
+      await tester.pumpAndSettle();
+      // The second action closes the first snackbar, which commits it.
+      await tester.drag(find.byKey(const ValueKey('dismiss-s2')), const Offset(-600, 0));
+      await tester.pumpAndSettle();
+      await tester.pump(_undoWindow);
+      await tester.pumpAndSettle();
+
+      verify(() => api.updateRecurring('s1', status: RecurringCostStatus.confirmed)).called(1);
+      verify(() => api.updateRecurring('s2', status: RecurringCostStatus.dismissed)).called(1);
+    });
+
+    testWidgets('a failed send brings the card back with the error', (tester) async {
+      when(() => api.listRecurring()).thenAnswer((_) async => [_suggestion('s1', 'Netflix')]);
+      when(() => api.updateRecurring(any(), status: any(named: 'status')))
+          .thenThrow(const ApiError(statusCode: 500, message: 'Server error'));
+      await pump(tester);
+
+      await tester.tap(find.widgetWithText(FilledButton, 'Confirm'));
+      await tester.pumpAndSettle();
+      await tester.pump(_undoWindow);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Server error'), findsOneWidget);
+      expect(find.text('Found 1 recurring cost'), findsOneWidget);
+    });
+
+    testWidgets('saving a corrected suggestion confirms it', (tester) async {
+      when(() => api.listRecurring()).thenAnswer((_) async => [_suggestion('s1', 'NETFLIX.COM')]);
+      when(() => api.updateRecurring(
+            any(),
+            name: any(named: 'name'),
+            monthlyAmount: any(named: 'monthlyAmount'),
+            kind: any(named: 'kind'),
+            status: any(named: 'status'),
+            decision: any(named: 'decision'),
+            savedAmount: any(named: 'savedAmount'),
+          )).thenAnswer((_) async => _cost('s1', 'Netflix'));
+      await pump(tester);
+
+      await tester.tap(find.text('NETFLIX.COM'));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byKey(const Key('cost-name')), 'Netflix');
+      await tester.tap(find.widgetWithText(FilledButton, 'Save and confirm'));
+      await tester.pumpAndSettle();
+
+      verify(() => api.updateRecurring(
+            's1',
+            name: 'Netflix',
+            monthlyAmount: '199',
+            kind: RecurringCostKind.subscription,
+            status: RecurringCostStatus.confirmed,
+            decision: RecurringCostDecision.undecided,
+            savedAmount: null,
+          )).called(1);
+    });
+
+    testWidgets('fit a narrow phone without overflow', (tester) async {
+      when(() => api.listRecurring()).thenAnswer((_) async => [
+            _suggestion('s1', 'Discovery Insure Vehicle Comprehensive Policy', amount: '12450.00'),
+          ]);
+      tester.view.physicalSize = const Size(360, 2400);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+      await pumpApp(
+        tester,
+        const SavingsPlanScreen(),
+        overrides: [savingsApiProvider.overrideWithValue(api)],
+        useAppTheme: true,
+      );
+      await tester.pumpAndSettle();
+
+      expect(tester.takeException(), isNull);
+      expect(find.text('Find costs'), findsOneWidget);
+    });
+
+    testWidgets('a cancelled cost charged again is flagged', (tester) async {
+      when(() => api.listRecurring()).thenAnswer((_) async => [
+            _cost('c1', 'Showmax',
+                decision: RecurringCostDecision.cut,
+                saved: '199.00',
+                lastSeen: DateTime(2026, 10, 2),
+                stillCharged: true),
+            _cost('c2', 'Gym', decision: RecurringCostDecision.cut, saved: '199.00'),
+          ]);
+      await pump(tester);
+
+      expect(find.text('Still charged · 2 Oct'), findsOneWidget);
+      expect(find.textContaining('Still charged'), findsOneWidget);
+    });
+  });
+
+  group('Find costs', () {
+    testWidgets('runs detection, refetches and says what it found', (tester) async {
+      when(() => api.detectRecurring())
+          .thenAnswer((_) async => const DetectResult(suggested: 3, linked: 0, updated: 1));
+      await pump(tester);
+
+      await tester.tap(find.byKey(const Key('find-costs')));
+      await tester.pumpAndSettle();
+
+      verify(() => api.detectRecurring()).called(1);
+      expect(find.text('Found 3 new recurring costs to review.'), findsOneWidget);
+      verify(() => api.listRecurring()).called(2);
+    });
+
+    testWidgets('shows the error when detection fails', (tester) async {
+      when(() => api.detectRecurring())
+          .thenThrow(const ApiError(statusCode: 429, message: 'Too many requests. Try again in a minute.'));
+      await pump(tester);
+
+      await tester.tap(find.byKey(const Key('find-costs')));
+      await tester.pumpAndSettle();
+      expect(find.text('Too many requests. Try again in a minute.'), findsOneWidget);
+    });
+
+    test('detectMessage covers found, linked and nothing new', () {
+      expect(detectMessage(const DetectResult(suggested: 1, linked: 0, updated: 0)),
+          'Found 1 new recurring cost to review.');
+      expect(detectMessage(const DetectResult(suggested: 0, linked: 2, updated: 0)),
+          'Matched 2 of your costs to their bank charges.');
+      expect(detectMessage(const DetectResult(suggested: 0, linked: 0, updated: 4)), contains('two months'));
     });
   });
 

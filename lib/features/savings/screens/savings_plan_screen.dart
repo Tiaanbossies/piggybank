@@ -8,6 +8,7 @@ import '../../../core/format/money.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/icon_chip.dart';
 import '../../../shared/widgets/state_views.dart';
+import '../../../shared/widgets/swipe_background.dart';
 import '../models/savings.dart';
 import '../providers/savings_provider.dart';
 
@@ -252,15 +253,115 @@ IconData kindIcon(RecurringCostKind kind) => switch (kind) {
       RecurringCostKind.other => Icons.autorenew,
     };
 
-class _CostsSection extends ConsumerWidget {
+/// What a "Find costs" run tells the user. A run that finds nothing says
+/// why it might have, since thin bank history is the usual cause.
+String detectMessage(DetectResult result) {
+  if (result.suggested > 0) {
+    return result.suggested == 1
+        ? 'Found 1 new recurring cost to review.'
+        : 'Found ${result.suggested} new recurring costs to review.';
+  }
+  if (result.linked > 0) {
+    return result.linked == 1
+        ? 'Matched 1 of your costs to its bank charges.'
+        : 'Matched ${result.linked} of your costs to their bank charges.';
+  }
+  return 'Nothing new found. Finding costs needs at least two months of bank history.';
+}
+
+/// The recurring-costs list (cost-cutting plan, item 4). Detected
+/// suggestions sit on top for a one-tap Confirm or Dismiss, the same as
+/// pending review: the change waits behind an Undo snackbar and is only
+/// sent once it closes. Below them, the confirmed costs in the server's
+/// order — cut candidates first, then by amount.
+class _CostsSection extends ConsumerStatefulWidget {
   const _CostsSection();
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_CostsSection> createState() => _CostsSectionState();
+}
+
+class _CostsSectionState extends ConsumerState<_CostsSection> {
+  /// Suggestions hidden while their Undo window is open or their request
+  /// is in flight. Only suggestion rows are filtered by it: a confirmed
+  /// cost comes back from the refetch as confirmed and shows in the main
+  /// list, and a dismissed one doesn't come back at all.
+  final Set<String> _settling = {};
+  bool _detecting = false;
+
+  Future<void> _settle(RecurringCost cost, RecurringCostStatus status) async {
+    // Captured up front: the snackbar outlives this screen if the user backs
+    // out during the Undo window, and the change must still be sent then.
+    final api = ref.read(savingsApiProvider);
+    final container = ProviderScope.containerOf(context);
+    final messenger = ScaffoldMessenger.of(context);
+    final verb = status == RecurringCostStatus.confirmed ? 'Confirmed' : 'Dismissed';
+
+    setState(() => _settling.add(cost.id));
+    messenger.hideCurrentSnackBar();
+    final reason = await messenger
+        .showSnackBar(SnackBar(
+          content: Text('$verb · ${cost.name}'),
+          duration: const Duration(seconds: 4),
+          // Without this an action snackbar persists (Flutter 3.29+) and the
+          // last item reviewed would never be sent.
+          persist: false,
+          action: SnackBarAction(label: 'Undo', onPressed: () {}),
+        ))
+        .closed;
+
+    if (reason == SnackBarClosedReason.action) {
+      if (mounted) setState(() => _settling.remove(cost.id));
+      return;
+    }
+
+    try {
+      await api.updateRecurring(cost.id, status: status);
+    } on ApiError catch (e) {
+      if (mounted) setState(() => _settling.remove(cost.id));
+      messenger.showSnackBar(SnackBar(content: Text(e.message)));
+      return;
+    }
+    // Confirming adds to fixed costs, so the overview moves too.
+    container.invalidate(savingsOverviewProvider);
+    container.invalidate(recurringCostsProvider);
+  }
+
+  Future<void> _detect() async {
+    final api = ref.read(savingsApiProvider);
+    final container = ProviderScope.containerOf(context);
+    final messenger = ScaffoldMessenger.of(context);
+    setState(() => _detecting = true);
+    try {
+      final result = await api.detectRecurring();
+      container.invalidate(savingsOverviewProvider);
+      container.invalidate(recurringCostsProvider);
+      messenger.showSnackBar(SnackBar(content: Text(detectMessage(result))));
+    } on ApiError catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text(e.message)));
+    } finally {
+      if (mounted) setState(() => _detecting = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Recurring costs', style: Theme.of(context).textTheme.titleMedium),
+        Row(
+          children: [
+            Expanded(child: Text('Recurring costs', style: Theme.of(context).textTheme.titleMedium)),
+            TextButton.icon(
+              key: const Key('find-costs'),
+              onPressed: _detecting ? null : _detect,
+              icon: _detecting
+                  ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                  : const Icon(Icons.manage_search),
+              label: const Text('Find costs'),
+            ),
+          ],
+        ),
         const SizedBox(height: 8),
         ref.watch(recurringCostsProvider).when(
               loading: () => const Padding(
@@ -271,16 +372,149 @@ class _CostsSection extends ConsumerWidget {
                 message: err is ApiError ? err.message : "Couldn't load your recurring costs",
                 onRetry: () => ref.invalidate(recurringCostsProvider),
               ),
-              data: (costs) => costs.isEmpty
-                  ? const EmptyState(
-                      icon: Icons.autorenew,
-                      title: 'No recurring costs yet.',
-                      hint: 'Add subscriptions, debit orders and insurance premiums with "Add cost".',
-                      topPadding: 16,
-                    )
-                  : Column(children: [for (final cost in costs) _CostRow(cost: cost)]),
+              data: (all) {
+                final suggestions = all.where((c) => c.isSuggestion && !_settling.contains(c.id)).toList();
+                final costs = all.where((c) => !c.isSuggestion).toList();
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (suggestions.isNotEmpty) ...[
+                      _SuggestionsHeader(count: suggestions.length),
+                      for (final cost in suggestions)
+                        _SuggestionCard(
+                          key: ValueKey(cost.id),
+                          cost: cost,
+                          onConfirm: () => _settle(cost, RecurringCostStatus.confirmed),
+                          onDismiss: () => _settle(cost, RecurringCostStatus.dismissed),
+                        ),
+                      if (costs.isNotEmpty) const SizedBox(height: 16),
+                    ],
+                    if (costs.isEmpty && suggestions.isEmpty)
+                      const EmptyState(
+                        icon: Icons.autorenew,
+                        title: 'No recurring costs yet.',
+                        hint: 'Tap "Find costs" to spot them in your bank history, '
+                            'or add subscriptions, debit orders and premiums with "Add cost".',
+                        topPadding: 16,
+                      )
+                    else
+                      for (final cost in costs) _CostRow(cost: cost),
+                  ],
+                );
+              },
             ),
       ],
+    );
+  }
+}
+
+class _SuggestionsHeader extends StatelessWidget {
+  const _SuggestionsHeader({required this.count});
+  final int count;
+
+  @override
+  Widget build(BuildContext context) {
+    final semantic = Theme.of(context).extension<AppSemanticColors>();
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            count == 1 ? 'Found 1 recurring cost' : 'Found $count recurring costs',
+            style: Theme.of(context).textTheme.titleSmall,
+          ),
+          const SizedBox(height: 2),
+          Text(
+            'These charged you every month. Confirm the real ones, dismiss the rest.',
+            style: TextStyle(fontSize: 12, color: semantic?.textMuted),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// A detected charge waiting for review. Swipe right or tap Confirm to add
+/// it to the plan; swipe left or tap Dismiss and it is never suggested
+/// again. Tapping the card opens the sheet to correct it first.
+class _SuggestionCard extends StatelessWidget {
+  const _SuggestionCard({required this.cost, required this.onConfirm, required this.onDismiss, super.key});
+  final RecurringCost cost;
+  final VoidCallback onConfirm;
+  final VoidCallback onDismiss;
+
+  @override
+  Widget build(BuildContext context) {
+    final semantic = Theme.of(context).extension<AppSemanticColors>();
+    final colors = Theme.of(context).colorScheme;
+    final seen = cost.lastSeenOn;
+    return Dismissible(
+      key: ValueKey('dismiss-${cost.id}'),
+      background: SwipeBackground(
+        color: colors.primaryContainer,
+        foreground: colors.onPrimaryContainer,
+        icon: Icons.check,
+        label: 'Confirm',
+        alignment: Alignment.centerLeft,
+        bottomMargin: 8,
+      ),
+      secondaryBackground: SwipeBackground(
+        color: colors.errorContainer,
+        foreground: colors.onErrorContainer,
+        icon: Icons.close,
+        label: 'Dismiss',
+        alignment: Alignment.centerRight,
+        bottomMargin: 8,
+      ),
+      onDismissed: (direction) => direction == DismissDirection.startToEnd ? onConfirm() : onDismiss(),
+      child: Card(
+        margin: const EdgeInsets.only(bottom: 8),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: () => showRecurringCostSheet(context, existing: cost),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(12, 12, 12, 4),
+            child: Column(
+              children: [
+                Row(
+                  children: [
+                    IconChip(icon: kindIcon(cost.kind), size: 40),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(cost.name,
+                              style: Theme.of(context).textTheme.titleSmall, overflow: TextOverflow.ellipsis),
+                          const SizedBox(height: 2),
+                          Text(
+                            [
+                              cost.kind.label,
+                              if (seen != null) 'last charged ${dayLabel(seen, withYear: false)}',
+                            ].join(' · '),
+                            style: TextStyle(fontSize: 12, color: semantic?.textMuted),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(formatZAR(cost.monthlyAmount)),
+                  ],
+                ),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    TextButton(onPressed: onDismiss, child: const Text('Dismiss')),
+                    const SizedBox(width: 8),
+                    FilledButton.tonal(onPressed: onConfirm, child: const Text('Confirm')),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
@@ -291,7 +525,6 @@ class _CostRow extends StatelessWidget {
 
   String get _subtitle {
     final parts = <String>[cost.kind.label];
-    if (cost.status == RecurringCostStatus.suggested) parts.add('Suggested');
     if (cost.decision == RecurringCostDecision.cut && cost.savedAmount != null) {
       parts.add('Cut, saves ${formatZAR(cost.savedAmount)}');
     } else if (cost.decision != RecurringCostDecision.undecided) {
@@ -305,6 +538,7 @@ class _CostRow extends StatelessWidget {
     final semantic = Theme.of(context).extension<AppSemanticColors>();
     final isCut = cost.decision == RecurringCostDecision.cut;
     final isCandidate = cost.decision == RecurringCostDecision.cutCandidate;
+    final seen = cost.lastSeenOn;
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
       clipBehavior: Clip.antiAlias,
@@ -314,7 +548,7 @@ class _CostRow extends StatelessWidget {
           padding: const EdgeInsets.all(12),
           child: Row(
             children: [
-              IconChip(icon: kindIcon(cost.kind), size: 40, danger: isCandidate),
+              IconChip(icon: kindIcon(cost.kind), size: 40, danger: isCandidate || cost.stillCharged),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
@@ -329,6 +563,14 @@ class _CostRow extends StatelessWidget {
                         color: isCut ? semantic?.success : (isCandidate ? semantic?.danger : semantic?.textMuted),
                       ),
                     ),
+                    if (cost.stillCharged) ...[
+                      const SizedBox(height: 4),
+                      _Pill(
+                        label: seen == null ? 'Still charged' : 'Still charged · ${dayLabel(seen, withYear: false)}',
+                        color: semantic?.danger,
+                        background: semantic?.dangerChipBg,
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -344,6 +586,23 @@ class _CostRow extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// A small status pill, styled like the shared `StatusBadge`.
+class _Pill extends StatelessWidget {
+  const _Pill({required this.label, this.color, this.background});
+  final String label;
+  final Color? color;
+  final Color? background;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(color: background, borderRadius: BorderRadius.circular(999)),
+      child: Text(label, style: TextStyle(color: color, fontWeight: FontWeight.w700, fontSize: 11)),
     );
   }
 }
@@ -625,6 +884,8 @@ class _RecurringCostSheetState extends ConsumerState<RecurringCostSheet> {
           name: name,
           monthlyAmount: amount.toString(),
           kind: _kind,
+          // Correcting a suggestion and saving it accepts it.
+          status: existing.isSuggestion ? RecurringCostStatus.confirmed : null,
           decision: _decision,
           savedAmount: saved?.toString(),
         );
@@ -703,7 +964,10 @@ class _RecurringCostSheetState extends ConsumerState<RecurringCostSheet> {
               Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
             ],
             const SizedBox(height: 24),
-            FilledButton(onPressed: _busy ? null : _save, child: const Text('Save')),
+            FilledButton(
+              onPressed: _busy ? null : _save,
+              child: Text(existing?.isSuggestion ?? false ? 'Save and confirm' : 'Save'),
+            ),
             if (existing != null) ...[
               const SizedBox(height: 8),
               TextButton(
