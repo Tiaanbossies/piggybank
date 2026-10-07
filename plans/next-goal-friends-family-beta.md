@@ -3,6 +3,10 @@
 Agreed 2026-10-05 in an interview with Tiaan. Supersedes nothing: it follows on from
 `daily-driver-sprint.md`, whose success metrics become the gate for the beta.
 
+> **Paused 2026-10-07.** The savings-target / cost-cutting goal (`cost-cutting-plan.md`)
+> now comes first. Phase A's UX items are shipped (1.0.6+7). Phase B and the
+> ~2026-11-23 invite date wait until that plan is done, so the date will move.
+
 ## Goal
 
 **By mid–late November 2026 (target invite date ~2026-11-23), 3–5 Android friends & family

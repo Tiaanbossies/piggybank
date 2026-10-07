@@ -20,6 +20,10 @@ import 'package:piggybank/features/detection/screens/pending_review_screen.dart'
 import 'package:piggybank/features/goals/data/goals_api.dart';
 import 'package:piggybank/features/goals/models/goal.dart';
 import 'package:piggybank/features/goals/providers/goals_provider.dart';
+import 'package:piggybank/features/savings/data/savings_api.dart';
+import 'package:piggybank/features/savings/models/savings.dart';
+import 'package:piggybank/features/savings/providers/savings_provider.dart';
+import 'package:piggybank/features/savings/screens/savings_plan_screen.dart';
 import 'package:piggybank/features/summaries/data/summaries_api.dart';
 import 'package:piggybank/features/summaries/models/summaries.dart';
 import 'package:piggybank/features/summaries/providers/summaries_provider.dart';
@@ -49,6 +53,33 @@ class _MockUpdatesApi extends Mock implements UpdatesApi {}
 class _MockDetectionApi extends Mock implements DetectionApi {}
 
 class _MockAccountsApi extends Mock implements AccountsApi {}
+
+class _MockSavingsApi extends Mock implements SavingsApi {}
+
+SavingsOverview _savings({SavingsTarget? target, String gap = '1500.00', bool met = false, String found = '0.00'}) =>
+    SavingsOverview(
+      target: target,
+      basis: OverviewBasis.fullMonths,
+      monthsOfData: 2,
+      income: Decimal.parse('20000'),
+      incomeIsOverride: false,
+      fixedCosts: Decimal.parse('2000'),
+      everydaySpending: Decimal.parse('10500'),
+      leftOver: Decimal.parse('7500'),
+      gap: target == null ? null : Decimal.parse(gap),
+      targetMet: met,
+      savingsFound: Decimal.parse(found),
+      confirmedCount: 2,
+      suggestedCount: 0,
+    );
+
+final _rent = SavingsTarget(
+  id: 't1',
+  label: 'Rent',
+  monthlyAmount: Decimal.fromInt(9000),
+  targetDate: null,
+  incomeOverride: null,
+);
 
 DetectedEvent _detected(String id, {DetectionStatus status = DetectionStatus.pending}) => DetectedEvent(
       id: id,
@@ -151,6 +182,7 @@ void main() {
   late _MockUpdatesApi mockUpdatesApi;
   late _MockDetectionApi mockDetectionApi;
   late _MockAccountsApi mockAccountsApi;
+  late _MockSavingsApi mockSavingsApi;
 
   List<Override> overrides() => [
         summariesApiProvider.overrideWithValue(mockSummariesApi),
@@ -160,6 +192,7 @@ void main() {
         updatesApiProvider.overrideWithValue(mockUpdatesApi),
         detectionApiProvider.overrideWithValue(mockDetectionApi),
         accountsApiProvider.overrideWithValue(mockAccountsApi),
+        savingsApiProvider.overrideWithValue(mockSavingsApi),
       ];
 
   /// Stubs every dashboard-consumed API call with a successful, empty-ish
@@ -199,6 +232,10 @@ void main() {
     // hidden for every test that isn't about it.
     when(() => mockDetectionApi.listPending()).thenAnswer((_) async => pendingEvents ?? const []);
     when(() => mockAccountsApi.list(includeInactive: any(named: 'includeInactive'))).thenAnswer((_) async => []);
+    // Defaults to a failed overview, which hides the savings card, so
+    // tests that aren't about it see Home exactly as before.
+    when(() => mockSavingsApi.overview())
+        .thenAnswer((_) async => throw const ApiError(statusCode: 404, message: 'not found'));
   }
 
   setUp(() {
@@ -209,6 +246,7 @@ void main() {
     mockUpdatesApi = _MockUpdatesApi();
     mockDetectionApi = _MockDetectionApi();
     mockAccountsApi = _MockAccountsApi();
+    mockSavingsApi = _MockSavingsApi();
     // This install's own build number, as `about_screen.dart` reads it via
     // the same `PackageInfo.fromPlatform()` call the update banner uses.
     PackageInfo.setMockInitialValues(
@@ -667,6 +705,50 @@ void main() {
 
       expect(find.text('Failed to load cashflow'), findsNothing);
       expect(find.text('R 8 000,00'), findsOneWidget);
+    });
+  });
+
+  group('Savings card (cost-cutting item 2)', () {
+    testWidgets('hidden when the overview fails to load', (tester) async {
+      await pumpApp(tester, const DashboardScreen(), overrides: overrides(), useAppTheme: true);
+      await tester.pumpAndSettle();
+      expect(find.textContaining('Set a savings target'), findsNothing);
+      expect(find.textContaining('gap'), findsNothing);
+    });
+
+    testWidgets('invites a target when none is set', (tester) async {
+      when(() => mockSavingsApi.overview()).thenAnswer((_) async => _savings());
+      await pumpApp(tester, const DashboardScreen(), overrides: overrides(), useAppTheme: true);
+      await tester.pumpAndSettle();
+      expect(find.text('Set a savings target'), findsOneWidget);
+    });
+
+    testWidgets('shows the gap to the target', (tester) async {
+      when(() => mockSavingsApi.overview()).thenAnswer((_) async => _savings(target: _rent));
+      await pumpApp(tester, const DashboardScreen(), overrides: overrides(), useAppTheme: true);
+      await tester.pumpAndSettle();
+      expect(find.text('Rent: gap R 1 500,00'), findsOneWidget);
+      expect(find.text('Tap to find costs to cut'), findsOneWidget);
+    });
+
+    testWidgets('says when the target is met', (tester) async {
+      when(() => mockSavingsApi.overview())
+          .thenAnswer((_) async => _savings(target: _rent, gap: '0.00', met: true));
+      await pumpApp(tester, const DashboardScreen(), overrides: overrides(), useAppTheme: true);
+      await tester.pumpAndSettle();
+      expect(find.text('Rent: target met'), findsOneWidget);
+    });
+
+    testWidgets('opens the Savings plan in one tap', (tester) async {
+      when(() => mockSavingsApi.overview()).thenAnswer((_) async => _savings(target: _rent));
+      when(() => mockSavingsApi.listRecurring()).thenAnswer((_) async => const []);
+      await pumpApp(tester, const DashboardScreen(), overrides: overrides(), useAppTheme: true);
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Rent: gap R 1 500,00'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(SavingsPlanScreen), findsOneWidget);
     });
   });
 }

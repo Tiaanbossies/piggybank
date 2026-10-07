@@ -26,6 +26,8 @@ import '../../detection/screens/pending_review_screen.dart';
 import '../../goals/models/goal.dart';
 import '../../goals/providers/goals_provider.dart';
 import '../../liabilities/screens/liabilities_screen.dart';
+import '../../savings/providers/savings_provider.dart';
+import '../../savings/screens/savings_plan_screen.dart';
 import '../../summaries/providers/summaries_provider.dart';
 import '../../transactions/category_icons.dart';
 import '../../transactions/providers/transactions_provider.dart';
@@ -73,6 +75,7 @@ class DashboardScreen extends ConsumerWidget {
             ref.invalidate(currentMonthBudgetProgressProvider);
             ref.invalidate(recentTransactionsProvider);
             ref.invalidate(pendingEventsProvider);
+            ref.invalidate(savingsOverviewProvider);
           },
           child: ListView(
             // The bottom inset clears the Add button (56) plus its margin,
@@ -86,6 +89,7 @@ class DashboardScreen extends ConsumerWidget {
               SizedBox(height: 16),
               _CashflowStatStrip(),
               SizedBox(height: 16),
+              _SavingsCard(),
               _ProgressBlock(),
               SizedBox(height: 8),
               _TrendsEntryCard(),
@@ -234,6 +238,83 @@ class _ReviewBanner extends ConsumerWidget {
                     ],
                   ),
                 ),
+                const Icon(Icons.chevron_right),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// The savings target's gap, one tap from Home (cost-cutting plan, item 2).
+/// Sits under the spend strip so the daily review-and-spend flow above it
+/// is unchanged. Hidden while loading and on error, like the review
+/// banner: a backend without the savings endpoints yet, or a bad-signal
+/// moment, shouldn't put an error on Home. The Savings plan screen itself
+/// shows the error with a Retry.
+class _SavingsCard extends ConsumerWidget {
+  const _SavingsCard();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final overview = ref.watch(savingsOverviewProvider).valueOrNull;
+    if (overview == null) return const SizedBox.shrink();
+
+    final semantic = Theme.of(context).extension<AppSemanticColors>();
+    final target = overview.target;
+    final String title;
+    final String subtitle;
+    if (target == null) {
+      title = 'Set a savings target';
+      subtitle = 'See what you have left over each month';
+    } else if (overview.targetMet) {
+      title = '${target.displayLabel}: target met';
+      subtitle = '${formatZAR(overview.leftOver)} left over a month';
+    } else {
+      title = '${target.displayLabel}: gap ${formatZAR(overview.gap)}';
+      subtitle = overview.savingsFound > Decimal.zero
+          ? '${formatZAR(overview.savingsFound)} a month found so far'
+          : 'Tap to find costs to cut';
+    }
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Card(
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const SavingsPlanScreen())),
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Row(
+              children: [
+                const IconChip(icon: Icons.savings_outlined, size: 40),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                              color: overview.targetMet ? semantic?.success : null,
+                            ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(subtitle, style: Theme.of(context).textTheme.bodySmall),
+                    ],
+                  ),
+                ),
+                if (target != null && !overview.targetMet)
+                  SizedBox(
+                    width: 40,
+                    child: Text(
+                      '${(overview.progress * 100).round()}%',
+                      textAlign: TextAlign.end,
+                      style: TextStyle(color: semantic?.textMuted, fontSize: 12),
+                    ),
+                  ),
                 const Icon(Icons.chevron_right),
               ],
             ),
