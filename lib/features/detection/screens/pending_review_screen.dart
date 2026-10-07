@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/api/api_error.dart';
 import '../../../core/format/money.dart';
+import '../../../shared/widgets/swipe_background.dart';
 import '../../accounts/models/account.dart';
 import '../../accounts/providers/accounts_provider.dart';
 import '../../portfolios/providers/portfolios_provider.dart';
@@ -206,14 +207,14 @@ class _EventCard extends ConsumerWidget {
       key: ValueKey('dismiss-${event.id}'),
       // Swipe right only where a tap would confirm without asking anything.
       direction: oneTap != null ? DismissDirection.horizontal : DismissDirection.endToStart,
-      background: _SwipeBackground(
+      background: SwipeBackground(
         color: colors.primaryContainer,
         foreground: colors.onPrimaryContainer,
         icon: Icons.check,
         label: 'Confirm',
         alignment: Alignment.centerLeft,
       ),
-      secondaryBackground: _SwipeBackground(
+      secondaryBackground: SwipeBackground(
         color: colors.errorContainer,
         foreground: colors.onErrorContainer,
         icon: Icons.delete_outline,
@@ -298,39 +299,6 @@ class _EventCard extends ConsumerWidget {
             ],
           ),
         ),
-      ),
-    );
-  }
-}
-
-class _SwipeBackground extends StatelessWidget {
-  const _SwipeBackground({
-    required this.color,
-    required this.foreground,
-    required this.icon,
-    required this.label,
-    required this.alignment,
-  });
-  final Color color;
-  final Color foreground;
-  final IconData icon;
-  final String label;
-  final Alignment alignment;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.symmetric(horizontal: 24),
-      decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(12)),
-      alignment: alignment,
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, color: foreground),
-          const SizedBox(width: 8),
-          Text(label, style: TextStyle(color: foreground, fontWeight: FontWeight.w600)),
-        ],
       ),
     );
   }
