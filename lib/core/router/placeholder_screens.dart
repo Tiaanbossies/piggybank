@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../features/consent/screens/consent_screen.dart';
 import '../../features/detection/screens/detection_settings_screen.dart';
+import '../../features/savings/screens/savings_plan_screen.dart';
 import '../../features/settings/screens/about_screen.dart';
 import '../../features/settings/screens/appearance_screen.dart';
 import '../../features/settings/screens/import_history_screen.dart';
@@ -87,6 +88,13 @@ class SettingsScreen extends ConsumerWidget {
                   title: 'Subscription',
                   onTap: () => Navigator.of(context).push(
                     MaterialPageRoute(builder: (_) => const SubscriptionScreen()),
+                  ),
+                ),
+                GroupRow(
+                  leadingIcon: Icons.savings_outlined,
+                  title: 'Savings plan',
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const SavingsPlanScreen()),
                   ),
                 ),
                 GroupRow(
