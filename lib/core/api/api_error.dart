@@ -28,6 +28,24 @@ class ApiError implements Exception {
 
   bool get isValidation => statusCode == 422;
   bool get isConsentsRequired => consentsMissing != null;
+
+  /// A consents-required 403 that the app-wide `/consent` screen can resolve.
+  /// False when every missing document is a feature-only opt-in (the
+  /// detection consent, which only its setup screen collects): those 403s
+  /// gate one feature, and sending the user to `/consent` would show
+  /// "You're up to date" with no way on. An empty or absent `missing` list
+  /// still counts, so an unexpected shape errs towards asking.
+  bool get requiresAppConsents {
+    final missing = consentsMissing;
+    if (missing == null) return false;
+    if (missing.isEmpty) return true;
+    return missing.any((doc) => !_featureOnlyConsentTypes.contains(doc['document_type']));
+  }
+
+  /// Opt-in consents that gate a single feature rather than the whole app.
+  /// Mirrors `notificationEmailDetectionConsentDocument` in
+  /// `features/consent/consent_documents.dart`.
+  static const _featureOnlyConsentTypes = {'notification_email_detection'};
   bool get isPaywall => statusCode == 402;
   bool get isUnauthorized => statusCode == 401;
 
