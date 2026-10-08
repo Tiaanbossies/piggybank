@@ -1,8 +1,10 @@
 import 'package:decimal/decimal.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:piggybank/core/api/api_error.dart';
+import 'package:piggybank/features/chatbot/providers/chatbot_provider.dart';
 import 'package:piggybank/features/savings/data/savings_api.dart';
 import 'package:piggybank/features/savings/models/savings.dart';
 import 'package:piggybank/features/savings/providers/savings_provider.dart';
@@ -528,6 +530,15 @@ void main() {
       expect(find.byType(PolicyScreen), findsOneWidget);
       expect(find.byType(RecurringCostSheet), findsNothing);
     });
+  });
+
+  testWidgets('"Where should I cut?" leaves the question waiting for Penny', (tester) async {
+    await pump(tester);
+    await tester.tap(find.byKey(const Key('where-to-cut')));
+    await tester.pumpAndSettle();
+
+    final container = ProviderScope.containerOf(tester.element(find.byType(SavingsPlanScreen)));
+    expect(container.read(chatDraftProvider), whereToCutQuestion);
   });
 
   group('parseAmount', () {

@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../core/api/api_error.dart';
 import '../../../core/theme/app_motion.dart';
@@ -33,6 +34,14 @@ class ChatbotScreen extends ConsumerStatefulWidget {
   ConsumerState<ChatbotScreen> createState() => _ChatbotScreenState();
 }
 
+/// Opens Penny's tab with [question] waiting in the input box. Used from
+/// pushed screens (the Savings plan), which stay where they were on their
+/// own tab. Without a router (widget tests) only the draft is set.
+void askPenny(BuildContext context, WidgetRef ref, String question) {
+  ref.read(chatDraftProvider.notifier).state = question;
+  GoRouter.maybeOf(context)?.go('/assistant');
+}
+
 const _suggestedQuestions = [
   'How much did I spend on dining?',
   'Am I on track with my budget?',
@@ -45,6 +54,27 @@ class _ChatbotScreenState extends ConsumerState<ChatbotScreen> {
   String? _error;
   String? _retryText;
   late final int _animatedFloor = ref.read(chatbotControllerProvider).messages.length;
+
+  @override
+  void initState() {
+    super.initState();
+    // A draft set before this tab was first built. Taken after the frame,
+    // because clearing a provider mid-build isn't allowed.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _takeDraft(ref.read(chatDraftProvider));
+    });
+  }
+
+  /// Moves a waiting question into the input box, cursor at the end, and
+  /// clears it so it isn't put back on the next visit.
+  void _takeDraft(String? draft) {
+    if (draft == null || draft.trim().isEmpty) return;
+    _inputController.value = TextEditingValue(
+      text: draft,
+      selection: TextSelection.collapsed(offset: draft.length),
+    );
+    ref.read(chatDraftProvider.notifier).state = null;
+  }
 
   @override
   void dispose() {
@@ -94,6 +124,13 @@ class _ChatbotScreenState extends ConsumerState<ChatbotScreen> {
   Widget build(BuildContext context) {
     final state = ref.watch(chatbotControllerProvider);
     final semantic = Theme.of(context).extension<AppSemanticColors>();
+    // A draft set while this tab is already alive in the shell.
+    ref.listen<String?>(chatDraftProvider, (_, next) {
+      if (next == null) return;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _takeDraft(ref.read(chatDraftProvider));
+      });
+    });
     return Scaffold(
       appBar: AppBar(
         titleSpacing: 0,

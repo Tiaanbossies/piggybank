@@ -53,3 +53,9 @@ class ChatbotController extends StateNotifier<ChatbotState> {
 final chatbotControllerProvider = StateNotifierProvider.autoDispose<ChatbotController, ChatbotState>((ref) {
   return ChatbotController(ref);
 });
+
+/// A question another screen wants waiting in Penny's input box (the
+/// Savings plan's "Where should I cut?"). The chat screen moves it into the
+/// box and clears it; the user still taps send, so nothing is asked (or
+/// counted against Pro) without them.
+final chatDraftProvider = StateProvider<String?>((ref) => null);

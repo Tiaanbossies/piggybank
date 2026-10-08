@@ -8,6 +8,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:piggybank/core/api/api_client.dart';
 import 'package:piggybank/core/theme/app_theme.dart';
 import 'package:piggybank/features/chatbot/data/chatbot_api.dart';
+import 'package:piggybank/features/chatbot/providers/chatbot_provider.dart';
 import 'package:piggybank/features/chatbot/screens/chatbot_screen.dart';
 
 class _FakeAdapter implements HttpClientAdapter {
@@ -126,6 +127,37 @@ void main() {
       final downIcon = tester.widget<Icon>(find.byIcon(Icons.trending_down));
       expect(downIcon.color, textMuted);
       expect(downIcon.color, isNot(success));
+    });
+  });
+
+  group('A question from another screen', () {
+    testWidgets('waits in the input box and is not sent on its own', (tester) async {
+      final adapter = _FakeAdapter([]);
+      await tester.pumpWidget(ProviderScope(
+        overrides: [
+          chatbotApiProvider.overrideWithValue(_apiWith(adapter)),
+          chatDraftProvider.overrideWith((ref) => 'Where should I cut?'),
+        ],
+        child: MaterialApp(theme: AppTheme.light(), home: const ChatbotScreen()),
+      ));
+      await tester.pumpAndSettle();
+
+      expect(tester.widget<TextField>(find.byType(TextField)).controller!.text, 'Where should I cut?');
+      expect(adapter.callCount, 0);
+      final container = ProviderScope.containerOf(tester.element(find.byType(ChatbotScreen)));
+      expect(container.read(chatDraftProvider), isNull);
+    });
+
+    testWidgets('arriving while the tab is already open fills the box too', (tester) async {
+      await tester.pumpWidget(_wrap(_apiWith(_FakeAdapter([]))));
+      await tester.pumpAndSettle();
+      final container = ProviderScope.containerOf(tester.element(find.byType(ChatbotScreen)));
+
+      container.read(chatDraftProvider.notifier).state = 'Where should I cut?';
+      await tester.pumpAndSettle();
+
+      expect(tester.widget<TextField>(find.byType(TextField)).controller!.text, 'Where should I cut?');
+      expect(container.read(chatDraftProvider), isNull);
     });
   });
 }

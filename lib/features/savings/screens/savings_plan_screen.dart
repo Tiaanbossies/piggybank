@@ -9,6 +9,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/icon_chip.dart';
 import '../../../shared/widgets/state_views.dart';
 import '../../../shared/widgets/swipe_background.dart';
+import '../../chatbot/screens/chatbot_screen.dart' show askPenny;
 import '../models/savings.dart';
 import '../providers/savings_provider.dart';
 import 'policy_screen.dart';
@@ -40,7 +41,9 @@ class SavingsPlanScreen extends ConsumerWidget {
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 96),
             children: const [
               _TargetSection(),
-              SizedBox(height: 24),
+              SizedBox(height: 12),
+              _WhereToCut(),
+              SizedBox(height: 12),
               _CostsSection(),
             ],
           ),
@@ -50,6 +53,29 @@ class SavingsPlanScreen extends ConsumerWidget {
         onPressed: () => showRecurringCostSheet(context),
         icon: const Icon(Icons.add),
         label: const Text('Add cost'),
+      ),
+    );
+  }
+}
+
+/// The question Penny answers from the savings block of her snapshot.
+const whereToCutQuestion = 'Where should I cut?';
+
+/// Opens Penny with the question waiting in the input box (item 8). The
+/// user still sends it, so a free account meets the paywall in chat, as
+/// for any other question.
+class _WhereToCut extends ConsumerWidget {
+  const _WhereToCut();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: ActionChip(
+        key: const Key('where-to-cut'),
+        avatar: const Icon(Icons.chat_bubble_outline, size: 18),
+        label: const Text('$whereToCutQuestion Ask Penny'),
+        onPressed: () => askPenny(context, ref, whereToCutQuestion),
       ),
     );
   }
