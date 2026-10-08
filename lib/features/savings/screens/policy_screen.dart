@@ -1,14 +1,20 @@
+import 'dart:async';
+
 import 'package:decimal/decimal.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/api/api_error.dart';
 import '../../../core/format/dates.dart';
 import '../../../core/format/money.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../shared/widgets/paywall_dialog.dart';
 import '../../../shared/widgets/state_views.dart';
 import '../../assets/models/asset.dart';
 import '../../assets/providers/assets_provider.dart';
+import '../../chatbot/data/chatbot_api.dart';
+import '../../chatbot/models/policy_research.dart';
 import '../models/policy.dart';
 import '../models/savings.dart';
 import '../providers/savings_provider.dart';
@@ -276,12 +282,199 @@ class PolicyCheckCard extends ConsumerWidget {
                       'Facts from your own figures, not advice. What to do about them is your call.',
                       style: TextStyle(fontSize: 12, color: semantic?.textMuted, fontStyle: FontStyle.italic),
                     ),
+                    const Divider(height: 32),
+                    _AskPenny(policyId: policyId),
                   ],
                 ),
               ),
             );
           },
         );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Ask Penny (cost-cutting plan, item 8)
+// ---------------------------------------------------------------------------
+
+/// Shown under every research result, whatever Penny said.
+const researchFootnote =
+    'Information, not advice. Confirm changes with a licensed financial adviser or your broker.';
+
+/// "checked today", "checked yesterday", "checked on 3 Oct 2026".
+String checkedLabel(DateTime date, {DateTime? now}) {
+  final day = dayLabel(date.toLocal(), now: now);
+  return (day == 'Today' || day == 'Yesterday') ? 'checked ${day.toLowerCase()}' : 'checked on $day';
+}
+
+/// Penny reads published figures about this kind of policy and compares
+/// them with the premium (Pro, 5 a day). Asked only on a tap: each ask
+/// spends web searches and GPU time, so it never runs on its own.
+///
+/// Penny's reply and the sources' titles are shown as plain text, never as
+/// links or markdown; the only tappable links are the source rows, whose
+/// URLs the server took from the search results.
+class _AskPenny extends ConsumerStatefulWidget {
+  const _AskPenny({required this.policyId});
+  final String policyId;
+
+  @override
+  ConsumerState<_AskPenny> createState() => _AskPennyState();
+}
+
+class _AskPennyState extends ConsumerState<_AskPenny> {
+  bool _asking = false;
+  PolicyResearch? _result;
+  String? _error;
+
+  Future<void> _ask() async {
+    setState(() {
+      _asking = true;
+      _error = null;
+    });
+    try {
+      final result = await ref.read(chatbotApiProvider).researchPolicy(widget.policyId);
+      if (mounted) setState(() => _result = result);
+    } on ApiError catch (e) {
+      if (!mounted) return;
+      if (e.isPaywall) {
+        unawaited(showPaywallPrompt(context, message: e.message));
+      } else {
+        setState(() => _error = e.statusCode == 429
+            ? "You've asked Penny about policies 5 times today. Try again tomorrow."
+            : e.message);
+      }
+    } finally {
+      if (mounted) setState(() => _asking = false);
+    }
+  }
+
+  Future<void> _open(ResearchSource source) async {
+    final uri = source.safeUri;
+    if (uri == null) return;
+    final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
+    if (!opened && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Couldn't open the page")));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final semantic = Theme.of(context).extension<AppSemanticColors>();
+    final muted = TextStyle(fontSize: 12, color: semantic?.textMuted);
+    final result = _result;
+    return Column(
+      key: const Key('ask-penny'),
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('Ask Penny', style: Theme.of(context).textTheme.titleSmall),
+        const SizedBox(height: 4),
+        if (result == null)
+          Text(
+            'Penny reads published figures for this kind of policy and compares them with your premium. '
+            'Pro, up to 5 a day.',
+            style: muted,
+          )
+        else
+          _ResearchBody(result: result, onOpen: _open),
+        if (_error != null) ...[
+          const SizedBox(height: 8),
+          Text(_error!, style: TextStyle(fontSize: 13, color: semantic?.danger)),
+        ],
+        const SizedBox(height: 12),
+        if (_asking)
+          Row(
+            children: [
+              const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)),
+              const SizedBox(width: 12),
+              Expanded(child: Text('Penny is reading published sources. This can take up to a minute.', style: muted)),
+            ],
+          )
+        // Paused lasts until the 1st, so asking again wouldn't help.
+        else if (result == null || (!result.hasReply && result.status != ResearchStatus.paused))
+          OutlinedButton.icon(
+            key: const Key('ask-penny-button'),
+            onPressed: _ask,
+            icon: const Icon(Icons.travel_explore, size: 18),
+            label: Text(result == null && _error == null ? 'Ask Penny about this premium' : 'Ask again'),
+          ),
+        const SizedBox(height: 12),
+        Text(researchFootnote, style: muted.copyWith(fontStyle: FontStyle.italic)),
+      ],
+    );
+  }
+}
+
+class _ResearchBody extends StatelessWidget {
+  const _ResearchBody({required this.result, required this.onOpen});
+  final PolicyResearch result;
+  final void Function(ResearchSource) onOpen;
+
+  @override
+  Widget build(BuildContext context) {
+    final semantic = Theme.of(context).extension<AppSemanticColors>();
+    final muted = TextStyle(fontSize: 12, color: semantic?.textMuted);
+    if (!result.hasReply) {
+      final until = result.pausedUntil;
+      return Text(
+        switch (result.status) {
+          ResearchStatus.paused => until == null
+              ? "Penny's research is paused for the rest of the month. The facts above still stand."
+              : "Penny's research is paused until ${dayLabel(until)}. The facts above still stand.",
+          ResearchStatus.noResults => 'Penny found no published figures to compare this policy with. '
+              'Getting 2 or 3 quotes is the surest comparison.',
+          _ => "Penny can't search right now. Try again later; the facts above still stand.",
+        },
+        key: const Key('research-status'),
+        style: TextStyle(fontSize: 13, color: semantic?.textMuted),
+      );
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Plain text on purpose: no markdown, no auto-linking.
+        SelectableText(result.reply!.trim(), key: const Key('research-reply')),
+        if (result.sources.isNotEmpty) ...[
+          const SizedBox(height: 16),
+          Text('Sources', style: Theme.of(context).textTheme.titleSmall),
+          if (result.checkedOn case final DateTime on) Text('Sources ${checkedLabel(on)}.', style: muted),
+          const SizedBox(height: 4),
+          for (final source in result.sources)
+            InkWell(
+              key: Key('source-${source.domain}'),
+              onTap: source.safeUri == null ? null : () => onOpen(source),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(minHeight: 48),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 6),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(source.title, maxLines: 2, overflow: TextOverflow.ellipsis),
+                            Text(
+                              '${source.domain} · ${checkedLabel(source.retrievedAt)}',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: muted,
+                            ),
+                          ],
+                        ),
+                      ),
+                      if (source.safeUri != null) ...[
+                        const SizedBox(width: 8),
+                        Icon(Icons.open_in_new, size: 16, color: semantic?.textMuted),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ],
+    );
   }
 }
 

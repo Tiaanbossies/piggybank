@@ -2,20 +2,43 @@ import 'package:decimal/decimal.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
+import 'package:piggybank/core/api/api_error.dart';
 import 'package:piggybank/features/assets/data/assets_api.dart';
 import 'package:piggybank/features/assets/models/asset.dart';
 import 'package:piggybank/features/assets/providers/assets_provider.dart';
+import 'package:piggybank/features/chatbot/data/chatbot_api.dart';
+import 'package:piggybank/features/chatbot/models/policy_research.dart';
 import 'package:piggybank/features/savings/data/savings_api.dart';
 import 'package:piggybank/features/savings/models/policy.dart';
 import 'package:piggybank/features/savings/models/savings.dart';
 import 'package:piggybank/features/savings/providers/savings_provider.dart';
 import 'package:piggybank/features/savings/screens/policy_screen.dart';
+import 'package:url_launcher_platform_interface/url_launcher_platform_interface.dart';
 
 import '../../test_helpers/pump_app.dart';
 
 class _MockSavingsApi extends Mock implements SavingsApi {}
 
 class _MockAssetsApi extends Mock implements AssetsApi {}
+
+class _MockChatbotApi extends Mock implements ChatbotApi {}
+
+class _FakeUrlLauncher extends UrlLauncherPlatform {
+  final launched = <String>[];
+
+  @override
+  // ignore: override_on_non_overriding_member
+  get linkDelegate => null;
+
+  @override
+  Future<bool> canLaunch(String url) async => true;
+
+  @override
+  Future<bool> launchUrl(String url, LaunchOptions options) async {
+    launched.add(url);
+    return true;
+  }
+}
 
 final _cost = RecurringCost(
   id: 'c1',
@@ -71,6 +94,7 @@ void _useTallView(WidgetTester tester) {
 void main() {
   late _MockSavingsApi api;
   late _MockAssetsApi assetsApi;
+  late _MockChatbotApi chatApi;
 
   setUpAll(() {
     registerFallbackValue(const PolicyDetails(type: PolicyType.life));
@@ -79,6 +103,7 @@ void main() {
   setUp(() {
     api = _MockSavingsApi();
     assetsApi = _MockAssetsApi();
+    chatApi = _MockChatbotApi();
     when(() => api.getPolicy(any())).thenAnswer((_) async => null);
     when(() => api.listRecurring()).thenAnswer((_) async => const []);
     when(() => assetsApi.list()).thenAnswer((_) async => [_polo, _house]);
@@ -92,6 +117,7 @@ void main() {
       overrides: [
         savingsApiProvider.overrideWithValue(api),
         assetsApiProvider.overrideWithValue(assetsApi),
+        chatbotApiProvider.overrideWithValue(chatApi),
       ],
       useAppTheme: true,
     );
@@ -252,7 +278,7 @@ void main() {
       expect(find.text('Up 12,5%'), findsOneWidget);
       expect(find.text('2,5%'), findsOneWidget);
       expect(find.textContaining('R 444,44 on 1 Oct 2025'), findsOneWidget);
-      expect(find.textContaining('not advice'), findsOneWidget);
+      expect(find.textContaining('Facts from your own figures, not advice'), findsOneWidget);
       // Every fact was known, so nothing is asked for.
       expect(find.byIcon(Icons.info_outline), findsNothing);
     });
@@ -276,5 +302,139 @@ void main() {
       expect(find.text('Policy check'), findsNothing);
       expect(find.text('Add the policy details'), findsOneWidget);
     });
+  });
+
+  group('Ask Penny', () {
+    setUp(() {
+      when(() => api.getPolicy('c1')).thenAnswer((_) async => _policy);
+      when(() => api.checkPolicy('p1')).thenAnswer((_) async => PolicyCheck(
+            policyId: 'p1',
+            policyType: PolicyType.car,
+            monthlyPremium: Decimal.parse('500'),
+            premiumPerYear: Decimal.parse('6000'),
+          ));
+    });
+
+    final checked = DateTime.utc(2026, 10, 1, 9);
+
+    PolicyResearch answer({String reply = 'Published figures suggest R400 to R700 a month.'}) => PolicyResearch(
+          policyId: 'p1',
+          status: ResearchStatus.ok,
+          reply: reply,
+          checkedOn: DateTime(2026, 10, 1),
+          sources: [
+            ResearchSource(
+              title: 'Car insurance costs in 2026',
+              domain: 'example.co.za',
+              url: 'https://example.co.za/car-insurance',
+              retrievedAt: checked,
+            ),
+            ResearchSource(
+              title: 'A page with a bad link',
+              domain: 'bad.example',
+              url: 'javascript:alert(1)',
+              retrievedAt: checked,
+            ),
+          ],
+        );
+
+    Future<void> ask(WidgetTester tester) async {
+      await tester.tap(find.byKey(const Key('ask-penny-button')));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('asks only on a tap, and the footnote is there before asking', (tester) async {
+      await pump(tester);
+      expect(find.byKey(const Key('ask-penny-button')), findsOneWidget);
+      expect(find.text(researchFootnote), findsOneWidget);
+      verifyNever(() => chatApi.researchPolicy(any()));
+    });
+
+    testWidgets('shows the reply as plain text, the sources with their dates, and the footnote', (tester) async {
+      final launcher = _FakeUrlLauncher();
+      UrlLauncherPlatform.instance = launcher;
+      when(() => chatApi.researchPolicy('p1')).thenAnswer((_) async => answer());
+      await pump(tester);
+      await ask(tester);
+
+      final reply = tester.widget<SelectableText>(find.byKey(const Key('research-reply')));
+      expect(reply.data, 'Published figures suggest R400 to R700 a month.');
+      expect(find.text('Sources'), findsOneWidget);
+      expect(find.text('Car insurance costs in 2026'), findsOneWidget);
+      expect(find.textContaining('example.co.za · checked on 1 Oct 2026'), findsOneWidget);
+      expect(find.text(researchFootnote), findsOneWidget);
+      // One answer per tap: no button to spend another of the day's five.
+      expect(find.byKey(const Key('ask-penny-button')), findsNothing);
+
+      await tester.tap(find.byKey(const Key('source-example.co.za')));
+      await tester.pumpAndSettle();
+      expect(launcher.launched, ['https://example.co.za/car-insurance']);
+
+      // A link that isn't http(s) is shown but never opened.
+      await tester.tap(find.byKey(const Key('source-bad.example')));
+      await tester.pumpAndSettle();
+      expect(launcher.launched, hasLength(1));
+    });
+
+    testWidgets('a link inside the reply is not made tappable', (tester) async {
+      when(() => chatApi.researchPolicy('p1'))
+          .thenAnswer((_) async => answer(reply: 'See https://evil.example/login for cheaper cover.'));
+      await pump(tester);
+      await ask(tester);
+
+      final reply = tester.widget<SelectableText>(find.byKey(const Key('research-reply')));
+      expect(reply.data, contains('https://evil.example/login'));
+      expect(reply.textSpan, isNull);
+    });
+
+    testWidgets('paused research says until when, and offers no second ask', (tester) async {
+      when(() => chatApi.researchPolicy('p1')).thenAnswer((_) async => PolicyResearch(
+            policyId: 'p1',
+            status: ResearchStatus.paused,
+            pausedUntil: DateTime(2026, 11, 1),
+          ));
+      await pump(tester);
+      await ask(tester);
+
+      expect(find.textContaining('paused until 1 Nov 2026'), findsOneWidget);
+      expect(find.byKey(const Key('ask-penny-button')), findsNothing);
+      expect(find.text(researchFootnote), findsOneWidget);
+    });
+
+    testWidgets('no published figures says so and suggests quotes', (tester) async {
+      when(() => chatApi.researchPolicy('p1'))
+          .thenAnswer((_) async => const PolicyResearch(policyId: 'p1', status: ResearchStatus.noResults));
+      await pump(tester);
+      await ask(tester);
+
+      expect(find.textContaining('no published figures'), findsOneWidget);
+      expect(find.textContaining('2 or 3 quotes'), findsOneWidget);
+      expect(find.text(researchFootnote), findsOneWidget);
+    });
+
+    testWidgets('a free account gets the upgrade prompt', (tester) async {
+      when(() => chatApi.researchPolicy('p1'))
+          .thenThrow(const ApiError(statusCode: 402, message: 'Penny research is a Pro feature'));
+      await pump(tester);
+      await ask(tester);
+
+      expect(find.text('Upgrade to PRO'), findsOneWidget);
+      expect(find.text('Penny research is a Pro feature'), findsOneWidget);
+    });
+
+    testWidgets('the sixth ask in a day says to come back tomorrow', (tester) async {
+      when(() => chatApi.researchPolicy('p1')).thenThrow(const ApiError(statusCode: 429, message: 'x'));
+      await pump(tester);
+      await ask(tester);
+
+      expect(find.textContaining('5 times today'), findsOneWidget);
+    });
+  });
+
+  test('checkedLabel reads naturally', () {
+    final now = DateTime(2026, 10, 8, 12);
+    expect(checkedLabel(DateTime(2026, 10, 8, 7), now: now), 'checked today');
+    expect(checkedLabel(DateTime(2026, 10, 7, 7), now: now), 'checked yesterday');
+    expect(checkedLabel(DateTime(2026, 10, 1, 7), now: now), 'checked on 1 Oct 2026');
   });
 }

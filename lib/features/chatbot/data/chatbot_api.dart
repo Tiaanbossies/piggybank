@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/api/api_client.dart';
 import '../../../core/auth/auth_controller.dart';
 import '../models/chat_message.dart';
+import '../models/policy_research.dart';
 
 /// Wraps `backend/app/chatbot/router.py`'s single `POST /chatbot/chat`
 /// endpoint — synchronous, no pagination, no conversation id. `require_pro_tier`
@@ -23,6 +24,21 @@ class ChatbotApi {
         options: Options(receiveTimeout: const Duration(seconds: 60)),
       );
       return ChatReply.fromJson(response.data as Map<String, dynamic>);
+    } on DioException catch (e) {
+      throw ApiClient.errorFrom(e);
+    }
+  }
+
+  /// Penny's reading of one insurance policy against published sources
+  /// (Pro, 5 a day). The server searches before Penny writes, so this can
+  /// take longer than a chat reply.
+  Future<PolicyResearch> researchPolicy(String policyId) async {
+    try {
+      final response = await _client.dio.post(
+        '/chatbot/policy-check/$policyId',
+        options: Options(receiveTimeout: const Duration(seconds: 90)),
+      );
+      return PolicyResearch.fromJson(response.data as Map<String, dynamic>);
     } on DioException catch (e) {
       throw ApiClient.errorFrom(e);
     }
