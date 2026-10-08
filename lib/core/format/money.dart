@@ -1,8 +1,10 @@
 import 'package:decimal/decimal.dart';
 
-/// Ports `frontend/src/lib/formatMoney.ts`'s `formatZAR` bit-for-bit: en-ZA
-/// grouping (space thousands separator, comma decimal separator), leading
-/// minus outside the `R` prefix, `R —` for unparseable input.
+/// Ports `frontend/src/lib/formatMoney.ts`'s `formatZAR`: en-ZA grouping
+/// (space thousands separator, comma decimal separator), leading minus
+/// outside the `R` prefix, `R —` for unparseable input. The spaces are
+/// no-break spaces, so an amount inside a sentence never wraps as
+/// "R 480" / "000,00".
 String formatZAR(Object? value) {
   double? n;
   if (value is num) {
@@ -16,8 +18,10 @@ String formatZAR(Object? value) {
 
   final abs = n.abs();
   final grouped = _groupWithSpaces(abs);
-  return n < 0 ? '-R $grouped' : 'R $grouped';
+  return n < 0 ? '-R$_nbsp$grouped' : 'R$_nbsp$grouped';
 }
+
+const _nbsp = ' ';
 
 String _groupWithSpaces(double value) {
   final fixed = value.toStringAsFixed(2);
@@ -28,7 +32,7 @@ String _groupWithSpaces(double value) {
   final reversed = intPart.split('').reversed.toList();
   final buffer = StringBuffer();
   for (var i = 0; i < reversed.length; i++) {
-    if (i != 0 && i % 3 == 0) buffer.write(' ');
+    if (i != 0 && i % 3 == 0) buffer.write(_nbsp);
     buffer.write(reversed[i]);
   }
   final groupedInt = buffer.toString().split('').reversed.join();

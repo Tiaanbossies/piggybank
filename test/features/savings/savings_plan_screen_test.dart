@@ -118,17 +118,25 @@ void main() {
     testWidgets('without a target, invites one and still shows the breakdown', (tester) async {
       await pump(tester);
       expect(find.text('Set a monthly target'), findsOneWidget);
-      expect(find.text('R 20 000,00'), findsOneWidget);
+      expect(find.text('R\u00A020\u00A0000,00'), findsOneWidget);
       expect(find.text('Left over each month'), findsOneWidget);
-      expect(find.text('R 7 500,00'), findsOneWidget);
+      expect(find.text('R\u00A07\u00A0500,00'), findsOneWidget);
     });
 
     testWidgets('with a target, leads with the gap', (tester) async {
       when(() => api.overview()).thenAnswer((_) async => _overview(target: _rent, gap: '1500.00'));
       await pump(tester);
       expect(find.text('Rent'), findsOneWidget);
-      expect(find.text('Gap R 1 500,00'), findsOneWidget);
-      expect(find.text('Target R 9 000,00 a month'), findsOneWidget);
+      expect(find.text('Gap R\u00A01\u00A0500,00'), findsOneWidget);
+      expect(find.text('Target R\u00A09\u00A0000,00 a month'), findsOneWidget);
+    });
+
+    testWidgets('the progress bar says what it measures to a screen reader', (tester) async {
+      when(() => api.overview()).thenAnswer((_) async => _overview(target: _rent, gap: '1500.00'));
+      await pump(tester);
+      final bar = tester.widget<LinearProgressIndicator>(find.byType(LinearProgressIndicator));
+      expect(bar.semanticsLabel, 'Progress to Rent');
+      expect(bar.semanticsValue, endsWith('%'));
     });
 
     testWidgets('says when the target is met', (tester) async {
@@ -141,7 +149,7 @@ void main() {
       when(() => api.overview()).thenAnswer((_) async => _overview(target: _rent, gap: '900.00', found: '600.00'));
       await pump(tester);
       expect(find.text('Savings found so far'), findsOneWidget);
-      expect(find.text('R 600,00 a month'), findsOneWidget);
+      expect(find.text('R\u00A0600,00 a month'), findsOneWidget);
     });
 
     testWidgets('marks a typed-in income', (tester) async {
@@ -193,8 +201,8 @@ void main() {
       await pump(tester);
       expect(find.text('Showmax'), findsOneWidget);
       expect(find.text('Subscription · Maybe cut'), findsOneWidget);
-      expect(find.text('Debit order · Cut, saves R 450,00'), findsOneWidget);
-      expect(find.text('R 199,00'), findsOneWidget);
+      expect(find.text('Debit order · Cut, saves R\u00A0450,00'), findsOneWidget);
+      expect(find.text('R\u00A0199,00'), findsOneWidget);
     });
 
     testWidgets('adding a cost validates, parses SA amounts and refreshes', (tester) async {
@@ -545,6 +553,8 @@ void main() {
     test('accepts SA and plain formats, rejects zero and junk', () {
       expect(parseAmount('1 200,50'), Decimal.parse('1200.50'));
       expect(parseAmount('1200.50'), Decimal.parse('1200.50'));
+      // An amount copied from the app carries formatZAR's no-break spaces.
+      expect(parseAmount('1 200,50'), Decimal.parse('1200.50'));
       expect(parseAmount('0'), isNull);
       expect(parseAmount('abc'), isNull);
       expect(parseAmount(''), isNull);

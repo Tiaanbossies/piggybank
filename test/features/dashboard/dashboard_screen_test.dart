@@ -268,7 +268,7 @@ void main() {
 
       final hero = tester.widget<HeroMetricCard>(find.byType(HeroMetricCard));
       expect(hero.label, 'Net worth');
-      expect(hero.value, 'R 123 456,78');
+      expect(hero.value, 'R\u00A0123\u00A0456,78');
     });
   });
 
@@ -281,8 +281,8 @@ void main() {
 
       expect(find.text('Income'), findsOneWidget);
       expect(find.text('Expenses'), findsOneWidget);
-      expect(find.text('R 8 000,00'), findsOneWidget);
-      expect(find.text('R 2 500,00'), findsOneWidget);
+      expect(find.text('R\u00A08\u00A0000,00'), findsOneWidget);
+      expect(find.text('R\u00A02\u00A0500,00'), findsOneWidget);
     });
 
     testWidgets("leads with today's spending, summed from today's expenses", (tester) async {
@@ -295,7 +295,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Spent today'), findsOneWidget);
-      expect(find.text('R 688,50'), findsOneWidget);
+      expect(find.text('R\u00A0688,50'), findsOneWidget);
       verify(() => mockTransactionsApi.list(
             transactionType: TransactionType.expense,
             dateFrom: any(named: 'dateFrom'),
@@ -304,12 +304,12 @@ void main() {
           )).called(1);
     });
 
-    testWidgets('a day with no spending reads R 0,00, not blank', (tester) async {
+    testWidgets('a day with no spending reads R\u00A00,00, not blank', (tester) async {
       await pumpApp(tester, const DashboardScreen(), overrides: overrides(), useAppTheme: true);
       await tester.pumpAndSettle();
 
       expect(find.text('Spent today'), findsOneWidget);
-      expect(find.text('R 0,00'), findsOneWidget);
+      expect(find.text('R\u00A00,00'), findsOneWidget);
     });
 
     testWidgets("a failed today query doesn't hide the month figures", (tester) async {
@@ -325,7 +325,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.textContaining("Couldn't load today's spending"), findsOneWidget);
-      expect(find.text('R 8 000,00'), findsOneWidget);
+      expect(find.text('R\u00A08\u00A0000,00'), findsOneWidget);
     });
   });
 
@@ -579,7 +579,7 @@ void main() {
       await pumpApp(tester, const DashboardScreen(), overrides: overrides(), useAppTheme: true);
       await tester.pumpAndSettle();
 
-      expect(tester.widget<HeroMetricCard>(find.byType(HeroMetricCard)).value, 'R 1 000,00');
+      expect(tester.widget<HeroMetricCard>(find.byType(HeroMetricCard)).value, 'R\u00A01\u00A0000,00');
       expect(find.text('Holiday'), findsOneWidget);
       expect(find.textContaining('Coffee'), findsOneWidget);
 
@@ -616,7 +616,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // Sections independent of cashflow reloaded successfully with fresh data.
-      expect(tester.widget<HeroMetricCard>(find.byType(HeroMetricCard)).value, 'R 2 000,00');
+      expect(tester.widget<HeroMetricCard>(find.byType(HeroMetricCard)).value, 'R\u00A02\u00A0000,00');
       expect(find.text('New car'), findsOneWidget);
       expect(find.text('Holiday'), findsNothing);
       expect(find.textContaining('Rent'), findsOneWidget);
@@ -704,7 +704,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Failed to load cashflow'), findsNothing);
-      expect(find.text('R 8 000,00'), findsOneWidget);
+      expect(find.text('R\u00A08\u00A0000,00'), findsOneWidget);
     });
   });
 
@@ -727,7 +727,7 @@ void main() {
       when(() => mockSavingsApi.overview()).thenAnswer((_) async => _savings(target: _rent));
       await pumpApp(tester, const DashboardScreen(), overrides: overrides(), useAppTheme: true);
       await tester.pumpAndSettle();
-      expect(find.text('Rent: gap R 1 500,00'), findsOneWidget);
+      expect(find.text('Rent: gap R\u00A01\u00A0500,00'), findsOneWidget);
       expect(find.text('Tap to find costs to cut'), findsOneWidget);
     });
 
@@ -745,7 +745,7 @@ void main() {
       await pumpApp(tester, const DashboardScreen(), overrides: overrides(), useAppTheme: true);
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Rent: gap R 1 500,00'));
+      await tester.tap(find.text('Rent: gap R\u00A01\u00A0500,00'));
       await tester.pumpAndSettle();
 
       expect(find.byType(SavingsPlanScreen), findsOneWidget);

@@ -97,7 +97,7 @@ void main() {
       await tester.pumpAndSettle();
 
       final hero = tester.widget<HeroMetricCard>(find.byType(HeroMetricCard));
-      expect(hero.value, 'R 125 000,00');
+      expect(hero.value, 'R\u00A0125\u00A0000,00');
       expect(hero.deltaText, contains('+25.0%'));
 
       // One ProgressCard per month of the trailing window.
