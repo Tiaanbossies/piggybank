@@ -28,6 +28,43 @@ void main() {
       expect(error.isConsentsRequired, isTrue);
       expect(error.consentsMissing, hasLength(1));
       expect(error.consentsMissing!.first['document_type'], 'privacy_policy');
+      expect(error.requiresAppConsents, isTrue);
+    });
+
+    test('a 403 naming only the opt-in detection consent does not require the app-wide consents', () {
+      final error = ApiError.fromResponse(403, {
+        'detail': {
+          'error': 'consent required',
+          'missing': [
+            {'document_type': 'notification_email_detection', 'document_version': '1.0'},
+          ],
+        },
+      });
+
+      expect(error.isConsentsRequired, isTrue);
+      expect(error.requiresAppConsents, isFalse);
+    });
+
+    test('a 403 naming the detection consent and an app-wide document still requires the app-wide consents', () {
+      final error = ApiError.fromResponse(403, {
+        'detail': {
+          'error': 'consent required',
+          'missing': [
+            {'document_type': 'notification_email_detection', 'document_version': '1.0'},
+            {'document_type': 'terms_of_service', 'document_version': '1.0'},
+          ],
+        },
+      });
+
+      expect(error.requiresAppConsents, isTrue);
+    });
+
+    test('a consents-required 403 with no missing list still requires the app-wide consents', () {
+      final error = ApiError.fromResponse(403, {
+        'detail': {'error': 'consent required'},
+      });
+
+      expect(error.requiresAppConsents, isTrue);
     });
 
     test('plain-string detail (e.g. 401 invalid credentials) becomes the message', () {
@@ -36,6 +73,7 @@ void main() {
       expect(error.message, 'invalid credentials');
       expect(error.fieldErrors, isNull);
       expect(error.isConsentsRequired, isFalse);
+      expect(error.requiresAppConsents, isFalse);
     });
 
     test('402 is recognised as a paywall/tier-gate error', () {

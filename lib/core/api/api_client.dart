@@ -99,7 +99,7 @@ class ApiClient {
 
     if (err.response?.statusCode == 403) {
       final apiError = ApiError.fromResponse(403, err.response?.data);
-      if (apiError.isConsentsRequired) _onConsentsRequired?.call();
+      if (apiError.requiresAppConsents) _onConsentsRequired?.call();
       return handler.next(err);
     }
 

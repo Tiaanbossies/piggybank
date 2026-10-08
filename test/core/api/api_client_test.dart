@@ -166,6 +166,36 @@ void main() {
       expect(refreshCalls, 0);
       expect(adapter.callCount, 1);
     });
+
+    // The opt-in detection consent gates only the detection endpoints. Home
+    // calls /detection/pending for every user, so treating this 403 as the
+    // app-wide gate sent users without detection to a /consent screen that
+    // had nothing to accept and no way out.
+    test('a 403 for only the detection consent does not trigger onConsentsRequired', () async {
+      var consentsRequiredCalls = 0;
+      final adapter = _FakeAdapter([
+        () => _json(403, {
+              'detail': {
+                'error': 'consent required',
+                'missing': [
+                  {'document_type': 'notification_email_detection', 'document_version': '1.0'},
+                ],
+              },
+            }),
+      ]);
+      final client = ApiClient(
+        baseUrl: 'https://api.test',
+        getAccessToken: () => 'token',
+        refreshAccessToken: () async => true,
+        onSessionExpired: () {},
+        onConsentsRequired: () => consentsRequiredCalls++,
+      );
+      client.dio.httpClientAdapter = adapter;
+
+      await expectLater(client.dio.get('/detection/pending'), throwsA(isA<DioException>()));
+      expect(consentsRequiredCalls, 0);
+      expect(adapter.callCount, 1);
+    });
   });
 
   group('ApiClient connection-level fallback', () {
