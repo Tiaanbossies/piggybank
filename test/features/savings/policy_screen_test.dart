@@ -241,10 +241,10 @@ void main() {
 
       expect(find.text('Policy check'), findsOneWidget);
       expect(find.text('Premium per year'), findsOneWidget);
-      expect(find.text('R 6 000,00'), findsOneWidget);
+      expect(find.text('R\u00A06\u00A0000,00'), findsOneWidget);
       expect(find.text('Share of your income'), findsNothing);
       expect(find.text('Change in a year'), findsNothing);
-      expect(find.textContaining('R 0,00'), findsNothing);
+      expect(find.textContaining('R\u00A00,00'), findsNothing);
       expect(find.textContaining('shows once Piggybank knows your income'), findsOneWidget);
       // The saved details are in the form, ready to change.
       expect(find.text('Save changes'), findsOneWidget);
@@ -274,10 +274,10 @@ void main() {
       await pump(tester);
 
       expect(find.text('3,2%'), findsOneWidget);
-      expect(find.text('R 15 000,00 more'), findsOneWidget);
+      expect(find.text('R\u00A015\u00A0000,00 more'), findsOneWidget);
       expect(find.text('Up 12,5%'), findsOneWidget);
       expect(find.text('2,5%'), findsOneWidget);
-      expect(find.textContaining('R 444,44 on 1 Oct 2025'), findsOneWidget);
+      expect(find.textContaining('R\u00A0444,44 on 1 Oct 2025'), findsOneWidget);
       expect(find.textContaining('Facts from your own figures, not advice'), findsOneWidget);
       // Every fact was known, so nothing is asked for.
       expect(find.byIcon(Icons.info_outline), findsNothing);
@@ -428,6 +428,26 @@ void main() {
       await ask(tester);
 
       expect(find.textContaining('5 times today'), findsOneWidget);
+      expect(find.byKey(const Key('ask-penny-button')), findsNothing);
+    });
+
+    testWidgets('after the daily limit, the earlier "can\'t search" and Ask again go away', (tester) async {
+      var calls = 0;
+      when(() => chatApi.researchPolicy('p1')).thenAnswer((_) async {
+        calls++;
+        if (calls == 1) return const PolicyResearch(policyId: 'p1', status: ResearchStatus.unavailable);
+        throw const ApiError(statusCode: 429, message: 'x');
+      });
+      await pump(tester);
+      await ask(tester);
+      expect(find.textContaining("can't search right now"), findsOneWidget);
+
+      await ask(tester);
+
+      expect(find.textContaining('5 times today'), findsOneWidget);
+      expect(find.textContaining("can't search right now"), findsNothing);
+      expect(find.byKey(const Key('ask-penny-button')), findsNothing);
+      expect(find.text(researchFootnote), findsOneWidget);
     });
   });
 

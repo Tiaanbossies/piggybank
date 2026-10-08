@@ -130,7 +130,7 @@ void main() {
         diff: '15000',
       ));
       final fact = facts.firstWhere((f) => f.label == 'Cover against car value');
-      expect(fact.value, 'R 15 000,00 more');
+      expect(fact.value, 'R\u00A015\u00A0000,00 more');
       expect(fact.tone, FactTone.attention);
     });
 
@@ -143,7 +143,7 @@ void main() {
         diff: '-300000',
       ));
       final fact = facts.firstWhere((f) => f.label == 'Cover against property value');
-      expect(fact.value, 'R 300 000,00 less');
+      expect(fact.value, 'R\u00A0300\u00A0000,00 less');
       expect(fact.tone, FactTone.neutral);
       expect(fact.note, contains('cost to rebuild'));
     });
@@ -151,7 +151,7 @@ void main() {
     test('only the premium a year when nothing else is known, never a zero', () {
       final facts = policyFacts(_check());
       expect(facts.map((f) => f.label), ['Premium per year']);
-      expect(facts.single.value, 'R 6 000,00');
+      expect(facts.single.value, 'R\u00A06\u00A0000,00');
     });
   });
 

@@ -43,7 +43,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Test Account'), findsOneWidget);
-      expect(find.text('R 5 000,00'), findsOneWidget);
+      expect(find.text('R\u00A05\u00A0000,00'), findsOneWidget);
       expect(find.text('bank'), findsOneWidget);
       expect(find.text('Test Bank'), findsOneWidget);
       expect(find.text('ZAR'), findsOneWidget);

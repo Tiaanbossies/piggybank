@@ -42,7 +42,7 @@ void main() {
 
       expect(find.text('Enter a loan amount greater than zero.'), findsOneWidget);
       expect(find.text('Monthly payment'), findsNothing);
-      expect(find.text('R 0,00'), findsNothing);
+      expect(find.text(formatZAR(0)), findsNothing);
     });
 
     testWidgets('rejects a negative loan amount', (tester) async {

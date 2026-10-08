@@ -6,6 +6,22 @@ import '../../../core/api/api_error.dart';
 import '../../../core/auth/auth_controller.dart';
 import '../../../core/theme/app_motion.dart';
 
+/// The server answers a wrong login with a bare "invalid credentials", and a
+/// malformed one with the validator's own words ("password: String should
+/// have at least 8 characters"). Neither reads well on the login screen.
+/// A password too short to be valid is still just a wrong password, so it
+/// gets the same message; any other error keeps the server's wording.
+String loginErrorMessage(ApiError error) {
+  const wrong = 'Incorrect email or password.';
+  if (error.isUnauthorized) return wrong;
+  if (error.isValidation) {
+    return (error.fieldErrors?.keys.any((field) => field.endsWith('email')) ?? false)
+        ? 'Enter a valid email address.'
+        : wrong;
+  }
+  return error.message;
+}
+
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
 
@@ -55,7 +71,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> with SingleTickerProv
             password: _passwordController.text,
           );
     } on ApiError catch (e) {
-      setState(() => _error = e.message);
+      setState(() => _error = loginErrorMessage(e));
       if (mounted && !context.reducedMotion) _shakeController.forward(from: 0);
     } finally {
       if (mounted) setState(() => _submitting = false);

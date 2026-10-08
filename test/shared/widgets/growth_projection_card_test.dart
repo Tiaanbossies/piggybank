@@ -13,7 +13,7 @@ void main() {
 
       expect(find.textContaining('not a forecast'), findsOneWidget);
       // 50000 * 1.08^10 ≈ R 107 946.25 — default rate is 8%.
-      expect(find.textContaining('107 946'), findsOneWidget);
+      expect(find.textContaining('107 946'), findsOneWidget);
     });
 
     testWidgets('updates projections when the rate input changes', (WidgetTester tester) async {
@@ -27,8 +27,8 @@ void main() {
       await tester.pump();
 
       // At 0% growth, every horizon's projected value equals the starting balance.
-      expect(find.textContaining('50 000'), findsWidgets);
-      expect(find.textContaining('107 946'), findsNothing);
+      expect(find.textContaining('50 000'), findsWidgets);
+      expect(find.textContaining('107 946'), findsNothing);
     });
   });
 }

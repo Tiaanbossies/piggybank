@@ -102,7 +102,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('za.co.fnb.connect.itest'), findsOneWidget);
-    expect(find.textContaining('R 150,00'), findsOneWidget);
+    expect(find.textContaining('R\u00A0150,00'), findsOneWidget);
     expect(find.textContaining('Woolworths'), findsWidgets);
     expect(find.widgetWithText(ElevatedButton, 'Confirm'), findsOneWidget);
   });

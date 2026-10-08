@@ -327,6 +327,10 @@ class _AskPennyState extends ConsumerState<_AskPenny> {
   PolicyResearch? _result;
   String? _error;
 
+  /// Set by a 429. Asking again can only fail until tomorrow, so the
+  /// button goes away until the screen is opened again.
+  bool _dailyLimitReached = false;
+
   Future<void> _ask() async {
     setState(() {
       _asking = true;
@@ -339,10 +343,15 @@ class _AskPennyState extends ConsumerState<_AskPenny> {
       if (!mounted) return;
       if (e.isPaywall) {
         unawaited(showPaywallPrompt(context, message: e.message));
+      } else if (e.statusCode == 429) {
+        setState(() {
+          // An earlier "can't search right now" no longer applies.
+          _result = null;
+          _dailyLimitReached = true;
+          _error = "You've asked Penny about policies 5 times today. Try again tomorrow.";
+        });
       } else {
-        setState(() => _error = e.statusCode == 429
-            ? "You've asked Penny about policies 5 times today. Try again tomorrow."
-            : e.message);
+        setState(() => _error = e.message);
       }
     } finally {
       if (mounted) setState(() => _asking = false);
@@ -369,13 +378,14 @@ class _AskPennyState extends ConsumerState<_AskPenny> {
       children: [
         Text('Ask Penny', style: Theme.of(context).textTheme.titleSmall),
         const SizedBox(height: 4),
-        if (result == null)
-          Text(
-            'Penny reads published figures for this kind of policy and compares them with your premium. '
-            'Pro, up to 5 a day.',
-            style: muted,
-          )
-        else
+        if (result == null) ...[
+          if (!_dailyLimitReached)
+            Text(
+              'Penny reads published figures for this kind of policy and compares them with your premium. '
+              'Pro, up to 5 a day.',
+              style: muted,
+            ),
+        ] else
           _ResearchBody(result: result, onOpen: _open),
         if (_error != null) ...[
           const SizedBox(height: 8),
@@ -390,8 +400,10 @@ class _AskPennyState extends ConsumerState<_AskPenny> {
               Expanded(child: Text('Penny is reading published sources. This can take up to a minute.', style: muted)),
             ],
           )
-        // Paused lasts until the 1st, so asking again wouldn't help.
-        else if (result == null || (!result.hasReply && result.status != ResearchStatus.paused))
+        // Paused lasts until the 1st and the daily limit until tomorrow, so
+        // asking again wouldn't help.
+        else if (!_dailyLimitReached &&
+            (result == null || (!result.hasReply && result.status != ResearchStatus.paused)))
           OutlinedButton.icon(
             key: const Key('ask-penny-button'),
             onPressed: _ask,
@@ -518,7 +530,7 @@ class _FactRow extends StatelessWidget {
 ({Decimal? value, bool ok}) _optionalAmount(String text, {bool allowZero = false}) {
   final trimmed = text.trim();
   if (trimmed.isEmpty) return (value: null, ok: true);
-  if (allowZero && Decimal.tryParse(trimmed.replaceAll(' ', '').replaceAll(',', '.')) == Decimal.zero) {
+  if (allowZero && Decimal.tryParse(trimmed.replaceAll(RegExp(r'\s'), '').replaceAll(',', '.')) == Decimal.zero) {
     return (value: Decimal.zero, ok: true);
   }
   final value = parseAmount(trimmed);
@@ -751,12 +763,14 @@ class _PolicyFormState extends ConsumerState<_PolicyForm> {
             key: const Key('policy-make'),
             controller: _make,
             maxLength: 60,
+            textInputAction: TextInputAction.next,
             decoration: const InputDecoration(labelText: 'Make', hintText: 'e.g. Toyota'),
           ),
           TextField(
             key: const Key('policy-model'),
             controller: _model,
             maxLength: 60,
+            textInputAction: TextInputAction.next,
             decoration: const InputDecoration(labelText: 'Model', hintText: 'e.g. Corolla 1.8'),
           ),
           TextField(
@@ -779,6 +793,7 @@ class _PolicyFormState extends ConsumerState<_PolicyForm> {
             key: const Key('policy-vehicle-value'),
             controller: _vehicleValue,
             keyboardType: money,
+            textInputAction: TextInputAction.next,
             decoration: const InputDecoration(
               labelText: 'Insured value (R, optional)',
               helperText: 'The value on your policy schedule.',

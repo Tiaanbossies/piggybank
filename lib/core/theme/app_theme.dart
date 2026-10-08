@@ -125,6 +125,9 @@ abstract final class AppTheme {
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: surface,
+        // Material's default is one line, which cut helpers like "Leave
+        // empty to use the income Piggybank has reco…" on a phone.
+        helperMaxLines: 2,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
           borderSide: BorderSide(color: border),

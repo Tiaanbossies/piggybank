@@ -185,6 +185,9 @@ class _TargetHeader extends StatelessWidget {
           borderRadius: BorderRadius.circular(8),
           child: LinearProgressIndicator(
             value: overview.progress,
+            // Read out as "Progress to Rent, 87%" rather than a bare "87".
+            semanticsLabel: 'Progress to ${target.displayLabel}',
+            semanticsValue: '${(overview.progress * 100).round()}%',
             minHeight: 8,
             color: overview.targetMet ? semantic?.success : Theme.of(context).colorScheme.primary,
             backgroundColor: semantic?.accentChipBg,
@@ -659,9 +662,11 @@ class _Pill extends StatelessWidget {
 // ---------------------------------------------------------------------------
 
 /// "1 200,50" and "1200.50" both mean R1 200.50 to a South African user;
-/// the API wants the second. Null when it isn't a positive number.
+/// the API wants the second. Null when it isn't a positive number. Any
+/// whitespace goes, including the no-break spaces in an amount copied from
+/// [formatZAR].
 Decimal? parseAmount(String text) {
-  final cleaned = text.replaceAll(' ', '').replaceAll(',', '.');
+  final cleaned = text.replaceAll(RegExp(r'\s'), '').replaceAll(',', '.');
   final value = Decimal.tryParse(cleaned);
   if (value == null || value <= Decimal.zero) return null;
   return value;
