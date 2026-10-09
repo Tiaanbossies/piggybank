@@ -4,6 +4,21 @@ Phase 0 deliverable for the Flutter migration (see the approved migration plan a
 `C:\Users\tiaan\.claude\plans\run-the-full-prompt-eager-nebula.md`). Originally a
 **written spec, not generated mockups** — that changed on 2026-08-16 (see below).
 
+> ## Revision — 2026-10: UX rework (approved spec `docs/ux-rework/04-spec.md`)
+>
+> The UX rework (2026-10-09, approvals A1–A6) rewrites these locked rules; the sections
+> below are updated to match, and the spec is the source for anything not repeated here:
+> - **Navigation:** Home · Transactions · Plan · Invest · Penny. Settings leaves the tab
+>   bar and opens from the avatar.
+> - **Tab-root app bar:** avatar (→ Settings) · title · at most two labelled actions plus
+>   an overflow. **The bell is removed** until a notification inbox exists (this
+>   supersedes the "non-functional placeholder" decision below).
+> - **Home:** the hero is **Left to spend this month**; Net worth becomes a card that
+>   opens a Net worth hub. Fixed order, still no customisation.
+> - **Motion is expressive** (spec §3) with mascot moments, using the existing mascot
+>   poses. Still no confetti, streaks or badges.
+> - **New screens:** the Plan host (Budgets · Goals · Savings) and the Net worth hub.
+>
 > ## Revision — 2026-08-16: superseded by delivered mockups
 >
 > The user delivered 9 concrete UI mockups (`assets/WhatsApp Image 2026-08-16 at
@@ -114,16 +129,18 @@ in any of the 9 mockups.
 
 ## Navigation
 
-Material 3 `NavigationBar` (bottom, 5 tabs: Home, Invest, Budgets, Assistant, Settings),
-unchanged — confirmed directly by every mockup that shows the tab bar. Active tab renders
-in the accent green (icon + label), inactive tabs in muted grey/outline.
+Material 3 `NavigationBar` (bottom, 5 tabs: **Home, Transactions, Plan, Invest, Penny**;
+UX rework 2026-10). Active tab renders in the accent green (icon + label), inactive tabs
+in muted grey/outline. Re-tapping the active tab pops it to its root; each tab keeps its
+own stack and scroll position.
 
-**Top app bar now has two patterns, both seen directly in the mockups**:
-- **Tab-root screens** (Home, Invest, Budgets): a circular avatar placeholder (top-left),
-  centred title, and a static notification-bell icon with an unread dot (top-right).
-- **Pushed/detail screens** (Transactions, Create account) and **Settings** (a tab-root,
-  but shown with no avatar/bell — likely because it already surfaces identity in its own
-  first row): back-arrow + screen-name title, no avatar/bell.
+**Top app bar has two patterns**:
+- **Tab-root screens** (all five tabs) use the shared `TabAppBar`: a circular avatar
+  (top-left) that opens **Settings**, the title, then at most two labelled actions plus
+  an optional overflow menu. **No notification bell**: it had no feature behind it, and
+  a control that looks tappable and does nothing isn't allowed.
+- **Pushed/detail screens**, including **Settings** (now above the tabs, not one of
+  them): back-arrow + screen-name title.
 
 ## Signature components (used consistently across the app)
 
@@ -148,6 +165,26 @@ in the accent green (icon + label), inactive tabs in muted grey/outline.
    Dashboard's Accounts/Assets/Liabilities/Calculators row — replaces the superseded
    spec's inline `ActionChip` row with something closer to the mockup's 4-up grid.
 
+## Motion and mascot moments
+
+UX rework spec §3, all built from `AppMotion` tokens and **instant or static under the
+OS reduced-motion setting**. Reusable pieces live in `lib/shared/motion/`.
+- **Transitions:** tab switch fade-through (incoming half: fade + 0.92 → 1 scale, 160
+  ms); container transform from account, portfolio and Net worth rows into their
+  screens; shared axis X between Plan segments; shared axis Z for Settings.
+- **Feedback:** hero figures count to a new value (400 ms, tabular figures); progress
+  bars animate their fill; the row a sheet just saved tints and fades (600 ms after the
+  sheet closes); standalone cards press to 0.97; review swipes reveal Confirm (green) or
+  Discard (neutral grey, not red), with a light haptic.
+- **Deletes:** single-row deletes hide the row behind a 4 s Undo snackbar instead of a
+  confirm dialog. Holdings, portfolios, liability payments and log out keep their
+  confirms.
+- **Mascot moments** (existing jpg poses, circle-clipped): celebrating when the review
+  queue is cleared, a goal is first seen complete, or the savings target is met;
+  thinking (a 2 px bob) while Penny replies; sleeping beside "Quiet day so far";
+  welcoming on empty Transactions, Goals and Savings. A pop plays at most once a day per
+  kind. **Never on over-budget, missed-target or error states.**
+
 ## Screen-by-screen direction
 
 ### 1. Login / Register
@@ -161,18 +198,28 @@ reuses this same calm layout on subsequent app opens, fingerprint/face icon repl
 password field.
 
 ### 2. Bottom-nav shell
-5-tab `NavigationBar` as specified above, unchanged. Tab-root screens get the
-avatar+title+bell app bar (Settings excepted — see Navigation above); pushed screens get
-back+title.
+5-tab `NavigationBar` as specified above. Tab-root screens get `TabAppBar` (avatar ·
+title · labelled actions); pushed screens get back+title. A tab switch fades the new tab
+in from 0.92 scale (see Motion).
 
 ### 3. Dashboard / Home
-Confirmed directly by mockup. Top: hero metric card for **Net Worth**, with a small
-translucent trend-delta pill. Below: compact stat strip (Income / Expenses this month).
-Below that: one progress card (linear, not a ring — see Signature components) for the
-single most relevant budget or goal. Below that: a 4-up quick-link tile row (Accounts /
-Assets / Liabilities / Calculators). Below: a row-card preview of the 3-5 most recent
-transactions, with a "See all" text link to the Transactions tab. Same fixed vertical
-order as the superseded spec, just re-skinned to the new card/hero components.
+Rewritten by the UX rework (spec §2.1). Fixed order, no customisation:
+1. The update banner and the review banner, only when there's something to act on.
+2. **Hero: Left to spend · {Month}**, the sum of what's left across top-level budgets,
+   with "Spent today R … · N days left" in the delta pill. Tapping it opens Plan ›
+   Budgets. Over budget, it becomes an error-container card ("Over by R …"); red is
+   reserved for that state. With no budgets, it shows "Spent this month" and a "Set a
+   monthly budget ›" link. "Quiet day so far" (Penny asleep) sits under it when nothing
+   has been spent today, never alongside over budget.
+3. The savings card (target, gap or "target met this month").
+4. A **Net worth** row card that opens the Net worth hub.
+5. **Needs attention:** one card, in priority order: the most over-budget category, a
+   budget at 80 % or more, a goal in progress. Never a completed goal; nothing when
+   none applies.
+6. A row-card preview of recent transactions, with "See all".
+
+The quick-link tiles, the cashflow strip and the Trends card left Home; their
+destinations live in the Net worth hub, Transactions and Plan.
 
 ### 4. Accounts
 Confirmed directly by mockup — and the mockup adds a hero metric card ("Total balance")
@@ -197,20 +244,27 @@ theme, fields unchanged. Reimbursement-linking and transfer-pair badges (small p
 sit just below the amount row on both list and detail views, unchanged from the
 superseded spec — not shown in the mockup's sample data but still the documented plan.
 
-### 6. Budgets
-Confirmed directly by mockup. Progress cards (see Signature components), one group per
+### 6. Plan: Budgets
+Plan (UX rework) hosts three segments, Budgets · Goals · Savings, which slide in segment
+order. The month switcher sits under the Plan app bar while Budgets is showing, and a
+"See trends ›" link follows the list. Confirmed directly by mockup: Progress cards (see Signature components), one group per
 top-level category, month selector above (chevron-left / "May 2025" / chevron-right).
 Sub-categories render as indented progress cards within their parent's group (mirrors the
 web app's recursive parent/sub-category tree, flattened to one level of visual indentation
 for mobile clarity rather than infinite nesting). Over-budget rows use the danger colour
 on the progress fill, the percentage pill, and the "R X over budget" footnote — not a
-full-row red background. A segmented Budgets/Goals toggle sits above the list (unchanged
-IA, restyled to a pill segmented control per the mockup).
+full-row red background.
 
-### 7. Goals
-Confirmed directly by mockup (second segment of the Budgets tab). Same progress-card
-pattern as Budgets: title + percentage pill + linear bar + "R saved / R goal" footnote,
-one card per goal, no sub-nesting.
+### 7. Plan: Goals and Savings
+Goals: same progress-card pattern as Budgets (title + percentage pill + linear bar + "R
+saved / R goal" footnote), in-progress goals first by target date, completed goals folded
+into "Completed (n)". The Savings segment holds the savings plan (target, gap, recurring
+costs and their suggestions), which used to be a pushed screen from Settings.
+
+### 7a. Net worth hub
+Pushed from Home's Net worth card (it grows into the screen). A Net worth hero with its
+trend, then rows for Accounts, Assets (total), Liabilities (total) and Loan calculators:
+the destinations that used to be Home's quick-link tiles.
 
 ### 8. Invest tab-root (confirmed by mockup — built; verified live 2026-08-28)
 Hero metric card for **Total value**, delta chip + unrealized P&L / YTD dividends stat

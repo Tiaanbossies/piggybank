@@ -29,30 +29,31 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       title: "Hi, I'm Penny!",
       body: "I'll be your guide to your money — let's take a quick look around.",
     ),
+    // One page per tab, in tab order (UX rework spec §2, A7), then Settings.
     TourPage(
       icon: Icons.home_outlined,
-      title: 'Your home base',
-      body: 'See your net worth, all your accounts, and quick actions at a glance.',
+      title: 'Your day at a glance',
+      body: "Home shows what's left to spend this month, what you've spent today, and the one thing worth a look.",
     ),
     TourPage(
-      icon: Icons.trending_up_outlined,
-      title: 'Grow what you have',
-      body: 'Track your portfolios, TFSA and RA, and watch your investments grow over time.',
+      icon: Icons.receipt_long_outlined,
+      title: 'Every rand in one place',
+      body: 'Bank notifications fill in your transactions. Review what was picked up and file it with a tap.',
     ),
     TourPage(
       icon: Icons.pie_chart_outline,
-      title: 'Stay on track',
-      body: 'Set budgets and goals, and see exactly where your money is going.',
+      title: 'Plan ahead',
+      body: 'Budgets, goals and your savings plan live together under Plan.',
     ),
     TourPage(
-      icon: Icons.smart_toy_outlined,
-      title: 'Ask me anything',
-      body: "Have a question about your finances? I'm always here to help.",
+      icon: Icons.trending_up_outlined,
+      title: 'Grow it, and ask me',
+      body: "Track your portfolios, TFSA and RA under Invest. Got a question? I'm one tab over.",
     ),
     TourPage(
       icon: Icons.settings_outlined,
       title: 'Your data, secured',
-      body: 'Lock the app with a PIN or biometrics, manage privacy, and export your data any time.',
+      body: 'Tap your avatar for Settings: lock the app with a PIN or biometrics, manage privacy, and export your data.',
     ),
     TourPage(
       title: "You're all set",
