@@ -121,13 +121,14 @@ void main() {
 
       await pumpApp(
         tester,
-        const Scaffold(body: BudgetsBody()),
+        // The switcher sits in the Plan app bar since UX rework Step 4.
+        Scaffold(appBar: AppBar(bottom: const BudgetMonthSwitcher()), body: const BudgetsBody()),
         overrides: [budgetsApiProvider.overrideWithValue(mockApi)],
         useAppTheme: true,
       );
       await tester.pumpAndSettle();
 
-      await tester.tap(find.byIcon(Icons.chevron_right));
+      await tester.tap(find.byTooltip('Next month'));
       await tester.pumpAndSettle();
 
       verify(() => mockApi.progress(any())).called(2);

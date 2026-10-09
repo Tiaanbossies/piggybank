@@ -8,6 +8,7 @@ import '../../../core/theme/app_motion.dart';
 import '../../../shared/widgets/progress_card.dart';
 import '../../../shared/widgets/state_views.dart';
 import '../../transactions/category_icons.dart';
+import '../../trends/screens/trends_screen.dart';
 import '../models/budget.dart';
 import '../providers/budgets_provider.dart';
 
@@ -35,30 +36,10 @@ class BudgetsBody extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final month = ref.watch(selectedBudgetMonthProvider);
     final progressAsync = ref.watch(budgetProgressProvider);
 
     return Column(
       children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              IconButton(
-                icon: const Icon(Icons.chevron_left),
-                tooltip: 'Previous month',
-                onPressed: () => ref.read(selectedBudgetMonthProvider.notifier).previous(),
-              ),
-              Text('${_monthNames[month.month - 1]} ${month.year}', style: Theme.of(context).textTheme.titleMedium),
-              IconButton(
-                icon: const Icon(Icons.chevron_right),
-                tooltip: 'Next month',
-                onPressed: () => ref.read(selectedBudgetMonthProvider.notifier).next(),
-              ),
-            ],
-          ),
-        ),
         Expanded(
           child: RefreshIndicator(
             onRefresh: () => ref.refresh(budgetProgressProvider.future),
@@ -99,6 +80,17 @@ class BudgetsBody extends ConsumerWidget {
                         _BudgetProgressRow(progress: budget),
                         for (final child in budget.children) _BudgetProgressRow(progress: child, indented: true),
                       ],
+                      // A second way into Trends (spec §2.3): budget vs actual
+                      // lives there, next to the budgets it explains.
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: TextButton(
+                          key: const Key('budgets-see-trends'),
+                          onPressed: () =>
+                              Navigator.of(context).push(MaterialPageRoute(builder: (_) => const TrendsScreen())),
+                          child: const Text('See trends ›'),
+                        ),
+                      ),
                     ],
                   );
                 },
@@ -107,6 +99,43 @@ class BudgetsBody extends ConsumerWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// Previous / month / next, shown under the Plan app bar while the Budgets
+/// segment is open (spec §2.3), so it no longer competes with the segment
+/// control for the same row.
+class BudgetMonthSwitcher extends ConsumerWidget implements PreferredSizeWidget {
+  const BudgetMonthSwitcher({super.key});
+
+  @override
+  Size get preferredSize => const Size.fromHeight(48);
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final month = ref.watch(selectedBudgetMonthProvider);
+    return SizedBox(
+      height: 48,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            IconButton(
+              icon: const Icon(Icons.chevron_left),
+              tooltip: 'Previous month',
+              onPressed: () => ref.read(selectedBudgetMonthProvider.notifier).previous(),
+            ),
+            Text('${_monthNames[month.month - 1]} ${month.year}', style: Theme.of(context).textTheme.titleMedium),
+            IconButton(
+              icon: const Icon(Icons.chevron_right),
+              tooltip: 'Next month',
+              onPressed: () => ref.read(selectedBudgetMonthProvider.notifier).next(),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
