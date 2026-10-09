@@ -72,7 +72,11 @@ Automated gate at the time of writing: `flutter analyze` clean, `flutter test` g
 
 ## Result
 
-- Rows ticked: _ / 73
-- Missing or broken: _none yet_
-- Re-critique score (impeccable, all tabs): _to run on device_ (target ≥ 32/40; was
-  21/40, then 25/40)
+- **On-device pass confirmed by Tiaan, 2026-10-09.** (Recorded as Tiaan's confirmation
+  of the whole sheet; Claude did not verify rows individually.)
+- Missing or broken: none reported
+- Re-critique score (impeccable, five tab roots, light and dark, 2026-10-09): **27/40**
+  (was 21/40, then 25/40). Under the ≥ 32 target: the gap is visual (contrast, flat
+  hierarchy, static/empty surfaces, app-bar consistency), which the visual rework epic
+  (`docs/visual-rework/`) takes on, with 27 as its baseline. Run on sample data with real
+  fonts (`test/goldens/`), not a signed-in device.

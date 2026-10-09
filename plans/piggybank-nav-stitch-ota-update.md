@@ -1,5 +1,12 @@
 # Blueprint: Navigation/UX polish, Stitch UI pass, and in-app OTA update notification
 
+> **Superseded in part, 2026-10-09.** The navigation and Stitch portions of this plan
+> (Steps 1–6, Phases 1–2) are superseded: navigation by the UX rework
+> (`docs/ux-rework/04-spec.md`, `plans/ux-rework-blueprint.md`), and the Stitch UI pass by
+> the visual rework epic (`docs/visual-rework/`, `plans/visual-rework-blueprint.md`).
+> Don't execute them from here. The OTA update steps (Steps 7–9, Phase 3) are untouched
+> and still stand as written.
+
 **Objective:** Three sequential improvements to the Piggybank Flutter app: (1) fine-tune
 screen navigation/transition polish, (2) a targeted Stitch MCP UI pass to close the
 remaining visual-audit gaps and design the one genuinely unbuilt screen (a real
