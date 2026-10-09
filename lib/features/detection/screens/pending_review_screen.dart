@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/api/api_error.dart';
 import '../../../core/format/money.dart';
+import '../../../shared/widgets/mascot_moment.dart';
 import '../../../shared/widgets/swipe_background.dart';
 import '../../accounts/models/account.dart';
 import '../../accounts/providers/accounts_provider.dart';
@@ -12,7 +14,8 @@ import '../data/detection_api.dart';
 import '../models/detected_event.dart';
 import '../providers/detection_provider.dart';
 
-/// Settings > Notification & email detection > Review — plan §5 Phase E's
+/// Reached from the Home banner, Transactions › Review, or Settings > Data
+/// sources > Bank notifications & email > Review. Plan §5 Phase E's
 /// "pending-items review screen (extracted fields shown, Confirm/Discard,
 /// holding-selection prompt for investment events)". Every row here is a
 /// [DetectedEvent] the backend already ran through Ollama extraction; this
@@ -126,9 +129,30 @@ class _PendingReviewScreenState extends ConsumerState<PendingReviewScreen> {
             data: (allEvents) {
               final events = allEvents.where((e) => !_settling.contains(e.id)).toList();
               if (events.isEmpty) {
+                // Cleared, not just empty: something was confirmed or
+                // discarded on this visit (spec §3.3, the daily loop's end).
+                final cleared = _settling.isNotEmpty;
                 return ListView(
-                  children: const [
-                    Padding(
+                  children: [
+                    if (cleared) ...[
+                      const SizedBox(height: 32),
+                      const Center(
+                        child: MascotMoment(
+                          asset: MascotMoment.celebrating,
+                          size: 96,
+                          motion: MascotMotion.pop,
+                          kind: 'review-cleared',
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        'All caught up',
+                        key: const Key('review-all-caught-up'),
+                        textAlign: TextAlign.center,
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                    ],
+                    const Padding(
                       padding: EdgeInsets.all(32),
                       child: Text(
                         'Nothing waiting for review. New suggestions from your allowlisted apps and '
@@ -215,14 +239,18 @@ class _EventCard extends ConsumerWidget {
         alignment: Alignment.centerLeft,
       ),
       secondaryBackground: SwipeBackground(
-        color: colors.errorContainer,
-        foreground: colors.onErrorContainer,
+        // Neutral, not red: discarding isn't a mistake (spec §3.2), and red
+        // stays reserved for over budget.
+        color: colors.surfaceContainerHighest,
+        foreground: colors.onSurfaceVariant,
         icon: Icons.delete_outline,
         label: 'Discard',
         alignment: Alignment.centerRight,
       ),
-      onDismissed: (direction) =>
-          direction == DismissDirection.startToEnd ? onConfirm(oneTap!) : onDiscard(),
+      onDismissed: (direction) {
+        HapticFeedback.lightImpact();
+        direction == DismissDirection.startToEnd ? onConfirm(oneTap!) : onDiscard();
+      },
       child: Card(
         margin: const EdgeInsets.only(bottom: 12),
         child: Padding(

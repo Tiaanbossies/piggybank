@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:piggybank/core/api/api_error.dart';
 import 'package:piggybank/features/chatbot/providers/chatbot_provider.dart';
+import 'package:piggybank/features/plan/screens/plan_screen.dart';
 import 'package:piggybank/features/savings/data/savings_api.dart';
 import 'package:piggybank/features/savings/models/savings.dart';
 import 'package:piggybank/features/savings/providers/savings_provider.dart';
@@ -107,8 +108,11 @@ void main() {
     _useTallView(tester);
     await pumpApp(
       tester,
-      const SavingsPlanScreen(),
-      overrides: [savingsApiProvider.overrideWithValue(api)],
+      const PlanScreen(),
+      overrides: [
+        savingsApiProvider.overrideWithValue(api),
+        planSegmentProvider.overrideWith((ref) => PlanSegment.savings),
+      ],
       useAppTheme: true,
     );
     await tester.pumpAndSettle();
@@ -424,8 +428,11 @@ void main() {
       addTearDown(tester.view.reset);
       await pumpApp(
         tester,
-        const SavingsPlanScreen(),
-        overrides: [savingsApiProvider.overrideWithValue(api)],
+        const PlanScreen(),
+        overrides: [
+        savingsApiProvider.overrideWithValue(api),
+        planSegmentProvider.overrideWith((ref) => PlanSegment.savings),
+      ],
         useAppTheme: true,
       );
       await tester.pumpAndSettle();
@@ -545,7 +552,7 @@ void main() {
     await tester.tap(find.byKey(const Key('where-to-cut')));
     await tester.pumpAndSettle();
 
-    final container = ProviderScope.containerOf(tester.element(find.byType(SavingsPlanScreen)));
+    final container = ProviderScope.containerOf(tester.element(find.byType(SavingsPlanBody)));
     expect(container.read(chatDraftProvider), whereToCutQuestion);
   });
 

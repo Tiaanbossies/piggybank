@@ -466,3 +466,11 @@ none unless asked). It checked:
 | Date | Change | Why |
 |---|---|---|
 | 2026-10-09 | Created | Spec approved (A1–A6 yes) |
+| 2026-10-09 | Step 1: Plan's segment is a UI-only `planSegmentProvider` (Home sets it, then `go('/plan')`) instead of a `?s=` query parameter | The query parameter misbehaves on re-entry: once the user switches segment by hand, the old parameter no longer describes the screen |
+| 2026-10-09 | Step 5: Penny's chips use two data sources (over-budget category, savings gap), not three. The largest-category-this-week chip is dropped | No existing provider gives this week's spending by category; adding one would mean a new query, which is more than a chip is worth. Generic questions fill the row |
+| 2026-10-09 | Step 8: the delete timer lives with the Undo snackbar, not the screen, so leaving the screen inside the window still deletes after 4 s rather than immediately | Same outcome as "treat leaving as accepted" without a dispose hook in every sheet; matches the review queue's existing pattern. Killing the app inside the window still deletes nothing |
+| 2026-10-09 | Step 6: the tab fade-through plays only its incoming half (fade + 0.92 → 1 scale, 160 ms) | `IndexedStack` swaps tabs instantly, so the outgoing tab is gone before the switch is seen; faking the 90 ms out would mean blank frames |
+| 2026-10-09 | Step 6: transaction and goal rows get the saved-row highlight, not a container transform | Their detail is a modal sheet, which the blueprint allowed for; account, portfolio and Net worth rows got the transform |
+| 2026-10-09 | Step 6: the 0.97 press scale is on standalone cards only (Home hero, goal and budget cards) | One row shrinking inside a shared group card looks broken, and Material buttons already have ink feedback |
+| 2026-10-09 | Step 7: the review queue's "suggested the category for {n} of {m}" line is omitted; "All caught up" shows only when something was cleared on this visit | The count needs a new API (the blueprint says omit it then); celebrating an already-empty queue would reward nothing |
+| 2026-10-09 | Step 7: pops are rate-limited, poses aren't (a moment's pose shows static after its daily pop) | Matches "plays once per event, at most once a day per kind" without hiding a true good state |

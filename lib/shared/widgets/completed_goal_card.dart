@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/theme/app_theme.dart';
+import 'mascot_moment.dart';
 
 /// Row card for a goal that has hit `GoalStatus.completed`, shown instead of
 /// the usual [ProgressCard] once there's nothing left to track progress
@@ -9,9 +10,13 @@ import '../../core/theme/app_theme.dart';
 /// Shared between the Goals screen and the Dashboard's progress block so a
 /// completed goal renders identically wherever it's shown.
 class CompletedGoalCard extends StatelessWidget {
-  const CompletedGoalCard({required this.title, required this.footnote, super.key});
+  const CompletedGoalCard({required this.title, required this.footnote, this.goalId, super.key});
   final String title;
   final String footnote;
+
+  /// When given, Penny pops the first time this goal is seen complete
+  /// (spec §3.3), and only ever that once.
+  final String? goalId;
 
   @override
   Widget build(BuildContext context) {
@@ -22,9 +27,11 @@ class CompletedGoalCard extends StatelessWidget {
         padding: const EdgeInsets.all(16),
         child: Row(
           children: [
-            ClipRRect(
-              borderRadius: BorderRadius.circular(12),
-              child: Image.asset('assets/mascot_celebrating.jpg', width: 44, height: 44, fit: BoxFit.cover),
+            MascotMoment(
+              asset: MascotMoment.celebrating,
+              motion: goalId == null ? MascotMotion.none : MascotMotion.pop,
+              kind: goalId == null ? null : 'goal-reached.$goalId',
+              daily: false,
             ),
             const SizedBox(width: 12),
             Expanded(

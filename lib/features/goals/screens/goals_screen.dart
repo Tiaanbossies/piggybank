@@ -4,7 +4,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/api/api_error.dart';
 import '../../../core/format/money.dart';
 import '../../../core/theme/app_motion.dart';
+import '../../../shared/motion/press_scale.dart';
+import '../../../shared/motion/saved_highlight.dart';
 import '../../../shared/widgets/completed_goal_card.dart';
+import '../../../shared/widgets/deferred_delete.dart';
 import '../../../shared/widgets/progress_card.dart';
 import '../../../shared/widgets/state_views.dart';
 import '../models/goal.dart';
@@ -44,7 +47,9 @@ class GoalsBody extends ConsumerWidget {
               onRetry: () => ref.invalidate(goalsProvider),
             ),
           ),
-          data: (goals) {
+          data: (all) {
+            final hidden = ref.watch(pendingDeletesProvider);
+            final goals = all.where((g) => !hidden.contains(g.id)).toList();
             if (goals.isEmpty) {
               return ListView(
                 key: const ValueKey('empty'),
@@ -53,15 +58,29 @@ class GoalsBody extends ConsumerWidget {
                   EmptyState(
                     icon: Icons.flag_outlined,
                     title: 'No goals yet.',
+                    mascot: true,
                     hint: 'Tap "Add goal" below to set one up.',
                   ),
                 ],
               );
             }
+            final inProgress = goals.where((g) => g.status != GoalStatus.completed).toList()
+              ..sort(_byTargetDate);
+            final completed = goals.where((g) => g.status == GoalStatus.completed).toList();
             return ListView(
               key: const ValueKey('list'),
-              padding: const EdgeInsets.all(16),
-              children: [for (final goal in goals) _GoalRow(goal: goal)],
+              // Clears the Add goal button.
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 104),
+              children: [
+                for (final goal in inProgress) _GoalRow(goal: goal),
+                if (completed.isNotEmpty)
+                  ExpansionTile(
+                    key: const Key('goals-completed'),
+                    tilePadding: const EdgeInsets.symmetric(horizontal: 4),
+                    title: Text('Completed (${completed.length})'),
+                    children: [for (final goal in completed) _GoalRow(goal: goal)],
+                  ),
+              ],
             );
           },
         ),
@@ -80,14 +99,30 @@ class _GoalRow extends StatelessWidget {
     final footnote = '${formatZAR(goal.currentAmount)} saved / ${formatZAR(goal.targetAmount)} goal'
         '${targetDate == null ? '' : ' / by ${_formatDate(targetDate)}'}';
     final child = goal.status == GoalStatus.completed
-        ? CompletedGoalCard(title: goal.name, footnote: footnote)
+        ? CompletedGoalCard(title: goal.name, footnote: footnote, goalId: goal.id)
         : ProgressCard(
             title: goal.name,
             pct: goal.progressPct / 100,
             footnote: footnote,
           );
-    return InkWell(onTap: () => showEditGoalSheet(context, goal), child: child);
+    return SavedHighlight(
+      id: goal.id,
+      radius: 16,
+      inset: const EdgeInsets.only(bottom: 12),
+      child: PressScale(child: InkWell(onTap: () => showEditGoalSheet(context, goal), child: child)),
+    );
   }
+}
+
+/// The goal you can still move comes first (spec §2.3, Y8): soonest target
+/// date first, goals without a date last.
+int _byTargetDate(Goal a, Goal b) {
+  final da = a.targetDate;
+  final db = b.targetDate;
+  if (da == null && db == null) return 0;
+  if (da == null) return 1;
+  if (db == null) return -1;
+  return da.compareTo(db);
 }
 
 String _formatDate(DateTime date) =>
@@ -111,7 +146,6 @@ class _GoalSheetState extends ConsumerState<_GoalSheet> {
   late final TextEditingController _currentController;
   DateTime? _targetDate;
   bool _submitting = false;
-  bool _deleting = false;
   String? _error;
 
   @override
@@ -153,12 +187,13 @@ class _GoalSheetState extends ConsumerState<_GoalSheet> {
       final targetAmount = _targetController.text.trim();
       final currentAmount = _currentController.text.trim().isEmpty ? null : _currentController.text.trim();
       if (widget.existing == null) {
-        await ref.read(goalsApiProvider).create(
+        final created = await ref.read(goalsApiProvider).create(
               name: name,
               targetAmount: targetAmount,
               currentAmount: currentAmount,
               targetDate: _targetDate,
             );
+        markSaved(ref, created.id);
       } else {
         await ref.read(goalsApiProvider).update(
               widget.existing!.id,
@@ -167,6 +202,7 @@ class _GoalSheetState extends ConsumerState<_GoalSheet> {
               currentAmount: currentAmount,
               targetDate: _targetDate,
             );
+        markSaved(ref, widget.existing!.id);
       }
       ref.invalidate(goalsProvider);
       if (mounted) Navigator.of(context).pop();
@@ -177,28 +213,26 @@ class _GoalSheetState extends ConsumerState<_GoalSheet> {
     }
   }
 
-  Future<void> _delete() async {
+  /// Undo instead of a confirm (spec §5).
+  void _delete() {
     final existing = widget.existing;
     if (existing == null) return;
-    setState(() {
-      _deleting = true;
-      _error = null;
-    });
-    try {
-      await ref.read(goalsApiProvider).delete(existing.id);
-      ref.invalidate(goalsProvider);
-      if (mounted) Navigator.of(context).pop();
-    } on ApiError catch (e) {
-      setState(() => _error = e.message);
-    } finally {
-      if (mounted) setState(() => _deleting = false);
-    }
+    deferDelete(
+      context,
+      id: existing.id,
+      message: '${existing.name} deleted',
+      commit: (c) async {
+        await c.read(goalsApiProvider).delete(existing.id);
+        c.invalidate(goalsProvider);
+      },
+    );
+    Navigator.of(context).pop();
   }
 
   @override
   Widget build(BuildContext context) {
     final isEdit = widget.existing != null;
-    final busy = _submitting || _deleting;
+    final busy = _submitting;
     return Padding(
       padding: EdgeInsets.only(left: 24, right: 24, top: 24, bottom: MediaQuery.of(context).viewInsets.bottom + 24),
       child: Column(

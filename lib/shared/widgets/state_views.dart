@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/theme/app_theme.dart';
 import 'icon_chip.dart';
+import 'mascot_moment.dart';
 
 /// Shared "nothing to show yet" treatment — an accent [IconChip], a title,
 /// and an optional hint line. Standardizes what used to be several
@@ -10,12 +11,23 @@ import 'icon_chip.dart';
 /// icon + text on Budgets; the richest of the bunch on the Chatbot, whose
 /// pattern this widget generalizes).
 class EmptyState extends StatelessWidget {
-  const EmptyState({required this.icon, required this.title, this.hint, this.topPadding = 48, super.key});
+  const EmptyState({
+    required this.icon,
+    required this.title,
+    this.hint,
+    this.topPadding = 48,
+    this.mascot = false,
+    super.key,
+  });
 
   final IconData icon;
   final String title;
   final String? hint;
   final double topPadding;
+
+  /// Penny welcoming, faded in, in place of the icon: for the lists a new
+  /// user starts empty (Transactions, Goals, Savings; spec §3.3).
+  final bool mascot;
 
   @override
   Widget build(BuildContext context) {
@@ -25,7 +37,10 @@ class EmptyState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            IconChip(icon: icon, size: 56),
+            if (mascot)
+              const MascotMoment(asset: MascotMoment.welcoming, size: 72, motion: MascotMotion.fadeIn)
+            else
+              IconChip(icon: icon, size: 56),
             const SizedBox(height: 12),
             Text(title, textAlign: TextAlign.center, style: Theme.of(context).textTheme.titleMedium),
             if (hint != null) ...[
@@ -70,6 +85,28 @@ class InlineError extends StatelessWidget {
             TextButton(onPressed: onRetry, child: const Text('Retry')),
           ],
         ],
+      ),
+    );
+  }
+}
+
+/// A grey placeholder the shape of content that's still loading, so the page
+/// keeps its layout instead of showing a lone spinner (UX rework spec §1.2,
+/// rule 6).
+class SkeletonBox extends StatelessWidget {
+  const SkeletonBox({this.height = 64, this.radius = 16, super.key});
+
+  final double height;
+  final double radius;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: height,
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(radius),
       ),
     );
   }

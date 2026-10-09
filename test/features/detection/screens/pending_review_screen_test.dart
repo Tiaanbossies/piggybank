@@ -93,6 +93,8 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.textContaining('Nothing waiting for review'), findsOneWidget);
+    // Empty on arrival isn't "cleared": no celebration for doing nothing.
+    expect(find.byKey(const Key('review-all-caught-up')), findsNothing);
   });
 
   testWidgets('populated state renders the extracted fields for a pending transaction', (tester) async {
@@ -131,6 +133,8 @@ void main() {
     // Hidden at once, but only sent once the Undo window closes.
     expect(find.text('za.co.fnb.connect.itest'), findsNothing);
     verifyNever(() => mockApi.discardEvent(any()));
+    // Clearing the last one ends the loop on a good note (spec §3.3).
+    expect(find.byKey(const Key('review-all-caught-up')), findsOneWidget);
 
     await tester.pump(_undoWindow);
     await tester.pumpAndSettle();

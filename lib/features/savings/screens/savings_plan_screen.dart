@@ -1,11 +1,13 @@
 import 'package:decimal/decimal.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/api/api_error.dart';
 import '../../../core/format/dates.dart';
 import '../../../core/format/money.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../shared/widgets/deferred_delete.dart';
 import '../../../shared/widgets/icon_chip.dart';
 import '../../../shared/widgets/state_views.dart';
 import '../../../shared/widgets/swipe_background.dart';
@@ -18,41 +20,31 @@ import 'policy_screen.dart';
 /// over each month, what they actually have, and the recurring costs that
 /// could close the gap.
 ///
-/// A pushed screen, not a tab — DESIGN.md locks the bottom nav at five
-/// tabs (plan decision D2). It opens from the Home card and from Settings.
-class SavingsPlanScreen extends ConsumerWidget {
-  const SavingsPlanScreen({super.key});
+/// The Savings segment of the Plan tab (UX rework spec §2.3). The tab owns
+/// the app bar and the Add cost button; this is the scrolling body.
+class SavingsPlanBody extends ConsumerWidget {
+  const SavingsPlanBody({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Savings plan')),
-      body: SafeArea(
-        child: RefreshIndicator(
-          onRefresh: () async {
-            refreshSavings(ref);
-            await Future.wait([
-              ref.read(savingsOverviewProvider.future),
-              ref.read(recurringCostsProvider.future),
-            ]).catchError((_) => <Object>[]);
-          },
-          child: ListView(
-            // The bottom inset clears the Add cost button, as on Home.
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 96),
-            children: const [
-              _TargetSection(),
-              SizedBox(height: 12),
-              _WhereToCut(),
-              SizedBox(height: 12),
-              _CostsSection(),
-            ],
-          ),
-        ),
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => showRecurringCostSheet(context),
-        icon: const Icon(Icons.add),
-        label: const Text('Add cost'),
+    return RefreshIndicator(
+      onRefresh: () async {
+        refreshSavings(ref);
+        await Future.wait([
+          ref.read(savingsOverviewProvider.future),
+          ref.read(recurringCostsProvider.future),
+        ]).catchError((_) => <Object>[]);
+      },
+      child: ListView(
+        // The bottom inset clears the Add cost button, as on Home.
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 96),
+        children: const [
+          _TargetSection(),
+          SizedBox(height: 12),
+          _WhereToCut(),
+          SizedBox(height: 12),
+          _CostsSection(),
+        ],
       ),
     );
   }
@@ -404,7 +396,8 @@ class _CostsSectionState extends ConsumerState<_CostsSection> {
               ),
               data: (all) {
                 final suggestions = all.where((c) => c.isSuggestion && !_settling.contains(c.id)).toList();
-                final costs = all.where((c) => !c.isSuggestion).toList();
+                final hidden = ref.watch(pendingDeletesProvider);
+                final costs = all.where((c) => !c.isSuggestion && !hidden.contains(c.id)).toList();
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -423,6 +416,7 @@ class _CostsSectionState extends ConsumerState<_CostsSection> {
                       const EmptyState(
                         icon: Icons.autorenew,
                         title: 'No recurring costs yet.',
+                        mascot: true,
                         hint: 'Tap "Find costs" to spot them in your bank history, '
                             'or add subscriptions, debit orders and premiums with "Add cost".',
                         topPadding: 16,
@@ -490,14 +484,17 @@ class _SuggestionCard extends StatelessWidget {
         bottomMargin: 8,
       ),
       secondaryBackground: SwipeBackground(
-        color: colors.errorContainer,
-        foreground: colors.onErrorContainer,
+        color: colors.surfaceContainerHighest,
+        foreground: colors.onSurfaceVariant,
         icon: Icons.close,
         label: 'Dismiss',
         alignment: Alignment.centerRight,
         bottomMargin: 8,
       ),
-      onDismissed: (direction) => direction == DismissDirection.startToEnd ? onConfirm() : onDismiss(),
+      onDismissed: (direction) {
+        HapticFeedback.lightImpact();
+        direction == DismissDirection.startToEnd ? onConfirm() : onDismiss();
+      },
       child: Card(
         margin: const EdgeInsets.only(bottom: 8),
         clipBehavior: Clip.antiAlias,
@@ -900,6 +897,22 @@ class _RecurringCostSheetState extends ConsumerState<RecurringCostSheet> {
     }
   }
 
+  /// Undo instead of a confirm (spec §5).
+  void _delete(RecurringCost existing) {
+    deferDelete(
+      context,
+      id: existing.id,
+      message: '${existing.name} deleted',
+      commit: (c) async {
+        await c.read(savingsApiProvider).deleteRecurring(existing.id);
+        c
+          ..invalidate(savingsOverviewProvider)
+          ..invalidate(recurringCostsProvider);
+      },
+    );
+    Navigator.of(context).pop();
+  }
+
   void _save() {
     final name = _name.text.trim();
     if (name.isEmpty) {
@@ -1023,7 +1036,7 @@ class _RecurringCostSheetState extends ConsumerState<RecurringCostSheet> {
             if (existing != null) ...[
               const SizedBox(height: 8),
               TextButton(
-                onPressed: _busy ? null : () => _run(() => ref.read(savingsApiProvider).deleteRecurring(existing.id)),
+                onPressed: _busy ? null : () => _delete(existing),
                 child: Text('Delete', style: TextStyle(color: Theme.of(context).colorScheme.error)),
               ),
             ],

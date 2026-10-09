@@ -18,15 +18,17 @@ Goal _goal({
   required Decimal target,
   required Decimal current,
   required double progressPct,
+  GoalStatus status = GoalStatus.active,
+  DateTime? targetDate,
 }) =>
     Goal(
       id: id,
       name: name,
       targetAmount: target,
       currentAmount: current,
-      targetDate: null,
+      targetDate: targetDate,
       category: null,
-      status: GoalStatus.active,
+      status: status,
       notes: null,
       progressPct: progressPct,
     );
@@ -118,6 +120,41 @@ void main() {
 
       final indicator = tester.widget<LinearProgressIndicator>(find.byType(LinearProgressIndicator));
       expect(indicator.value, 1.0);
+    });
+
+    testWidgets('lists goals in progress by soonest target date, undated last', (tester) async {
+      final mockApi = _MockGoalsApi();
+      when(mockApi.list).thenAnswer((_) async => [
+            _goal(id: 'g1', name: 'Someday', target: Decimal.fromInt(100), current: Decimal.zero, progressPct: 0),
+            _goal(id: 'g2', name: 'Later', target: Decimal.fromInt(100), current: Decimal.zero, progressPct: 0,
+                targetDate: DateTime(2028, 6, 1)),
+            _goal(id: 'g3', name: 'Soon', target: Decimal.fromInt(100), current: Decimal.zero, progressPct: 0,
+                targetDate: DateTime(2027, 1, 1)),
+          ]);
+      await pumpApp(tester, const Scaffold(body: GoalsBody()), overrides: [goalsApiProvider.overrideWithValue(mockApi)]);
+      await tester.pumpAndSettle();
+
+      final titles = tester.widgetList<ProgressCard>(find.byType(ProgressCard)).map((c) => c.title).toList();
+      expect(titles, ['Soon', 'Later', 'Someday']);
+    });
+
+    testWidgets('folds completed goals into a collapsed Completed group', (tester) async {
+      final mockApi = _MockGoalsApi();
+      when(mockApi.list).thenAnswer((_) async => [
+            _goal(id: 'g1', name: 'New laptop', target: Decimal.fromInt(100), current: Decimal.fromInt(100),
+                progressPct: 100, status: GoalStatus.completed),
+            _goal(id: 'g2', name: 'House deposit', target: Decimal.fromInt(100), current: Decimal.zero, progressPct: 0),
+          ]);
+      await pumpApp(tester, const Scaffold(body: GoalsBody()), overrides: [goalsApiProvider.overrideWithValue(mockApi)]);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Completed (1)'), findsOneWidget);
+      expect(find.text('House deposit'), findsOneWidget);
+      expect(find.text('New laptop'), findsNothing);
+
+      await tester.tap(find.text('Completed (1)'));
+      await tester.pumpAndSettle();
+      expect(find.text('New laptop'), findsOneWidget);
     });
   });
 }

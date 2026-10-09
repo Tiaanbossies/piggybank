@@ -8,9 +8,12 @@ import '../../../core/api/api_error.dart';
 import '../../../core/theme/app_motion.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/icon_chip.dart';
+import '../../../shared/widgets/mascot_moment.dart';
 import '../../../shared/widgets/paywall_dialog.dart';
+import '../../../shared/widgets/tab_app_bar.dart';
 import '../models/chat_message.dart';
 import '../providers/chatbot_provider.dart';
+import '../providers/suggested_questions_provider.dart';
 
 /// Blueprint Step 8. An ongoing conversational thread — bubbles left/right by
 /// role, most-recent at the bottom. Backend is confirmed synchronous/non-streaming
@@ -41,12 +44,6 @@ void askPenny(BuildContext context, WidgetRef ref, String question) {
   ref.read(chatDraftProvider.notifier).state = question;
   GoRouter.maybeOf(context)?.go('/assistant');
 }
-
-const _suggestedQuestions = [
-  'How much did I spend on dining?',
-  'Am I on track with my budget?',
-  'Show my net worth trend',
-];
 
 class _ChatbotScreenState extends ConsumerState<ChatbotScreen> {
   final _inputController = TextEditingController();
@@ -123,6 +120,7 @@ class _ChatbotScreenState extends ConsumerState<ChatbotScreen> {
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(chatbotControllerProvider);
+    final suggestions = ref.watch(suggestedQuestionsProvider);
     final semantic = Theme.of(context).extension<AppSemanticColors>();
     // A draft set while this tab is already alive in the shell.
     ref.listen<String?>(chatDraftProvider, (_, next) {
@@ -132,25 +130,10 @@ class _ChatbotScreenState extends ConsumerState<ChatbotScreen> {
       });
     });
     return Scaffold(
-      appBar: AppBar(
-        titleSpacing: 0,
-        title: Row(
-          children: [
-            const IconChip(icon: Icons.savings, size: 32),
-            const SizedBox(width: 10),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Text('Penny', style: TextStyle(fontSize: 16)),
-                Text(
-                  'Ask me anything about your money',
-                  style: TextStyle(fontSize: 11, color: semantic?.textMuted, fontWeight: FontWeight.normal),
-                ),
-              ],
-            ),
-          ],
-        ),
+      appBar: const TabAppBar(
+        title: 'Penny',
+        subtitle: 'Ask me anything about your money',
+        titleLeading: IconChip(icon: Icons.savings, size: 32),
       ),
       body: SafeArea(
         child: Column(
@@ -172,12 +155,12 @@ class _ChatbotScreenState extends ConsumerState<ChatbotScreen> {
                             ),
                             const SizedBox(height: 8),
                             Text(
-                              'I can help you track spending, check your budgets, or analyze your investments.',
+                              'I can help you track spending, check your budgets, or analyse your investments.',
                               textAlign: TextAlign.center,
                               style: TextStyle(color: semantic?.textMuted),
                             ),
                             const SizedBox(height: 20),
-                            for (final q in _suggestedQuestions)
+                            for (final q in suggestions)
                               Padding(
                                 padding: const EdgeInsets.only(bottom: 8),
                                 child: SizedBox(
@@ -440,13 +423,12 @@ class _TypingBubble extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
     final semantic = Theme.of(context).extension<AppSemanticColors>();
     return Align(
       alignment: Alignment.centerLeft,
       child: Container(
         margin: const EdgeInsets.symmetric(vertical: 4),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         decoration: BoxDecoration(
           color: semantic?.accentChipBg,
           borderRadius: const BorderRadius.only(
@@ -456,10 +438,11 @@ class _TypingBubble extends StatelessWidget {
             bottomLeft: Radius.circular(4),
           ),
         ),
-        child: SizedBox(
-          width: 16,
-          height: 16,
-          child: CircularProgressIndicator(strokeWidth: 2, color: colorScheme.primary),
+        // Penny thinking (spec §3.3): a gentle bob that stops when the
+        // reply lands, because the bubble goes with it.
+        child: Semantics(
+          label: 'Penny is thinking',
+          child: const MascotMoment(asset: MascotMoment.thinking, size: 28, motion: MascotMotion.bob),
         ),
       ),
     );

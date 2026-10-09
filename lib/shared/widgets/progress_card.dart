@@ -78,7 +78,7 @@ class _ProgressCardState extends State<ProgressCard> {
                   borderRadius: BorderRadius.circular(8),
                   child: TweenAnimationBuilder<double>(
                     tween: Tween(begin: _displayedPct, end: widget.pct),
-                    duration: AppMotion.valueTransition,
+                    duration: context.reducedMotion ? Duration.zero : AppMotion.valueTransition,
                     curve: AppMotion.easeOut,
                     onEnd: () => _displayedPct = widget.pct,
                     builder: (context, value, _) => LinearProgressIndicator(

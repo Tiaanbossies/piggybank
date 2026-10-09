@@ -5,9 +5,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/api/api_error.dart';
 import '../../../core/format/money.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../shared/motion/container_transform.dart';
 import '../../../shared/widgets/allocation_donut.dart';
 import '../../../shared/widgets/group_card.dart';
 import '../../../shared/widgets/hero_metric_card.dart';
+import '../../../shared/widgets/state_views.dart';
+import '../../../shared/widgets/tab_app_bar.dart';
 import '../models/portfolio.dart';
 import '../providers/portfolios_provider.dart';
 import 'all_holdings_screen.dart';
@@ -26,23 +29,16 @@ class InvestScreen extends ConsumerWidget {
     final portfoliosAsync = ref.watch(portfoliosProvider);
 
     return Scaffold(
-      appBar: AppBar(
-        leading: const Padding(
-          padding: EdgeInsets.all(8),
-          child: CircleAvatar(child: Icon(Icons.person_outline, size: 18)),
-        ),
-        title: const Text('Invest'),
+      appBar: TabAppBar(
+        title: 'Invest',
         actions: [
-          IconButton(
+          TextButton.icon(
+            key: const Key('invest-compare'),
             icon: const Icon(Icons.stacked_line_chart),
-            tooltip: 'Compare instruments',
+            label: const Text('Compare'),
             onPressed: () => Navigator.of(context).push(
               MaterialPageRoute(builder: (_) => const InstrumentComparisonScreen()),
             ),
-          ),
-          const Padding(
-            padding: EdgeInsets.only(right: 12),
-            child: Icon(Icons.notifications_none),
           ),
         ],
       ),
@@ -53,8 +49,32 @@ class InvestScreen extends ConsumerWidget {
             ref.invalidate(portfoliosProvider);
           },
           child: portfoliosAsync.when(
-            loading: () => const Center(child: CircularProgressIndicator()),
-            error: (err, _) => Center(child: Text(err is ApiError ? err.message : 'Failed to load portfolios')),
+            loading: () => ListView(
+              key: const Key('invest-skeleton'),
+              padding: const EdgeInsets.all(16),
+              children: const [
+                SkeletonBox(height: 120, radius: 24),
+                SizedBox(height: 16),
+                SkeletonBox(height: 96),
+                SizedBox(height: 24),
+                SkeletonBox(),
+                SizedBox(height: 8),
+                SkeletonBox(),
+              ],
+            ),
+            // Scrollable so pull-to-refresh still works on the error state.
+            error: (err, _) => ListView(
+              padding: const EdgeInsets.all(16),
+              children: [
+                const SizedBox(height: 96),
+                InlineError(
+                  message: err is ApiError ? err.message : 'Failed to load portfolios',
+                  onRetry: () => ref
+                    ..invalidate(investmentOverviewProvider)
+                    ..invalidate(portfoliosProvider),
+                ),
+              ],
+            ),
             data: (portfolios) {
               if (portfolios.isEmpty) return const _EmptyState();
               return ListView(
@@ -128,8 +148,11 @@ class _OverviewSection extends ConsumerWidget {
     final semantic = Theme.of(context).extension<AppSemanticColors>();
 
     return overviewAsync.when(
-      loading: () => const SizedBox(height: 96, child: Center(child: CircularProgressIndicator())),
-      error: (err, _) => Text(err is ApiError ? err.message : 'Failed to load overview'),
+      loading: () => const SkeletonBox(height: 120, radius: 24),
+      error: (err, _) => InlineError(
+        message: err is ApiError ? err.message : 'Failed to load overview',
+        onRetry: () => ref.invalidate(investmentOverviewProvider),
+      ),
       data: (overview) {
         final plUp = overview.unrealizedPl >= Decimal.zero;
         return Column(
@@ -138,6 +161,7 @@ class _OverviewSection extends ConsumerWidget {
             HeroMetricCard(
               label: 'Total value',
               value: formatZAR(overview.totalValue),
+              amount: overview.totalValue.toDouble(),
               deltaText: '${plUp ? '+' : ''}${formatZAR(overview.unrealizedPl)} unrealized',
             ),
             const SizedBox(height: 16),
@@ -238,13 +262,14 @@ class _PortfolioRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GroupRow(
-      leadingIcon: Icons.folder_outlined,
-      title: portfolio.name,
-      subtitle: portfolioTypeLabels[portfolio.portfolioType],
-      trailing: const Icon(Icons.chevron_right),
-      onTap: () => Navigator.of(context).push(
-        MaterialPageRoute(builder: (_) => PortfolioDetailScreen(portfolio: portfolio)),
+    return ContainerTransform(
+      openBuilder: (_) => PortfolioDetailScreen(portfolio: portfolio),
+      closedBuilder: (context, open) => GroupRow(
+        leadingIcon: Icons.folder_outlined,
+        title: portfolio.name,
+        subtitle: portfolioTypeLabels[portfolio.portfolioType],
+        trailing: const Icon(Icons.chevron_right),
+        onTap: open,
       ),
     );
   }

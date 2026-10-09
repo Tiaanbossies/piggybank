@@ -8,7 +8,7 @@ import '../../../shared/widgets/icon_chip.dart';
 /// Ports `CalculatorsPage.tsx`'s two forms (Loan Calculator + Loan
 /// Accelerator), grouped with Liabilities per the Phase 0 scoping note.
 /// Pure client-side math (`loan_calc.dart`), no backend calls. Uses the same
-/// `SegmentedButton` toggle pattern as `BudgetsHomeScreen`'s Budgets/Goals
+/// `SegmentedButton` toggle pattern as `PlanScreen`'s Budgets/Goals
 /// switch, in place of a plain `TabBar`. Results use [HeroMetricCard] — the
 /// same card language as Portfolio/Assets/Liabilities/Expenses — per
 /// `stitch-design-brief.md` §8's "Calculators" instruction not to give these
