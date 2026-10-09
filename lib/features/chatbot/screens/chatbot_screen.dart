@@ -9,6 +9,7 @@ import '../../../core/theme/app_motion.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/icon_chip.dart';
 import '../../../shared/widgets/paywall_dialog.dart';
+import '../../../shared/widgets/tab_app_bar.dart';
 import '../models/chat_message.dart';
 import '../providers/chatbot_provider.dart';
 
@@ -132,25 +133,10 @@ class _ChatbotScreenState extends ConsumerState<ChatbotScreen> {
       });
     });
     return Scaffold(
-      appBar: AppBar(
-        titleSpacing: 0,
-        title: Row(
-          children: [
-            const IconChip(icon: Icons.savings, size: 32),
-            const SizedBox(width: 10),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Text('Penny', style: TextStyle(fontSize: 16)),
-                Text(
-                  'Ask me anything about your money',
-                  style: TextStyle(fontSize: 11, color: semantic?.textMuted, fontWeight: FontWeight.normal),
-                ),
-              ],
-            ),
-          ],
-        ),
+      appBar: const TabAppBar(
+        title: 'Penny',
+        subtitle: 'Ask me anything about your money',
+        titleLeading: IconChip(icon: Icons.savings, size: 32),
       ),
       body: SafeArea(
         child: Column(

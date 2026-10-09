@@ -3,7 +3,8 @@ import 'package:go_router/go_router.dart';
 
 import '../theme/app_motion.dart';
 
-/// The 5-tab bottom-nav shell per DESIGN.md § Navigation. `navigationShell`
+/// The 5-tab bottom-nav shell: Home, Transactions, Plan, Invest, Penny
+/// (UX rework spec §1.1). Settings is not a tab; the avatar opens it. `navigationShell`
 /// preserves each tab's own stack (StatefulShellRoute), so pushing e.g. the
 /// add-account sheet from Home doesn't disturb Settings' state.
 ///
@@ -69,10 +70,14 @@ class _AppShellState extends State<AppShell> with SingleTickerProviderStateMixin
             widget.navigationShell.goBranch(index, initialLocation: index == widget.navigationShell.currentIndex),
         destinations: const [
           NavigationDestination(icon: Icon(Icons.home_outlined), selectedIcon: Icon(Icons.home), label: 'Home'),
+          NavigationDestination(
+            icon: Icon(Icons.receipt_long_outlined),
+            selectedIcon: Icon(Icons.receipt_long),
+            label: 'Transactions',
+          ),
+          NavigationDestination(icon: Icon(Icons.pie_chart_outline), selectedIcon: Icon(Icons.pie_chart), label: 'Plan'),
           NavigationDestination(icon: Icon(Icons.trending_up_outlined), selectedIcon: Icon(Icons.trending_up), label: 'Invest'),
-          NavigationDestination(icon: Icon(Icons.pie_chart_outline), selectedIcon: Icon(Icons.pie_chart), label: 'Budgets'),
-          NavigationDestination(icon: Icon(Icons.smart_toy_outlined), selectedIcon: Icon(Icons.smart_toy), label: 'Assistant'),
-          NavigationDestination(icon: Icon(Icons.settings_outlined), selectedIcon: Icon(Icons.settings), label: 'Settings'),
+          NavigationDestination(icon: Icon(Icons.smart_toy_outlined), selectedIcon: Icon(Icons.smart_toy), label: 'Penny'),
         ],
       ),
     );

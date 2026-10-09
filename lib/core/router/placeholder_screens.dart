@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../features/consent/screens/consent_screen.dart';
 import '../../features/detection/screens/detection_settings_screen.dart';
-import '../../features/savings/screens/savings_plan_screen.dart';
 import '../../features/settings/screens/about_screen.dart';
 import '../../features/settings/screens/appearance_screen.dart';
 import '../../features/settings/screens/import_history_screen.dart';
@@ -48,13 +47,14 @@ class SettingsScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final user = ref.watch(authControllerProvider).user;
+    // Pushed above the shell from the tab-root avatar (UX rework spec §2.6),
+    // so it has a back arrow and no bottom bar.
     return Scaffold(
+      appBar: AppBar(title: const Text('Settings')),
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            Text('Settings', style: Theme.of(context).textTheme.headlineSmall),
-            const SizedBox(height: 24),
             if (user != null)
               GroupCard(
                 children: [
@@ -88,13 +88,6 @@ class SettingsScreen extends ConsumerWidget {
                   title: 'Subscription',
                   onTap: () => Navigator.of(context).push(
                     MaterialPageRoute(builder: (_) => const SubscriptionScreen()),
-                  ),
-                ),
-                GroupRow(
-                  leadingIcon: Icons.savings_outlined,
-                  title: 'Savings plan',
-                  onTap: () => Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => const SavingsPlanScreen()),
                   ),
                 ),
                 GroupRow(

@@ -7,6 +7,7 @@ import '../../../core/format/money.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/group_card.dart';
 import '../../../shared/widgets/state_views.dart';
+import '../../../shared/widgets/tab_app_bar.dart';
 import '../../accounts/providers/accounts_provider.dart';
 import '../../expenses/screens/expenses_summary_screen.dart';
 import '../../imports/screens/imports_screen.dart';
@@ -35,8 +36,8 @@ class TransactionsScreen extends ConsumerWidget {
     final selectedType = ref.watch(transactionFiltersProvider).transactionType;
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Transactions'),
+      appBar: TabAppBar(
+        title: 'Transactions',
         actions: [
           IconButton(
             icon: const Icon(Icons.filter_list),

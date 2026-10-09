@@ -466,3 +466,4 @@ none unless asked). It checked:
 | Date | Change | Why |
 |---|---|---|
 | 2026-10-09 | Created | Spec approved (A1–A6 yes) |
+| 2026-10-09 | Step 1: Plan's segment is a UI-only `planSegmentProvider` (Home sets it, then `go('/plan')`) instead of a `?s=` query parameter | The query parameter misbehaves on re-entry: once the user switches segment by hand, the old parameter no longer describes the screen |

@@ -18,41 +18,31 @@ import 'policy_screen.dart';
 /// over each month, what they actually have, and the recurring costs that
 /// could close the gap.
 ///
-/// A pushed screen, not a tab — DESIGN.md locks the bottom nav at five
-/// tabs (plan decision D2). It opens from the Home card and from Settings.
-class SavingsPlanScreen extends ConsumerWidget {
-  const SavingsPlanScreen({super.key});
+/// The Savings segment of the Plan tab (UX rework spec §2.3). The tab owns
+/// the app bar and the Add cost button; this is the scrolling body.
+class SavingsPlanBody extends ConsumerWidget {
+  const SavingsPlanBody({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Savings plan')),
-      body: SafeArea(
-        child: RefreshIndicator(
-          onRefresh: () async {
-            refreshSavings(ref);
-            await Future.wait([
-              ref.read(savingsOverviewProvider.future),
-              ref.read(recurringCostsProvider.future),
-            ]).catchError((_) => <Object>[]);
-          },
-          child: ListView(
-            // The bottom inset clears the Add cost button, as on Home.
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 96),
-            children: const [
-              _TargetSection(),
-              SizedBox(height: 12),
-              _WhereToCut(),
-              SizedBox(height: 12),
-              _CostsSection(),
-            ],
-          ),
-        ),
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => showRecurringCostSheet(context),
-        icon: const Icon(Icons.add),
-        label: const Text('Add cost'),
+    return RefreshIndicator(
+      onRefresh: () async {
+        refreshSavings(ref);
+        await Future.wait([
+          ref.read(savingsOverviewProvider.future),
+          ref.read(recurringCostsProvider.future),
+        ]).catchError((_) => <Object>[]);
+      },
+      child: ListView(
+        // The bottom inset clears the Add cost button, as on Home.
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 96),
+        children: const [
+          _TargetSection(),
+          SizedBox(height: 12),
+          _WhereToCut(),
+          SizedBox(height: 12),
+          _CostsSection(),
+        ],
       ),
     );
   }

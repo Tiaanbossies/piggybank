@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:decimal/decimal.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../core/api/api_error.dart';
 import '../../../core/format/money.dart';
@@ -10,7 +11,6 @@ import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/group_card.dart';
 import '../../../shared/widgets/hero_metric_card.dart';
 import '../../../shared/widgets/paywall_dialog.dart';
-import '../../transactions/screens/transactions_screen.dart';
 import '../models/account.dart';
 import '../providers/accounts_provider.dart';
 import 'account_detail_screen.dart';
@@ -43,7 +43,7 @@ class _AccountsScreenState extends ConsumerState<AccountsScreen> {
           IconButton(
             icon: const Icon(Icons.receipt_long_outlined),
             tooltip: 'Transactions',
-            onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const TransactionsScreen())),
+            onPressed: () => context.go('/transactions'),
           ),
         ],
       ),

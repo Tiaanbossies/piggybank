@@ -8,6 +8,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/allocation_donut.dart';
 import '../../../shared/widgets/group_card.dart';
 import '../../../shared/widgets/hero_metric_card.dart';
+import '../../../shared/widgets/tab_app_bar.dart';
 import '../models/portfolio.dart';
 import '../providers/portfolios_provider.dart';
 import 'all_holdings_screen.dart';
@@ -26,12 +27,8 @@ class InvestScreen extends ConsumerWidget {
     final portfoliosAsync = ref.watch(portfoliosProvider);
 
     return Scaffold(
-      appBar: AppBar(
-        leading: const Padding(
-          padding: EdgeInsets.all(8),
-          child: CircleAvatar(child: Icon(Icons.person_outline, size: 18)),
-        ),
-        title: const Text('Invest'),
+      appBar: TabAppBar(
+        title: 'Invest',
         actions: [
           IconButton(
             icon: const Icon(Icons.stacked_line_chart),
@@ -39,10 +36,6 @@ class InvestScreen extends ConsumerWidget {
             onPressed: () => Navigator.of(context).push(
               MaterialPageRoute(builder: (_) => const InstrumentComparisonScreen()),
             ),
-          ),
-          const Padding(
-            padding: EdgeInsets.only(right: 12),
-            child: Icon(Icons.notifications_none),
           ),
         ],
       ),
