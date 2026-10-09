@@ -1,8 +1,7 @@
 # UX rework 04: spec
 
-Session 2 of the UX rework epic, written 2026-10-09. **Status: draft, waiting for
-Tiaan's approval.** Nothing here is built until it is approved; Session 3 turns it into
-a blueprint of phased PRs.
+Session 2 of the UX rework epic, written 2026-10-09. **Status: approved by Tiaan
+2026-10-09 (A1–A6 yes).** Session 3's blueprint is `plans/ux-rework-blueprint.md`.
 
 Inputs: `01-principles.md` (IDs K, N, Y, T, H, P), `02-audit.md` (findings 1–8, the
 7 decisions), `03-capability-inventory.md` (rows A1–J8, the regression contract).
@@ -388,7 +387,7 @@ Reply with a yes/no or changes per item:
 
 | # | Item | Recommendation |
 |---|---|---|
-| A1 | Add the `animations` package (first-party, UI only) for container transform, shared axis and fade-through | **Yes** |
+| A1 | Add the `animations` package (first-party, UI only) for container transform, shared axis and fade-through | **Yes.** Already a dependency (`animations: ^3.0.0`, used by `app_theme.dart`), so no pubspec change. |
 | A2 | Remove the bell (DESIGN.md change) | **Yes** |
 | A3 | Proposals S, H, HP, G, ST (top of this doc) | **Yes** |
 | A4 | Undo-instead-of-confirm for single-row deletes (§5) | **Yes** |
