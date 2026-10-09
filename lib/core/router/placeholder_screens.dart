@@ -5,11 +5,11 @@ import '../../features/consent/screens/consent_screen.dart';
 import '../../features/detection/screens/detection_settings_screen.dart';
 import '../../features/settings/screens/about_screen.dart';
 import '../../features/settings/screens/appearance_screen.dart';
-import '../../features/settings/screens/import_history_screen.dart';
 import '../../features/settings/screens/notifications_screen.dart';
 import '../../features/settings/screens/profile_screen.dart';
 import '../../features/settings/screens/security_screen.dart';
 import '../../features/settings/screens/subscription_screen.dart';
+import '../../shared/widgets/confirm_dialog.dart';
 import '../../shared/widgets/group_card.dart';
 import '../auth/auth_controller.dart';
 
@@ -68,19 +68,7 @@ class SettingsScreen extends ConsumerWidget {
                   ),
                 ],
               ),
-            const SizedBox(height: 12),
-            GroupCard(
-              children: [
-                GroupRow(
-                  leadingIcon: Icons.privacy_tip_outlined,
-                  title: 'Privacy & consent',
-                  onTap: () => Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => const ConsentScreen()),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
+            const _SectionLabel('Account'),
             GroupCard(
               children: [
                 GroupRow(
@@ -91,24 +79,29 @@ class SettingsScreen extends ConsumerWidget {
                   ),
                 ),
                 GroupRow(
-                  leadingIcon: Icons.description_outlined,
-                  title: 'Import history',
+                  leadingIcon: Icons.lock_outline,
+                  title: 'Security',
                   onTap: () => Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => const ImportHistoryScreen()),
+                    MaterialPageRoute(builder: (_) => const SecurityScreen()),
                   ),
                 ),
+                GroupRow(
+                  leadingIcon: Icons.privacy_tip_outlined,
+                  title: 'Privacy & consent',
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const ConsentScreen()),
+                  ),
+                ),
+              ],
+            ),
+            const _SectionLabel('Preferences'),
+            GroupCard(
+              children: [
                 GroupRow(
                   leadingIcon: Icons.palette_outlined,
                   title: 'Appearance',
                   onTap: () => Navigator.of(context).push(
                     MaterialPageRoute(builder: (_) => const AppearanceScreen()),
-                  ),
-                ),
-                GroupRow(
-                  leadingIcon: Icons.lock_outline,
-                  title: 'Security',
-                  onTap: () => Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => const SecurityScreen()),
                   ),
                 ),
                 GroupRow(
@@ -118,9 +111,14 @@ class SettingsScreen extends ConsumerWidget {
                     MaterialPageRoute(builder: (_) => const NotificationsScreen()),
                   ),
                 ),
+              ],
+            ),
+            const _SectionLabel('Data sources'),
+            GroupCard(
+              children: [
                 GroupRow(
                   leadingIcon: Icons.auto_awesome_outlined,
-                  title: 'Notification & email detection',
+                  title: 'Bank notifications & email',
                   onTap: () => Navigator.of(context).push(
                     MaterialPageRoute(builder: (_) => const DetectionSettingsScreen()),
                   ),
@@ -143,16 +141,39 @@ class SettingsScreen extends ConsumerWidget {
             GroupCard(
               children: [
                 GroupRow(
+                  key: const Key('settings-log-out'),
                   leadingIcon: Icons.logout,
                   leadingDanger: true,
                   title: 'Log out',
-                  onTap: () => ref.read(authControllerProvider.notifier).logout(),
+                  onTap: () async {
+                    final confirmed = await confirmDestroy(
+                      context,
+                      title: 'Log out?',
+                      message: "You'll need your password to sign back in.",
+                      confirmLabel: 'Log out',
+                    );
+                    if (confirmed) await ref.read(authControllerProvider.notifier).logout();
+                  },
                 ),
               ],
             ),
           ],
         ),
       ),
+    );
+  }
+}
+
+/// A small heading above each Settings group (spec §2.6).
+class _SectionLabel extends StatelessWidget {
+  const _SectionLabel(this.text);
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(4, 20, 4, 8),
+      child: Text(text, style: Theme.of(context).textTheme.labelLarge),
     );
   }
 }

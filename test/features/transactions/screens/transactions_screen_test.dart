@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:piggybank/core/api/api_error.dart';
+import 'package:piggybank/features/detection/widgets/review_banner.dart';
 import 'package:piggybank/features/transactions/data/transactions_api.dart';
 import 'package:piggybank/features/transactions/models/transaction.dart';
 import 'package:piggybank/features/transactions/providers/transactions_provider.dart';
@@ -233,5 +234,55 @@ void main() {
 
     expect(find.textContaining('Network error'), findsNothing);
     expect(find.text('Woolworths'), findsOneWidget);
+  });
+
+  group('Transactions tab actions (UX rework Step 2)', () {
+    Future<void> pumpTab(WidgetTester tester, {int pending = 0}) async {
+      _stubList(mockApi, [_tx(id: '1', type: TransactionType.expense, category: 'Groceries', merchantName: 'Woolworths')]);
+      await pumpApp(
+        tester,
+        const TransactionsScreen(),
+        overrides: [
+          transactionsApiProvider.overrideWithValue(mockApi),
+          pendingReviewCountProvider.overrideWith((ref) => pending),
+        ],
+      );
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('Review shows the real pending count, plus the banner', (tester) async {
+      await pumpTab(tester, pending: 3);
+      final review = find.byKey(const Key('transactions-review'));
+      expect(review, findsOneWidget);
+      expect(find.descendant(of: review, matching: find.text('3')), findsOneWidget);
+      expect(find.text('3 new transactions to review'), findsOneWidget);
+    });
+
+    testWidgets('Review and the banner are hidden when nothing is pending', (tester) async {
+      await pumpTab(tester);
+      expect(find.byKey(const Key('transactions-review')), findsNothing);
+      expect(find.textContaining('to review'), findsNothing);
+    });
+
+    testWidgets('Insights is labelled', (tester) async {
+      await pumpTab(tester);
+      expect(find.byTooltip('Insights'), findsOneWidget);
+    });
+
+    testWidgets('the overflow holds Expenses summary, Import and Import history', (tester) async {
+      await pumpTab(tester);
+      await tester.tap(find.byKey(const Key('transactions-overflow')));
+      await tester.pumpAndSettle();
+      expect(find.text('Expenses summary'), findsOneWidget);
+      expect(find.text('Import CSV / Scan receipt'), findsOneWidget);
+      expect(find.text('Import history'), findsOneWidget);
+    });
+
+    testWidgets('the Filter chip opens the filter sheet', (tester) async {
+      await pumpTab(tester);
+      await tester.tap(find.byKey(const Key('transactions-filter')));
+      await tester.pumpAndSettle();
+      expect(find.text('Clear all filters'), findsOneWidget);
+    });
   });
 }

@@ -6,7 +6,15 @@ import 'package:flutter/material.dart';
 /// payment deletes — all ledger entries where deleting recomputes a running
 /// balance/total, not just removing a standalone record. Plain records
 /// (Assets, Liabilities themselves, Budgets, Goals) still delete directly.
-Future<bool> confirmDestroy(BuildContext context, {required String title, String? message}) async {
+///
+/// [confirmLabel] names the action on the red button ("Log out" for the
+/// sign-out confirm; "Delete" otherwise).
+Future<bool> confirmDestroy(
+  BuildContext context, {
+  required String title,
+  String? message,
+  String confirmLabel = 'Delete',
+}) async {
   final result = await showDialog<bool>(
     context: context,
     builder: (context) => AlertDialog(
@@ -17,7 +25,7 @@ Future<bool> confirmDestroy(BuildContext context, {required String title, String
         TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Cancel')),
         TextButton(
           onPressed: () => Navigator.of(context).pop(true),
-          child: Text('Delete', style: TextStyle(color: Theme.of(context).colorScheme.error)),
+          child: Text(confirmLabel, style: TextStyle(color: Theme.of(context).colorScheme.error)),
         ),
       ],
     ),
