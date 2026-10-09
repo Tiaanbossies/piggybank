@@ -5,6 +5,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/api/api_error.dart';
 import '../../../core/format/money.dart';
 import '../../../core/theme/app_motion.dart';
+import '../../../shared/motion/press_scale.dart';
+import '../../../shared/motion/saved_highlight.dart';
 import '../../../shared/widgets/deferred_delete.dart';
 import '../../../shared/widgets/progress_card.dart';
 import '../../../shared/widgets/state_views.dart';
@@ -152,7 +154,7 @@ class _BudgetProgressRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final pct = progress.pctUsed / 100;
-    return InkWell(
+    final card = InkWell(
       onTap: () => showEditBudgetSheet(context, progress),
       child: ProgressCard(
         title: progress.category ?? 'Total',
@@ -164,6 +166,12 @@ class _BudgetProgressRow extends StatelessWidget {
             ? '${formatZAR(progress.remaining.abs())} over budget'
             : '${formatZAR(progress.spent)} / ${formatZAR(progress.budgetAmount)}',
       ),
+    );
+    return SavedHighlight(
+      id: progress.id,
+      radius: 16,
+      inset: EdgeInsets.only(left: indented ? 24 : 0, bottom: 12),
+      child: PressScale(child: card),
     );
   }
 }
@@ -251,18 +259,20 @@ class _BudgetSheetState extends ConsumerState<_BudgetSheet> {
       final month = ref.read(selectedBudgetMonthProvider);
       final category = _categoryController.text.trim().isEmpty ? null : _categoryController.text.trim();
       if (widget.existing == null) {
-        await ref.read(budgetsApiProvider).create(
+        final created = await ref.read(budgetsApiProvider).create(
               month: month,
               totalBudget: _amountController.text.trim(),
               category: category,
               parentBudgetId: _parentBudgetId,
             );
+        markSaved(ref, created.id);
       } else {
         await ref.read(budgetsApiProvider).update(
               widget.existing!.id,
               totalBudget: _amountController.text.trim(),
               category: category,
             );
+        markSaved(ref, widget.existing!.id);
       }
       ref.invalidate(budgetProgressProvider);
       ref.invalidate(budgetsForMonthProvider);

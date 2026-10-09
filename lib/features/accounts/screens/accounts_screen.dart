@@ -8,6 +8,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/api/api_error.dart';
 import '../../../core/format/money.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../shared/motion/container_transform.dart';
 import '../../../shared/widgets/group_card.dart';
 import '../../../shared/widgets/hero_metric_card.dart';
 import '../../../shared/widgets/paywall_dialog.dart';
@@ -67,7 +68,11 @@ class _AccountsScreenState extends ConsumerState<AccountsScreen> {
                         mainAxisAlignment: MainAxisAlignment.center,
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          HeroMetricCard(label: 'Total balance', value: formatZAR(totalBalance)),
+                          HeroMetricCard(
+                            label: 'Total balance',
+                            value: formatZAR(totalBalance),
+                            amount: totalBalance.toDouble(),
+                          ),
                           const SizedBox(height: 24),
                           Text('Active accounts', style: Theme.of(context).textTheme.labelMedium),
                           const SizedBox(height: 12),
@@ -167,29 +172,30 @@ class _AccountRow extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final semantic = Theme.of(context).extension<AppSemanticColors>();
-    return GestureDetector(
-      onTap: () => Navigator.of(context).push(
-        MaterialPageRoute(builder: (_) => AccountDetailScreen(account: account)),
-      ),
-      onLongPress: () => showModalBottomSheet(
-        context: context,
-        builder: (_) => AccountContextMenu(account: account),
-      ),
-      child: GroupRow(
-        leadingIcon: _icon,
-        muted: !account.isActive,
-        title: account.name,
-        subtitle: account.institutionName,
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              formatZAR(account.balance),
-              style: moneyTextStyle(context, fontSize: 15, color: account.isActive ? semantic?.success : null),
-            ),
-            const SizedBox(width: 4),
-            Icon(Icons.chevron_right, size: 20, color: semantic?.textMuted),
-          ],
+    return ContainerTransform(
+      openBuilder: (_) => AccountDetailScreen(account: account),
+      closedBuilder: (context, open) => GestureDetector(
+        onTap: open,
+        onLongPress: () => showModalBottomSheet(
+          context: context,
+          builder: (_) => AccountContextMenu(account: account),
+        ),
+        child: GroupRow(
+          leadingIcon: _icon,
+          muted: !account.isActive,
+          title: account.name,
+          subtitle: account.institutionName,
+          trailing: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                formatZAR(account.balance),
+                style: moneyTextStyle(context, fontSize: 15, color: account.isActive ? semantic?.success : null),
+              ),
+              const SizedBox(width: 4),
+              Icon(Icons.chevron_right, size: 20, color: semantic?.textMuted),
+            ],
+          ),
         ),
       ),
     );

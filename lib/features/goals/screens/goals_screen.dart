@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/api/api_error.dart';
 import '../../../core/format/money.dart';
 import '../../../core/theme/app_motion.dart';
+import '../../../shared/motion/press_scale.dart';
+import '../../../shared/motion/saved_highlight.dart';
 import '../../../shared/widgets/completed_goal_card.dart';
 import '../../../shared/widgets/deferred_delete.dart';
 import '../../../shared/widgets/progress_card.dart';
@@ -102,7 +104,12 @@ class _GoalRow extends StatelessWidget {
             pct: goal.progressPct / 100,
             footnote: footnote,
           );
-    return InkWell(onTap: () => showEditGoalSheet(context, goal), child: child);
+    return SavedHighlight(
+      id: goal.id,
+      radius: 16,
+      inset: const EdgeInsets.only(bottom: 12),
+      child: PressScale(child: InkWell(onTap: () => showEditGoalSheet(context, goal), child: child)),
+    );
   }
 }
 
@@ -179,12 +186,13 @@ class _GoalSheetState extends ConsumerState<_GoalSheet> {
       final targetAmount = _targetController.text.trim();
       final currentAmount = _currentController.text.trim().isEmpty ? null : _currentController.text.trim();
       if (widget.existing == null) {
-        await ref.read(goalsApiProvider).create(
+        final created = await ref.read(goalsApiProvider).create(
               name: name,
               targetAmount: targetAmount,
               currentAmount: currentAmount,
               targetDate: _targetDate,
             );
+        markSaved(ref, created.id);
       } else {
         await ref.read(goalsApiProvider).update(
               widget.existing!.id,
@@ -193,6 +201,7 @@ class _GoalSheetState extends ConsumerState<_GoalSheet> {
               currentAmount: currentAmount,
               targetDate: _targetDate,
             );
+        markSaved(ref, widget.existing!.id);
       }
       ref.invalidate(goalsProvider);
       if (mounted) Navigator.of(context).pop();

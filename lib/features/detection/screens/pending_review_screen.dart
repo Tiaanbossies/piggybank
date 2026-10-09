@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/api/api_error.dart';
@@ -216,14 +217,18 @@ class _EventCard extends ConsumerWidget {
         alignment: Alignment.centerLeft,
       ),
       secondaryBackground: SwipeBackground(
-        color: colors.errorContainer,
-        foreground: colors.onErrorContainer,
+        // Neutral, not red: discarding isn't a mistake (spec §3.2), and red
+        // stays reserved for over budget.
+        color: colors.surfaceContainerHighest,
+        foreground: colors.onSurfaceVariant,
         icon: Icons.delete_outline,
         label: 'Discard',
         alignment: Alignment.centerRight,
       ),
-      onDismissed: (direction) =>
-          direction == DismissDirection.startToEnd ? onConfirm(oneTap!) : onDiscard(),
+      onDismissed: (direction) {
+        HapticFeedback.lightImpact();
+        direction == DismissDirection.startToEnd ? onConfirm(oneTap!) : onDiscard();
+      },
       child: Card(
         margin: const EdgeInsets.only(bottom: 12),
         child: Padding(

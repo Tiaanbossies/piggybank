@@ -1,5 +1,6 @@
 import 'package:decimal/decimal.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/api/api_error.dart';
@@ -482,14 +483,17 @@ class _SuggestionCard extends StatelessWidget {
         bottomMargin: 8,
       ),
       secondaryBackground: SwipeBackground(
-        color: colors.errorContainer,
-        foreground: colors.onErrorContainer,
+        color: colors.surfaceContainerHighest,
+        foreground: colors.onSurfaceVariant,
         icon: Icons.close,
         label: 'Dismiss',
         alignment: Alignment.centerRight,
         bottomMargin: 8,
       ),
-      onDismissed: (direction) => direction == DismissDirection.startToEnd ? onConfirm() : onDismiss(),
+      onDismissed: (direction) {
+        HapticFeedback.lightImpact();
+        direction == DismissDirection.startToEnd ? onConfirm() : onDismiss();
+      },
       child: Card(
         margin: const EdgeInsets.only(bottom: 8),
         clipBehavior: Clip.antiAlias,

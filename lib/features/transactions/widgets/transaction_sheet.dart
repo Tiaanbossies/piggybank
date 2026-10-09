@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/api/api_error.dart';
+import '../../../shared/motion/saved_highlight.dart';
 import '../../../shared/widgets/deferred_delete.dart';
 import '../../../shared/widgets/state_views.dart';
 import '../../accounts/models/account.dart';
@@ -96,7 +97,7 @@ class _TransactionSheetState extends ConsumerState<TransactionSheet> {
       final merchant = _merchantController.text.trim();
       final notes = _notesController.text.trim();
       if (_isAdding) {
-        await api.create(
+        final created = await api.create(
           accountId: accountId,
           transactionType: _type,
           category: _category.trim(),
@@ -105,6 +106,7 @@ class _TransactionSheetState extends ConsumerState<TransactionSheet> {
           merchantName: merchant.isEmpty ? null : merchant,
           notes: notes.isEmpty ? null : notes,
         );
+        markSaved(ref, created.id);
         await ref.read(lastUsedAccountProvider.notifier).remember(accountId);
       } else {
         await api.update(
@@ -117,6 +119,7 @@ class _TransactionSheetState extends ConsumerState<TransactionSheet> {
           merchantName: merchant.isEmpty ? null : merchant,
           notes: notes.isEmpty ? null : notes,
         );
+        markSaved(ref, widget.existing!.id);
       }
       _refreshAfterWrite();
       if (mounted) Navigator.of(context).pop();

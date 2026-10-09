@@ -81,6 +81,7 @@ class NetWorthScreen extends ConsumerWidget {
                     key: const ValueKey('data'),
                     label: 'Net worth',
                     value: formatZAR(netWorth.netWorth),
+                    amount: netWorth.netWorth.toDouble(),
                     deltaText: netWorthTrendText(ref),
                   ),
                 ),

@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/api/api_error.dart';
 import '../../../core/format/money.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../shared/motion/container_transform.dart';
 import '../../../shared/widgets/allocation_donut.dart';
 import '../../../shared/widgets/group_card.dart';
 import '../../../shared/widgets/hero_metric_card.dart';
@@ -160,6 +161,7 @@ class _OverviewSection extends ConsumerWidget {
             HeroMetricCard(
               label: 'Total value',
               value: formatZAR(overview.totalValue),
+              amount: overview.totalValue.toDouble(),
               deltaText: '${plUp ? '+' : ''}${formatZAR(overview.unrealizedPl)} unrealized',
             ),
             const SizedBox(height: 16),
@@ -260,13 +262,14 @@ class _PortfolioRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GroupRow(
-      leadingIcon: Icons.folder_outlined,
-      title: portfolio.name,
-      subtitle: portfolioTypeLabels[portfolio.portfolioType],
-      trailing: const Icon(Icons.chevron_right),
-      onTap: () => Navigator.of(context).push(
-        MaterialPageRoute(builder: (_) => PortfolioDetailScreen(portfolio: portfolio)),
+    return ContainerTransform(
+      openBuilder: (_) => PortfolioDetailScreen(portfolio: portfolio),
+      closedBuilder: (context, open) => GroupRow(
+        leadingIcon: Icons.folder_outlined,
+        title: portfolio.name,
+        subtitle: portfolioTypeLabels[portfolio.portfolioType],
+        trailing: const Icon(Icons.chevron_right),
+        onTap: open,
       ),
     );
   }

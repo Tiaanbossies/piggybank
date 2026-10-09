@@ -5,6 +5,7 @@ import '../../../core/api/api_error.dart';
 import '../../../core/format/dates.dart';
 import '../../../core/format/money.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../shared/motion/saved_highlight.dart';
 import '../../../shared/widgets/deferred_delete.dart';
 import '../../../shared/widgets/group_card.dart';
 import '../../../shared/widgets/state_views.dart';
@@ -175,7 +176,12 @@ class TransactionsScreen extends ConsumerWidget {
                                 padding: const EdgeInsets.only(top: 16, bottom: 8),
                                 child: Text(_formatGroupDate(entry.key), style: Theme.of(context).textTheme.labelMedium),
                               ),
-                              GroupCard(children: [for (final transaction in entry.value) _TransactionRow(transaction: transaction)]),
+                              GroupCard(
+                                children: [
+                                  for (final transaction in entry.value)
+                                    SavedHighlight(id: transaction.id, child: _TransactionRow(transaction: transaction)),
+                                ],
+                              ),
                             ],
                           );
                         }
