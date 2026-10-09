@@ -49,7 +49,10 @@ class _PlanScreenState extends ConsumerState<PlanScreen> {
   Widget build(BuildContext context) {
     final segment = ref.watch(planSegmentProvider);
     return Scaffold(
-      appBar: const TabAppBar(title: 'Plan'),
+      appBar: TabAppBar(
+        title: 'Plan',
+        bottom: segment == PlanSegment.budgets ? const BudgetMonthSwitcher() : null,
+      ),
       body: SafeArea(
         child: Column(
           children: [

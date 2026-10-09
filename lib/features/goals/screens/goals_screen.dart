@@ -58,10 +58,23 @@ class GoalsBody extends ConsumerWidget {
                 ],
               );
             }
+            final inProgress = goals.where((g) => g.status != GoalStatus.completed).toList()
+              ..sort(_byTargetDate);
+            final completed = goals.where((g) => g.status == GoalStatus.completed).toList();
             return ListView(
               key: const ValueKey('list'),
-              padding: const EdgeInsets.all(16),
-              children: [for (final goal in goals) _GoalRow(goal: goal)],
+              // Clears the Add goal button.
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 104),
+              children: [
+                for (final goal in inProgress) _GoalRow(goal: goal),
+                if (completed.isNotEmpty)
+                  ExpansionTile(
+                    key: const Key('goals-completed'),
+                    tilePadding: const EdgeInsets.symmetric(horizontal: 4),
+                    title: Text('Completed (${completed.length})'),
+                    children: [for (final goal in completed) _GoalRow(goal: goal)],
+                  ),
+              ],
             );
           },
         ),
@@ -88,6 +101,17 @@ class _GoalRow extends StatelessWidget {
           );
     return InkWell(onTap: () => showEditGoalSheet(context, goal), child: child);
   }
+}
+
+/// The goal you can still move comes first (spec §2.3, Y8): soonest target
+/// date first, goals without a date last.
+int _byTargetDate(Goal a, Goal b) {
+  final da = a.targetDate;
+  final db = b.targetDate;
+  if (da == null && db == null) return 0;
+  if (da == null) return 1;
+  if (db == null) return -1;
+  return da.compareTo(db);
 }
 
 String _formatDate(DateTime date) =>

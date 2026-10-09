@@ -74,3 +74,25 @@ class InlineError extends StatelessWidget {
     );
   }
 }
+
+/// A grey placeholder the shape of content that's still loading, so the page
+/// keeps its layout instead of showing a lone spinner (UX rework spec §1.2,
+/// rule 6).
+class SkeletonBox extends StatelessWidget {
+  const SkeletonBox({this.height = 64, this.radius = 16, super.key});
+
+  final double height;
+  final double radius;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: height,
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(radius),
+      ),
+    );
+  }
+}

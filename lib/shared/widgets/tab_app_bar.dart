@@ -14,6 +14,7 @@ class TabAppBar extends StatelessWidget implements PreferredSizeWidget {
     this.subtitle,
     this.titleLeading,
     this.actions = const [],
+    this.bottom,
     super.key,
   });
 
@@ -28,11 +29,14 @@ class TabAppBar extends StatelessWidget implements PreferredSizeWidget {
   /// Two labelled actions, plus an optional overflow menu as the last item.
   final List<Widget> actions;
 
+  /// A strip under the title row, such as Plan's month switcher.
+  final PreferredSizeWidget? bottom;
+
   /// The avatar's route. Settings sits above the shell, not in it.
   static const settingsLocation = '/settings';
 
   @override
-  Size get preferredSize => const Size.fromHeight(kToolbarHeight);
+  Size get preferredSize => Size.fromHeight(kToolbarHeight + (bottom?.preferredSize.height ?? 0));
 
   @override
   Widget build(BuildContext context) {
@@ -67,6 +71,7 @@ class TabAppBar extends StatelessWidget implements PreferredSizeWidget {
         ],
       ),
       actions: [...actions, const SizedBox(width: 4)],
+      bottom: bottom,
     );
   }
 }

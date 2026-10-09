@@ -8,6 +8,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/allocation_donut.dart';
 import '../../../shared/widgets/group_card.dart';
 import '../../../shared/widgets/hero_metric_card.dart';
+import '../../../shared/widgets/state_views.dart';
 import '../../../shared/widgets/tab_app_bar.dart';
 import '../models/portfolio.dart';
 import '../providers/portfolios_provider.dart';
@@ -30,9 +31,10 @@ class InvestScreen extends ConsumerWidget {
       appBar: TabAppBar(
         title: 'Invest',
         actions: [
-          IconButton(
+          TextButton.icon(
+            key: const Key('invest-compare'),
             icon: const Icon(Icons.stacked_line_chart),
-            tooltip: 'Compare instruments',
+            label: const Text('Compare'),
             onPressed: () => Navigator.of(context).push(
               MaterialPageRoute(builder: (_) => const InstrumentComparisonScreen()),
             ),
@@ -46,8 +48,32 @@ class InvestScreen extends ConsumerWidget {
             ref.invalidate(portfoliosProvider);
           },
           child: portfoliosAsync.when(
-            loading: () => const Center(child: CircularProgressIndicator()),
-            error: (err, _) => Center(child: Text(err is ApiError ? err.message : 'Failed to load portfolios')),
+            loading: () => ListView(
+              key: const Key('invest-skeleton'),
+              padding: const EdgeInsets.all(16),
+              children: const [
+                SkeletonBox(height: 120, radius: 24),
+                SizedBox(height: 16),
+                SkeletonBox(height: 96),
+                SizedBox(height: 24),
+                SkeletonBox(),
+                SizedBox(height: 8),
+                SkeletonBox(),
+              ],
+            ),
+            // Scrollable so pull-to-refresh still works on the error state.
+            error: (err, _) => ListView(
+              padding: const EdgeInsets.all(16),
+              children: [
+                const SizedBox(height: 96),
+                InlineError(
+                  message: err is ApiError ? err.message : 'Failed to load portfolios',
+                  onRetry: () => ref
+                    ..invalidate(investmentOverviewProvider)
+                    ..invalidate(portfoliosProvider),
+                ),
+              ],
+            ),
             data: (portfolios) {
               if (portfolios.isEmpty) return const _EmptyState();
               return ListView(
@@ -121,8 +147,11 @@ class _OverviewSection extends ConsumerWidget {
     final semantic = Theme.of(context).extension<AppSemanticColors>();
 
     return overviewAsync.when(
-      loading: () => const SizedBox(height: 96, child: Center(child: CircularProgressIndicator())),
-      error: (err, _) => Text(err is ApiError ? err.message : 'Failed to load overview'),
+      loading: () => const SkeletonBox(height: 120, radius: 24),
+      error: (err, _) => InlineError(
+        message: err is ApiError ? err.message : 'Failed to load overview',
+        onRetry: () => ref.invalidate(investmentOverviewProvider),
+      ),
       data: (overview) {
         final plUp = overview.unrealizedPl >= Decimal.zero;
         return Column(
