@@ -148,9 +148,30 @@ class TransactionsScreen extends ConsumerWidget {
                         .toList();
 
                     if (accumulated.isEmpty) {
+                      final f = ref.watch(transactionFiltersProvider);
+                      final unfiltered = f.accountId == null &&
+                          f.transactionType == null &&
+                          f.dateFrom == null &&
+                          f.dateTo == null &&
+                          f.category == null;
                       return ListView(
                         padding: const EdgeInsets.fromLTRB(16, 16, 16, 16 + _kFabClearance),
-                        children: const [Center(child: Padding(padding: EdgeInsets.only(top: 48), child: Text('No transactions match this filter.')))],
+                        children: [
+                          if (unfiltered)
+                            const EmptyState(
+                              icon: Icons.receipt_long_outlined,
+                              title: 'No transactions yet.',
+                              hint: 'Tap "Add transaction" below to log one.',
+                              mascot: true,
+                            )
+                          else
+                            const Center(
+                              child: Padding(
+                                padding: EdgeInsets.only(top: 48),
+                                child: Text('No transactions match this filter.'),
+                              ),
+                            ),
+                        ],
                       );
                     }
 

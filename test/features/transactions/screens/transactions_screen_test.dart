@@ -8,6 +8,7 @@ import 'package:piggybank/features/transactions/data/transactions_api.dart';
 import 'package:piggybank/features/transactions/models/transaction.dart';
 import 'package:piggybank/features/transactions/providers/transactions_provider.dart';
 import 'package:piggybank/features/transactions/screens/transactions_screen.dart';
+import 'package:piggybank/shared/widgets/mascot_moment.dart';
 
 import '../../../test_helpers/mocktail_setup.dart';
 import '../../../test_helpers/pump_app.dart';
@@ -102,7 +103,26 @@ void main() {
       );
       await tester.pumpAndSettle();
 
+      // Nothing filtered: a first-run empty list, with Penny welcoming.
+      expect(find.text('No transactions yet.'), findsOneWidget);
+      expect(find.byType(MascotMoment), findsOneWidget);
+    });
+
+    testWidgets('a filter that matches nothing says so, with no mascot', (tester) async {
+      _stubList(mockApi, []);
+
+      await pumpApp(
+        tester,
+        const TransactionsScreen(),
+        overrides: [
+          transactionsApiProvider.overrideWithValue(mockApi),
+          transactionFiltersProvider.overrideWith((ref) => TransactionFiltersNotifier()..setCategory('Fuel')),
+        ],
+      );
+      await tester.pumpAndSettle();
+
       expect(find.text('No transactions match this filter.'), findsOneWidget);
+      expect(find.byType(MascotMoment), findsNothing);
     });
 
     testWidgets('groups the transaction list by date', (tester) async {
