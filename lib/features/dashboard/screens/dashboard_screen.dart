@@ -22,9 +22,8 @@ import '../../assets/screens/assets_screen.dart';
 import '../../budgets/models/budget.dart';
 import '../../budgets/providers/budgets_provider.dart';
 import '../../calculators/screens/calculators_screen.dart';
-import '../../detection/models/detected_event.dart';
 import '../../detection/providers/detection_provider.dart';
-import '../../detection/screens/pending_review_screen.dart';
+import '../../detection/widgets/review_banner.dart';
 import '../../goals/models/goal.dart';
 import '../../goals/providers/goals_provider.dart';
 import '../../liabilities/screens/liabilities_screen.dart';
@@ -73,7 +72,7 @@ class DashboardScreen extends ConsumerWidget {
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 96),
             children: const [
               _UpdateBanner(),
-              _ReviewBanner(),
+              ReviewBanner(),
               _NetWorthHero(),
               SizedBox(height: 16),
               _CashflowStatStrip(),
@@ -177,59 +176,6 @@ class _UpdateBannerState extends ConsumerState<_UpdateBanner> {
                 onPressed: () => setState(() => _dismissed = true),
               ),
             ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// "N new to review" — the daily-driver goal's front door to one-tap review.
-/// The review screen otherwise sits four levels down under Settings, which
-/// is exactly the kind of detour that turns a 10-second habit into a chore.
-/// Counts only `pending` events: `skipped_invalid` rows can merely be
-/// discarded, and nagging about them on Home would cry wolf. Hidden while
-/// loading and on error — detection off, or consent not given, is a normal
-/// state here, not something to surface on the home screen.
-class _ReviewBanner extends ConsumerWidget {
-  const _ReviewBanner();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final events = ref.watch(pendingEventsProvider).valueOrNull;
-    final count = events?.where((e) => e.status == DetectionStatus.pending).length ?? 0;
-    if (count == 0) return const SizedBox.shrink();
-
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 16),
-      child: Card(
-        clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          onTap: () => Navigator.of(context).push(
-            MaterialPageRoute(builder: (_) => const PendingReviewScreen()),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(12),
-            child: Row(
-              children: [
-                const IconChip(icon: Icons.fact_check_outlined, size: 40),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        count == 1 ? '1 new transaction to review' : '$count new transactions to review',
-                        style: Theme.of(context).textTheme.titleSmall,
-                      ),
-                      const SizedBox(height: 2),
-                      Text('Tap to confirm or discard', style: Theme.of(context).textTheme.bodySmall),
-                    ],
-                  ),
-                ),
-                const Icon(Icons.chevron_right),
-              ],
-            ),
           ),
         ),
       ),

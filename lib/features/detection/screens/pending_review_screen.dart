@@ -12,7 +12,8 @@ import '../data/detection_api.dart';
 import '../models/detected_event.dart';
 import '../providers/detection_provider.dart';
 
-/// Settings > Notification & email detection > Review — plan §5 Phase E's
+/// Reached from the Home banner, Transactions › Review, or Settings > Data
+/// sources > Bank notifications & email > Review. Plan §5 Phase E's
 /// "pending-items review screen (extracted fields shown, Confirm/Discard,
 /// holding-selection prompt for investment events)". Every row here is a
 /// [DetectedEvent] the backend already ran through Ollama extraction; this

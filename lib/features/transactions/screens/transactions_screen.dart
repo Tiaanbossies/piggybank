@@ -9,12 +9,18 @@ import '../../../shared/widgets/group_card.dart';
 import '../../../shared/widgets/state_views.dart';
 import '../../../shared/widgets/tab_app_bar.dart';
 import '../../accounts/providers/accounts_provider.dart';
+import '../../detection/widgets/review_banner.dart';
 import '../../expenses/screens/expenses_summary_screen.dart';
 import '../../imports/screens/imports_screen.dart';
+import '../../settings/screens/import_history_screen.dart';
+import '../../trends/screens/trends_screen.dart';
 import '../category_icons.dart';
 import '../models/transaction.dart';
 import '../providers/transactions_provider.dart';
 import '../widgets/transaction_sheet.dart';
+
+/// The Transactions tab's overflow menu items.
+enum _TransactionsMenu { expenses, import, importHistory }
 
 /// Grouped-list-cells pattern per DESIGN.md § Transactions: rows grouped by
 /// date (newest first), tapping a row opens an edit sheet reusing the same
@@ -34,33 +40,53 @@ class TransactionsScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final currentPage = ref.watch(transactionsProvider);
     final selectedType = ref.watch(transactionFiltersProvider).transactionType;
+    final reviewCount = ref.watch(pendingReviewCountProvider);
 
     return Scaffold(
       appBar: TabAppBar(
         title: 'Transactions',
+        // UX rework spec §2.2: Review (only when there's real pending work),
+        // Insights, and the rarer data tools in the overflow menu.
         actions: [
+          if (reviewCount > 0)
+            IconButton(
+              key: const Key('transactions-review'),
+              icon: Badge(label: Text('$reviewCount'), child: const Icon(Icons.fact_check_outlined)),
+              tooltip: 'Review detected transactions',
+              onPressed: () => openPendingReview(context),
+            ),
           IconButton(
-            icon: const Icon(Icons.filter_list),
-            tooltip: 'Filter transactions',
-            onPressed: () => _showFilterSheet(context, ref),
+            key: const Key('transactions-insights'),
+            icon: const Icon(Icons.insights_outlined),
+            tooltip: 'Insights',
+            onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const TrendsScreen())),
           ),
-          IconButton(
-            icon: const Icon(Icons.pie_chart_outline),
-            tooltip: 'Expenses summary',
-            onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ExpensesSummaryScreen())),
-          ),
-          IconButton(
-            icon: const Icon(Icons.upload_file_outlined),
-            tooltip: 'Import CSV / Scan receipt',
-            onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ImportsScreen())),
+          PopupMenuButton<_TransactionsMenu>(
+            key: const Key('transactions-overflow'),
+            tooltip: 'More',
+            onSelected: (item) => Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => switch (item) {
+                  _TransactionsMenu.expenses => const ExpensesSummaryScreen(),
+                  _TransactionsMenu.import => const ImportsScreen(),
+                  _TransactionsMenu.importHistory => const ImportHistoryScreen(),
+                },
+              ),
+            ),
+            itemBuilder: (_) => const [
+              PopupMenuItem(value: _TransactionsMenu.expenses, child: Text('Expenses summary')),
+              PopupMenuItem(value: _TransactionsMenu.import, child: Text('Import CSV / Scan receipt')),
+              PopupMenuItem(value: _TransactionsMenu.importHistory, child: Text('Import history')),
+            ],
           ),
         ],
       ),
       body: SafeArea(
         child: Column(
           children: [
+            const Padding(padding: EdgeInsets.fromLTRB(16, 8, 16, 0), child: ReviewBanner()),
             Padding(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+              padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
               child: SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
                 child: Row(
@@ -80,6 +106,14 @@ class TransactionsScreen extends ConsumerWidget {
                               ref.read(transactionFiltersProvider.notifier).setTransactionType(entry.key),
                         ),
                       ),
+                    // Moved out of the app bar (spec §2.2) to sit with the
+                    // filters it belongs to.
+                    ActionChip(
+                      key: const Key('transactions-filter'),
+                      avatar: const Icon(Icons.filter_list, size: 18),
+                      label: const Text('Filter'),
+                      onPressed: () => _showFilterSheet(context, ref),
+                    ),
                   ],
                 ),
               ),

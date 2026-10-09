@@ -11,7 +11,7 @@ import '../models/notification_source.dart';
 import '../providers/detection_provider.dart';
 import 'pending_review_screen.dart';
 
-/// Settings > Notification & email detection (plan §3/§5's "allowlist setup
+/// Settings > Data sources > Bank notifications & email (plan §3/§5's "allowlist setup
 /// screen"). Notifications (Phase D) and Gmail + the pending-review entry
 /// point (Phase E) share this one screen rather than splitting into two —
 /// both are the same "manage what Piggybank watches" concern, just two
@@ -250,7 +250,7 @@ class _DetectionSettingsScreenState extends ConsumerState<DetectionSettingsScree
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Notification & email detection')),
+      appBar: AppBar(title: const Text('Bank notifications & email')),
       body: SafeArea(
         child: _loading ? const Center(child: CircularProgressIndicator()) : _buildBody(context),
       ),
