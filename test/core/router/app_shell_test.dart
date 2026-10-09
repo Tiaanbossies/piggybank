@@ -55,20 +55,16 @@ void main() {
           branches: [
             StatefulShellBranch(routes: [GoRoute(path: '/', builder: (context, state) => const _CounterScreen())]),
             StatefulShellBranch(
+              routes: [GoRoute(path: '/transactions', builder: (context, state) => const Text('Transactions branch content'))],
+            ),
+            StatefulShellBranch(
+              routes: [GoRoute(path: '/plan', builder: (context, state) => const Text('Plan branch content'))],
+            ),
+            StatefulShellBranch(
               routes: [GoRoute(path: '/invest', builder: (context, state) => const Text('Invest branch content'))],
             ),
             StatefulShellBranch(
-              routes: [GoRoute(path: '/budgets', builder: (context, state) => const Text('Budgets branch content'))],
-            ),
-            StatefulShellBranch(
-              routes: [
-                GoRoute(path: '/assistant', builder: (context, state) => const Text('Assistant branch content')),
-              ],
-            ),
-            StatefulShellBranch(
-              routes: [
-                GoRoute(path: '/settings', builder: (context, state) => const Text('Settings branch content')),
-              ],
+              routes: [GoRoute(path: '/assistant', builder: (context, state) => const Text('Penny branch content'))],
             ),
           ],
         ),
@@ -132,14 +128,22 @@ void main() {
     await pumpShell(tester, disableAnimations: true);
     expect(findFade().opacity.value, 1.0);
 
-    await tester.tap(find.text('Budgets'));
+    await tester.tap(find.text('Plan'));
     await tester.pump();
     // Even immediately after the tap, with reduced motion the opacity
     // should never have left 1.0 — no animation was started at all.
     expect(findFade().opacity.value, 1.0);
 
     await tester.pumpAndSettle();
-    expect(find.text('Budgets branch content'), findsOneWidget);
+    expect(find.text('Plan branch content'), findsOneWidget);
     expect(findFade().opacity.value, 1.0);
+  });
+
+  testWidgets('shows the five rework tabs, with no Settings tab', (tester) async {
+    await pumpShell(tester);
+    for (final label in ['Home', 'Transactions', 'Plan', 'Invest', 'Penny']) {
+      expect(find.descendant(of: find.byType(NavigationBar), matching: find.text(label)), findsOneWidget);
+    }
+    expect(find.descendant(of: find.byType(NavigationBar), matching: find.text('Settings')), findsNothing);
   });
 }

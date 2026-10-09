@@ -1,6 +1,7 @@
 import 'package:decimal/decimal.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/api/api_error.dart';
@@ -15,6 +16,7 @@ import '../../../shared/widgets/icon_chip.dart';
 import '../../../shared/widgets/progress_card.dart';
 import '../../../shared/widgets/quick_link_tile.dart';
 import '../../../shared/widgets/state_views.dart';
+import '../../../shared/widgets/tab_app_bar.dart';
 import '../../accounts/screens/accounts_screen.dart';
 import '../../assets/screens/assets_screen.dart';
 import '../../budgets/models/budget.dart';
@@ -26,12 +28,11 @@ import '../../detection/screens/pending_review_screen.dart';
 import '../../goals/models/goal.dart';
 import '../../goals/providers/goals_provider.dart';
 import '../../liabilities/screens/liabilities_screen.dart';
+import '../../plan/screens/plan_screen.dart';
 import '../../savings/providers/savings_provider.dart';
-import '../../savings/screens/savings_plan_screen.dart';
 import '../../summaries/providers/summaries_provider.dart';
 import '../../transactions/category_icons.dart';
 import '../../transactions/providers/transactions_provider.dart';
-import '../../transactions/screens/transactions_screen.dart';
 import '../../transactions/widgets/transaction_sheet.dart';
 import '../../trends/screens/trends_screen.dart';
 import '../../updates/models/latest_release.dart';
@@ -52,19 +53,7 @@ class DashboardScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return Scaffold(
-      appBar: AppBar(
-        leading: const Padding(
-          padding: EdgeInsets.all(8),
-          child: CircleAvatar(child: Icon(Icons.person_outline, size: 18)),
-        ),
-        title: const Text('Piggybank'),
-        actions: const [
-          Padding(
-            padding: EdgeInsets.only(right: 12),
-            child: Icon(Icons.notifications_none),
-          ),
-        ],
-      ),
+      appBar: const TabAppBar(title: 'Piggybank'),
       body: SafeArea(
         child: RefreshIndicator(
           onRefresh: () async {
@@ -284,7 +273,10 @@ class _SavingsCard extends ConsumerWidget {
       child: Card(
         clipBehavior: Clip.antiAlias,
         child: InkWell(
-          onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const SavingsPlanScreen())),
+          onTap: () {
+            ref.read(planSegmentProvider.notifier).state = PlanSegment.savings;
+            context.go('/plan');
+          },
           child: Padding(
             padding: const EdgeInsets.all(12),
             child: Row(
@@ -652,7 +644,7 @@ class _RecentTransactionsPreview extends ConsumerWidget {
           children: [
             Text('Recent transactions', style: Theme.of(context).textTheme.titleMedium),
             TextButton(
-              onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const TransactionsScreen())),
+              onPressed: () => context.go('/transactions'),
               child: const Text('See all'),
             ),
           ],

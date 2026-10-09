@@ -4,9 +4,12 @@ import 'package:decimal/decimal.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:piggybank/core/api/api_error.dart';
+import 'package:piggybank/core/theme/app_theme.dart';
+import 'package:piggybank/core/theme/shared_preferences_provider.dart';
 import 'package:piggybank/features/accounts/data/accounts_api.dart';
 import 'package:piggybank/features/accounts/providers/accounts_provider.dart';
 import 'package:piggybank/features/budgets/data/budgets_api.dart';
@@ -20,10 +23,10 @@ import 'package:piggybank/features/detection/screens/pending_review_screen.dart'
 import 'package:piggybank/features/goals/data/goals_api.dart';
 import 'package:piggybank/features/goals/models/goal.dart';
 import 'package:piggybank/features/goals/providers/goals_provider.dart';
+import 'package:piggybank/features/plan/screens/plan_screen.dart';
 import 'package:piggybank/features/savings/data/savings_api.dart';
 import 'package:piggybank/features/savings/models/savings.dart';
 import 'package:piggybank/features/savings/providers/savings_provider.dart';
-import 'package:piggybank/features/savings/screens/savings_plan_screen.dart';
 import 'package:piggybank/features/summaries/data/summaries_api.dart';
 import 'package:piggybank/features/summaries/models/summaries.dart';
 import 'package:piggybank/features/summaries/providers/summaries_provider.dart';
@@ -37,6 +40,7 @@ import 'package:piggybank/features/updates/models/latest_release.dart';
 import 'package:piggybank/shared/widgets/completed_goal_card.dart';
 import 'package:piggybank/shared/widgets/hero_metric_card.dart';
 import 'package:piggybank/shared/widgets/progress_card.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../test_helpers/pump_app.dart';
 
@@ -194,6 +198,27 @@ void main() {
         accountsApiProvider.overrideWithValue(mockAccountsApi),
         savingsApiProvider.overrideWithValue(mockSavingsApi),
       ];
+
+  /// Home inside a router, for taps that now switch tabs (UX rework Step 1).
+  Future<void> pumpRouted(WidgetTester tester) async {
+    SharedPreferences.setMockInitialValues({});
+    final prefs = await SharedPreferences.getInstance();
+    final router = GoRouter(
+      routes: [
+        GoRoute(path: '/', builder: (context, state) => const DashboardScreen()),
+        GoRoute(path: '/plan', builder: (context, state) => const Text('Plan route')),
+        GoRoute(path: '/transactions', builder: (context, state) => const Text('Transactions route')),
+      ],
+    );
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [sharedPreferencesProvider.overrideWithValue(prefs), ...overrides()],
+        child: MaterialApp.router(theme: AppTheme.light(), routerConfig: router),
+      ),
+    );
+    await tester.pumpAndSettle();
+  }
+
 
   /// Stubs every dashboard-consumed API call with a successful, empty-ish
   /// default so each test only has to override what it cares about.
@@ -739,16 +764,26 @@ void main() {
       expect(find.text('Rent: target met'), findsOneWidget);
     });
 
-    testWidgets('opens the Savings plan in one tap', (tester) async {
+    testWidgets('See all switches to the Transactions tab', (tester) async {
+      when(() => mockSavingsApi.overview()).thenAnswer((_) async => _savings(target: _rent));
+      await pumpRouted(tester);
+      await tester.scrollUntilVisible(find.text('See all'), 300);
+      await tester.tap(find.text('See all'));
+      await tester.pumpAndSettle();
+      expect(find.text('Transactions route'), findsOneWidget);
+    });
+
+    testWidgets('opens Plan on the Savings segment in one tap', (tester) async {
       when(() => mockSavingsApi.overview()).thenAnswer((_) async => _savings(target: _rent));
       when(() => mockSavingsApi.listRecurring()).thenAnswer((_) async => const []);
-      await pumpApp(tester, const DashboardScreen(), overrides: overrides(), useAppTheme: true);
+      await pumpRouted(tester);
+
+      await tester.tap(find.text('Rent: gap R 1 500,00'));
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Rent: gap R\u00A01\u00A0500,00'));
-      await tester.pumpAndSettle();
-
-      expect(find.byType(SavingsPlanScreen), findsOneWidget);
+      expect(find.text('Plan route'), findsOneWidget);
+      final container = ProviderScope.containerOf(tester.element(find.text('Plan route')));
+      expect(container.read(planSegmentProvider), PlanSegment.savings);
     });
   });
 }

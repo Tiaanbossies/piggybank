@@ -7,13 +7,14 @@ import '../../features/auth/screens/lock_screen.dart';
 import '../../features/auth/screens/login_screen.dart';
 import '../../features/auth/screens/register_screen.dart';
 import '../../features/auth/screens/reset_password_screen.dart';
-import '../../features/budgets/screens/budgets_home_screen.dart';
 import '../../features/chatbot/screens/chatbot_screen.dart';
 import '../../features/consent/screens/consent_screen.dart';
 import '../../features/dashboard/screens/dashboard_screen.dart';
 import '../../features/onboarding/screens/onboarding_screen.dart';
+import '../../features/plan/screens/plan_screen.dart';
 import '../../features/portfolios/screens/invest_screen.dart';
 import '../../features/settings/screens/data_export_screen.dart';
+import '../../features/transactions/screens/transactions_screen.dart';
 import '../auth/auth_controller.dart';
 import '../auth/auth_state.dart';
 import 'app_shell.dart';
@@ -41,15 +42,24 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/lock', builder: (context, state) => const LockScreen()),
       GoRoute(path: '/consent', builder: (context, state) => const ConsentScreen()),
       GoRoute(path: '/onboarding', builder: (context, state) => const OnboardingScreen()),
-      GoRoute(path: '/settings/data-export', builder: (context, state) => const DataExportScreen()),
+      // Settings sits above the shell (opened from the tab-root avatar), so
+      // it covers the bottom bar and pops back to whichever tab opened it.
+      GoRoute(
+        path: '/settings',
+        builder: (context, state) => const SettingsScreen(),
+        routes: [GoRoute(path: 'data-export', builder: (context, state) => const DataExportScreen())],
+      ),
       StatefulShellRoute.indexedStack(
         builder: (context, state, navigationShell) => AppShell(navigationShell: navigationShell),
         branches: [
           StatefulShellBranch(routes: [GoRoute(path: '/', builder: (context, state) => const DashboardScreen())]),
+          StatefulShellBranch(
+            routes: [GoRoute(path: '/transactions', builder: (context, state) => const TransactionsScreen())],
+          ),
+          StatefulShellBranch(routes: [GoRoute(path: '/plan', builder: (context, state) => const PlanScreen())]),
           StatefulShellBranch(routes: [GoRoute(path: '/invest', builder: (context, state) => const InvestScreen())]),
-          StatefulShellBranch(routes: [GoRoute(path: '/budgets', builder: (context, state) => const BudgetsHomeScreen())]),
+          // Penny keeps the /assistant path so askPenny's go('/assistant') holds.
           StatefulShellBranch(routes: [GoRoute(path: '/assistant', builder: (context, state) => const ChatbotScreen())]),
-          StatefulShellBranch(routes: [GoRoute(path: '/settings', builder: (context, state) => const SettingsScreen())]),
         ],
       ),
     ],
