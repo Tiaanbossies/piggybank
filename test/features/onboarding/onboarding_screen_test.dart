@@ -23,10 +23,10 @@ const _user = User(id: 'u1', email: 'a@b.com', fullName: 'A B', role: 'user', is
 
 const _pageTitles = [
   "Hi, I'm Penny!",
-  'Your home base',
-  'Grow what you have',
-  'Stay on track',
-  'Ask me anything',
+  'Your day at a glance',
+  'Every rand in one place',
+  'Plan ahead',
+  'Grow it, and ask me',
   'Your data, secured',
   "You're all set",
 ];
