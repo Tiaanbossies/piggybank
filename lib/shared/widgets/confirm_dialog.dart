@@ -1,11 +1,9 @@
 import 'package:flutter/material.dart';
 
-/// "This cannot be undone" confirmation, per `ui-ux-mockup-brief.md` §5.3:
-/// "Deletes (holding, dividend, portfolio) all go through an explicit
-/// confirmation". Also used for RA/TFSA contribution deletes and Liability
-/// payment deletes — all ledger entries where deleting recomputes a running
-/// balance/total, not just removing a standalone record. Plain records
-/// (Assets, Liabilities themselves, Budgets, Goals) still delete directly.
+/// "This cannot be undone" confirmation, kept for the deletes where Undo
+/// isn't enough (UX rework spec §5): a holding, a portfolio, a liability
+/// payment, and logging out. Single-row deletes (transaction, budget, goal, recurring
+/// cost, dividend, RA/TFSA contribution) use `deferDelete` instead.
 ///
 /// [confirmLabel] names the action on the red button ("Log out" for the
 /// sign-out confirm; "Delete" otherwise).

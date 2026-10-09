@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/api/api_error.dart';
 import '../../../core/format/money.dart';
 import '../../../core/theme/app_motion.dart';
+import '../../../shared/widgets/deferred_delete.dart';
 import '../../../shared/widgets/progress_card.dart';
 import '../../../shared/widgets/state_views.dart';
 import '../../transactions/category_icons.dart';
@@ -56,7 +57,9 @@ class BudgetsBody extends ConsumerWidget {
                     onRetry: () => ref.invalidate(budgetProgressProvider),
                   ),
                 ),
-                data: (budgets) {
+                data: (all) {
+                  final hidden = ref.watch(pendingDeletesProvider);
+                  final budgets = all.where((b) => !hidden.contains(b.id)).toList();
                   if (budgets.isEmpty) {
                     return ListView(
                       key: const ValueKey('empty'),
@@ -78,7 +81,8 @@ class BudgetsBody extends ConsumerWidget {
                       const SizedBox(height: 4),
                       for (final budget in budgets) ...[
                         _BudgetProgressRow(progress: budget),
-                        for (final child in budget.children) _BudgetProgressRow(progress: child, indented: true),
+                        for (final child in budget.children)
+                          if (!hidden.contains(child.id)) _BudgetProgressRow(progress: child, indented: true),
                       ],
                       // A second way into Trends (spec §2.3): budget vs actual
                       // lives there, next to the budgets it explains.
@@ -220,7 +224,6 @@ class _BudgetSheetState extends ConsumerState<_BudgetSheet> {
   late final TextEditingController _amountController;
   String? _parentBudgetId;
   bool _submitting = false;
-  bool _deleting = false;
   String? _error;
 
   @override
@@ -271,29 +274,28 @@ class _BudgetSheetState extends ConsumerState<_BudgetSheet> {
     }
   }
 
-  Future<void> _delete() async {
+  /// Undo instead of a confirm (spec §5).
+  void _delete() {
     final existing = widget.existing;
     if (existing == null) return;
-    setState(() {
-      _deleting = true;
-      _error = null;
-    });
-    try {
-      await ref.read(budgetsApiProvider).delete(existing.id);
-      ref.invalidate(budgetProgressProvider);
-      ref.invalidate(budgetsForMonthProvider);
-      if (mounted) Navigator.of(context).pop();
-    } on ApiError catch (e) {
-      setState(() => _error = e.message);
-    } finally {
-      if (mounted) setState(() => _deleting = false);
-    }
+    deferDelete(
+      context,
+      id: existing.id,
+      message: '${existing.category ?? 'Total'} budget deleted',
+      commit: (c) async {
+        await c.read(budgetsApiProvider).delete(existing.id);
+        c
+          ..invalidate(budgetProgressProvider)
+          ..invalidate(budgetsForMonthProvider);
+      },
+    );
+    Navigator.of(context).pop();
   }
 
   @override
   Widget build(BuildContext context) {
     final isEdit = widget.existing != null;
-    final busy = _submitting || _deleting;
+    final busy = _submitting;
     final topLevelBudgetsAsync = ref.watch(budgetsForMonthProvider);
 
     return Padding(

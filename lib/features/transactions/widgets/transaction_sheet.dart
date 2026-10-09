@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/api/api_error.dart';
+import '../../../shared/widgets/deferred_delete.dart';
 import '../../../shared/widgets/state_views.dart';
 import '../../accounts/models/account.dart';
 import '../../accounts/providers/accounts_provider.dart';
@@ -42,7 +43,6 @@ class _TransactionSheetState extends ConsumerState<TransactionSheet> {
   late DateTime _date;
   String? _accountId;
   bool _submitting = false;
-  bool _deleting = false;
   String? _error;
 
   bool get _isAdding => widget.existing == null;
@@ -127,22 +127,26 @@ class _TransactionSheetState extends ConsumerState<TransactionSheet> {
     }
   }
 
-  Future<void> _delete() async {
+  /// Undo instead of a confirm (spec §5): the row hides, the sheet closes,
+  /// and the delete is only sent once the Undo snackbar runs out.
+  void _delete() {
     final existing = widget.existing;
     if (existing == null) return;
-    setState(() {
-      _deleting = true;
-      _error = null;
-    });
-    try {
-      await ref.read(transactionsApiProvider).delete(existing.id);
-      _refreshAfterWrite();
-      if (mounted) Navigator.of(context).pop();
-    } on ApiError catch (e) {
-      if (mounted) setState(() => _error = e.message);
-    } finally {
-      if (mounted) setState(() => _deleting = false);
-    }
+    deferDelete(
+      context,
+      id: existing.id,
+      message: 'Transaction deleted',
+      commit: (c) async {
+        await c.read(transactionsApiProvider).delete(existing.id);
+        c
+          ..invalidate(transactionsProvider)
+          ..invalidate(recentTransactionsProvider)
+          ..invalidate(todaySpendProvider)
+          ..invalidate(cashflowProvider)
+          ..invalidate(categoryUsageProvider);
+      },
+    );
+    Navigator.of(context).pop();
   }
 
   /// Everything a written transaction shows up in — the list, and Home's
@@ -170,7 +174,7 @@ class _TransactionSheetState extends ConsumerState<TransactionSheet> {
   Widget build(BuildContext context) {
     final accountsAsync = ref.watch(accountsProvider);
     final used = ref.watch(categoryUsageProvider(_type)).valueOrNull ?? const <String>[];
-    final busy = _submitting || _deleting;
+    final busy = _submitting;
 
     // Chips: what this user actually files things under, most-used first;
     // the stock list only until they have history.

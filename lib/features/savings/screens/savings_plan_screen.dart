@@ -6,6 +6,7 @@ import '../../../core/api/api_error.dart';
 import '../../../core/format/dates.dart';
 import '../../../core/format/money.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../shared/widgets/deferred_delete.dart';
 import '../../../shared/widgets/icon_chip.dart';
 import '../../../shared/widgets/state_views.dart';
 import '../../../shared/widgets/swipe_background.dart';
@@ -394,7 +395,8 @@ class _CostsSectionState extends ConsumerState<_CostsSection> {
               ),
               data: (all) {
                 final suggestions = all.where((c) => c.isSuggestion && !_settling.contains(c.id)).toList();
-                final costs = all.where((c) => !c.isSuggestion).toList();
+                final hidden = ref.watch(pendingDeletesProvider);
+                final costs = all.where((c) => !c.isSuggestion && !hidden.contains(c.id)).toList();
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -890,6 +892,22 @@ class _RecurringCostSheetState extends ConsumerState<RecurringCostSheet> {
     }
   }
 
+  /// Undo instead of a confirm (spec §5).
+  void _delete(RecurringCost existing) {
+    deferDelete(
+      context,
+      id: existing.id,
+      message: '${existing.name} deleted',
+      commit: (c) async {
+        await c.read(savingsApiProvider).deleteRecurring(existing.id);
+        c
+          ..invalidate(savingsOverviewProvider)
+          ..invalidate(recurringCostsProvider);
+      },
+    );
+    Navigator.of(context).pop();
+  }
+
   void _save() {
     final name = _name.text.trim();
     if (name.isEmpty) {
@@ -1013,7 +1031,7 @@ class _RecurringCostSheetState extends ConsumerState<RecurringCostSheet> {
             if (existing != null) ...[
               const SizedBox(height: 8),
               TextButton(
-                onPressed: _busy ? null : () => _run(() => ref.read(savingsApiProvider).deleteRecurring(existing.id)),
+                onPressed: _busy ? null : () => _delete(existing),
                 child: Text('Delete', style: TextStyle(color: Theme.of(context).colorScheme.error)),
               ),
             ],
