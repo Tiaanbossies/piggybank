@@ -416,6 +416,7 @@ class _CostsSectionState extends ConsumerState<_CostsSection> {
                       const EmptyState(
                         icon: Icons.autorenew,
                         title: 'No recurring costs yet.',
+                        mascot: true,
                         hint: 'Tap "Find costs" to spot them in your bank history, '
                             'or add subscriptions, debit orders and premiums with "Add cost".',
                         topPadding: 16,

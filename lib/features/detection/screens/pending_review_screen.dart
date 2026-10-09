@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/api/api_error.dart';
 import '../../../core/format/money.dart';
+import '../../../shared/widgets/mascot_moment.dart';
 import '../../../shared/widgets/swipe_background.dart';
 import '../../accounts/models/account.dart';
 import '../../accounts/providers/accounts_provider.dart';
@@ -128,9 +129,30 @@ class _PendingReviewScreenState extends ConsumerState<PendingReviewScreen> {
             data: (allEvents) {
               final events = allEvents.where((e) => !_settling.contains(e.id)).toList();
               if (events.isEmpty) {
+                // Cleared, not just empty: something was confirmed or
+                // discarded on this visit (spec §3.3, the daily loop's end).
+                final cleared = _settling.isNotEmpty;
                 return ListView(
-                  children: const [
-                    Padding(
+                  children: [
+                    if (cleared) ...[
+                      const SizedBox(height: 32),
+                      const Center(
+                        child: MascotMoment(
+                          asset: MascotMoment.celebrating,
+                          size: 96,
+                          motion: MascotMotion.pop,
+                          kind: 'review-cleared',
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        'All caught up',
+                        key: const Key('review-all-caught-up'),
+                        textAlign: TextAlign.center,
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                    ],
+                    const Padding(
                       padding: EdgeInsets.all(32),
                       child: Text(
                         'Nothing waiting for review. New suggestions from your allowlisted apps and '

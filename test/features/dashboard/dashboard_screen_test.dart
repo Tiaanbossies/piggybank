@@ -39,6 +39,7 @@ import 'package:piggybank/features/updates/data/updates_api.dart';
 import 'package:piggybank/features/updates/models/latest_release.dart';
 import 'package:piggybank/shared/widgets/completed_goal_card.dart';
 import 'package:piggybank/shared/widgets/hero_metric_card.dart';
+import 'package:piggybank/shared/widgets/mascot_moment.dart';
 import 'package:piggybank/shared/widgets/progress_card.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -326,6 +327,25 @@ void main() {
       expect(find.byKey(const Key('hero-over-budget')), findsOneWidget);
       expect(find.text('Over by R 640,00'), findsOneWidget);
       expect(find.byType(HeroMetricCard), findsNothing);
+      // No mascot on bad news, not even the quiet-day one (spec §3.3).
+      expect(find.byType(MascotMoment), findsNothing);
+    });
+
+    testWidgets('nothing spent today shows a quiet day', (tester) async {
+      stubDefaults(budgets: [_budget(id: 'b1', category: 'Groceries')]);
+      await pumpApp(tester, const DashboardScreen(), overrides: overrides(), useAppTheme: true);
+      await tester.pumpAndSettle();
+      expect(find.text('Quiet day so far'), findsOneWidget);
+    });
+
+    testWidgets('a spend today hides the quiet day', (tester) async {
+      stubDefaults(
+        budgets: [_budget(id: 'b1', category: 'Groceries')],
+        todayExpenses: [_transaction(id: 'd1', category: 'Coffee', amount: 38.5)],
+      );
+      await pumpApp(tester, const DashboardScreen(), overrides: overrides(), useAppTheme: true);
+      await tester.pumpAndSettle();
+      expect(find.text('Quiet day so far'), findsNothing);
     });
 
     testWidgets("with no budgets, shows the month's spending and invites one", (tester) async {
@@ -695,13 +715,17 @@ void main() {
           .thenAnswer((_) async => _savings(target: _rent, gap: '0.00', met: true));
       await pumpApp(tester, const DashboardScreen(), overrides: overrides(), useAppTheme: true);
       await tester.pumpAndSettle();
-      expect(find.text('Rent: target met'), findsOneWidget);
+      expect(find.text('Rent: target met this month'), findsOneWidget);
+      final card = find.ancestor(of: find.text('Rent: target met this month'), matching: find.byType(Card));
+      expect(find.descendant(of: card, matching: find.byType(MascotMoment)), findsOneWidget);
     });
 
     testWidgets('See all switches to the Transactions tab', (tester) async {
       when(() => mockSavingsApi.overview()).thenAnswer((_) async => _savings(target: _rent));
       await pumpRouted(tester);
       await tester.scrollUntilVisible(find.text('See all'), 300);
+      await tester.ensureVisible(find.text('See all'));
+      await tester.pumpAndSettle();
       await tester.tap(find.text('See all'));
       await tester.pumpAndSettle();
       expect(find.text('Transactions route'), findsOneWidget);

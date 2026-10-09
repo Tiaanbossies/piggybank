@@ -8,6 +8,7 @@ import '../../../core/api/api_error.dart';
 import '../../../core/theme/app_motion.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/icon_chip.dart';
+import '../../../shared/widgets/mascot_moment.dart';
 import '../../../shared/widgets/paywall_dialog.dart';
 import '../../../shared/widgets/tab_app_bar.dart';
 import '../models/chat_message.dart';
@@ -422,13 +423,12 @@ class _TypingBubble extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
     final semantic = Theme.of(context).extension<AppSemanticColors>();
     return Align(
       alignment: Alignment.centerLeft,
       child: Container(
         margin: const EdgeInsets.symmetric(vertical: 4),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         decoration: BoxDecoration(
           color: semantic?.accentChipBg,
           borderRadius: const BorderRadius.only(
@@ -438,10 +438,11 @@ class _TypingBubble extends StatelessWidget {
             bottomLeft: Radius.circular(4),
           ),
         ),
-        child: SizedBox(
-          width: 16,
-          height: 16,
-          child: CircularProgressIndicator(strokeWidth: 2, color: colorScheme.primary),
+        // Penny thinking (spec §3.3): a gentle bob that stops when the
+        // reply lands, because the bubble goes with it.
+        child: Semantics(
+          label: 'Penny is thinking',
+          child: const MascotMoment(asset: MascotMoment.thinking, size: 28, motion: MascotMotion.bob),
         ),
       ),
     );

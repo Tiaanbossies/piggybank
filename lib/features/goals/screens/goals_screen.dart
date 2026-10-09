@@ -58,6 +58,7 @@ class GoalsBody extends ConsumerWidget {
                   EmptyState(
                     icon: Icons.flag_outlined,
                     title: 'No goals yet.',
+                    mascot: true,
                     hint: 'Tap "Add goal" below to set one up.',
                   ),
                 ],
@@ -98,7 +99,7 @@ class _GoalRow extends StatelessWidget {
     final footnote = '${formatZAR(goal.currentAmount)} saved / ${formatZAR(goal.targetAmount)} goal'
         '${targetDate == null ? '' : ' / by ${_formatDate(targetDate)}'}';
     final child = goal.status == GoalStatus.completed
-        ? CompletedGoalCard(title: goal.name, footnote: footnote)
+        ? CompletedGoalCard(title: goal.name, footnote: footnote, goalId: goal.id)
         : ProgressCard(
             title: goal.name,
             pct: goal.progressPct / 100,

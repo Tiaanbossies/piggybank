@@ -12,6 +12,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../shared/motion/container_transform.dart';
 import '../../../shared/widgets/group_card.dart';
 import '../../../shared/widgets/icon_chip.dart';
+import '../../../shared/widgets/mascot_moment.dart';
 import '../../../shared/widgets/progress_card.dart';
 import '../../../shared/widgets/state_views.dart';
 import '../../../shared/widgets/tab_app_bar.dart';
@@ -197,7 +198,7 @@ class _SavingsCard extends ConsumerWidget {
       title = 'Set a savings target';
       subtitle = 'See what you have left over each month';
     } else if (overview.targetMet) {
-      title = '${target.displayLabel}: target met';
+      title = '${target.displayLabel}: target met this month';
       subtitle = '${formatZAR(overview.leftOver)} left over a month';
     } else {
       title = '${target.displayLabel}: gap ${formatZAR(overview.gap)}';
@@ -219,7 +220,15 @@ class _SavingsCard extends ConsumerWidget {
             padding: const EdgeInsets.all(12),
             child: Row(
               children: [
-                const IconChip(icon: Icons.savings_outlined, size: 40),
+                if (overview.targetMet)
+                  const MascotMoment(
+                    asset: MascotMoment.celebrating,
+                    size: 40,
+                    motion: MascotMotion.pop,
+                    kind: 'savings-target-met',
+                  )
+                else
+                  const IconChip(icon: Icons.savings_outlined, size: 40),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Column(

@@ -8,6 +8,7 @@ import '../../../core/format/money.dart';
 import '../../../core/theme/app_motion.dart';
 import '../../../shared/motion/press_scale.dart';
 import '../../../shared/widgets/hero_metric_card.dart';
+import '../../../shared/widgets/mascot_moment.dart';
 import '../../../shared/widgets/state_views.dart';
 import '../../budgets/providers/budgets_provider.dart';
 import '../../budgets/screens/budgets_screen.dart';
@@ -52,7 +53,14 @@ class LeftToSpendHero extends ConsumerWidget {
       ),
       data: (value) => KeyedSubtree(
         key: const ValueKey('data'),
-        child: _Hero(value: value, month: month, subline: _subline(ref, today)),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _Hero(value: value, month: month, subline: _subline(ref, today)),
+            // Never alongside over budget (spec §3.3).
+            if (value is! OverBudget && ref.watch(todaySpendProvider).valueOrNull == Decimal.zero) const _QuietDay(),
+          ],
+        ),
       ),
     );
 
@@ -156,6 +164,27 @@ class _OverBudgetCard extends StatelessWidget {
           ),
           const SizedBox(height: 10),
           Text(subline, style: text.labelMedium?.copyWith(color: scheme.onErrorContainer)),
+        ],
+      ),
+    );
+  }
+}
+
+/// "Quiet day so far" under Spent today, with Penny asleep (spec §3.3).
+/// Static: it's a resting state, and nothing on a resting screen loops.
+class _QuietDay extends StatelessWidget {
+  const _QuietDay();
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      key: const Key('hero-quiet-day'),
+      padding: const EdgeInsets.only(top: 8),
+      child: Row(
+        children: [
+          const MascotMoment(asset: MascotMoment.sleeping, size: 28),
+          const SizedBox(width: 8),
+          Text('Quiet day so far', style: Theme.of(context).textTheme.bodySmall),
         ],
       ),
     );
