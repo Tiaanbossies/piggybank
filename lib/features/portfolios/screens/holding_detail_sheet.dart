@@ -7,6 +7,7 @@ import '../../../core/api/api_error.dart';
 import '../../../core/format/money.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/confirm_dialog.dart';
+import '../../../shared/widgets/deferred_delete.dart';
 import '../../../shared/widgets/group_card.dart';
 import '../models/dividend.dart';
 import '../models/holding.dart';
@@ -252,7 +253,9 @@ class _DividendSectionState extends ConsumerState<_DividendSection> {
             child: Center(child: CircularProgressIndicator()),
           ),
           error: (err, _) => Text(err is ApiError ? err.message : 'Failed to load dividends'),
-          data: (dividends) {
+          data: (all) {
+            final hidden = ref.watch(pendingDeletesProvider);
+            final dividends = all.where((d) => !hidden.contains(d.id)).toList();
             if (dividends.isEmpty) return const Text('No dividends recorded yet.');
             return GroupCard(
               children: [for (final d in dividends) _DividendRow(dividend: d, holdingId: widget.holding.id)],
@@ -279,12 +282,15 @@ class _DividendRow extends ConsumerWidget {
       trailing: IconButton(
         icon: const Icon(Icons.delete_outline, size: 20),
         tooltip: 'Delete dividend',
-        onPressed: () async {
-          final confirmed = await confirmDestroy(context, title: 'Delete dividend?');
-          if (!confirmed) return;
-          await ref.read(portfoliosApiProvider).deleteDividend(dividend.id);
-          ref.invalidate(holdingDividendsProvider(holdingId));
-        },
+        onPressed: () => deferDelete(
+          context,
+          id: dividend.id,
+          message: 'Dividend deleted',
+          commit: (c) async {
+            await c.read(portfoliosApiProvider).deleteDividend(dividend.id);
+            c.invalidate(holdingDividendsProvider(holdingId));
+          },
+        ),
       ),
     );
   }

@@ -5,6 +5,7 @@ import '../../../core/api/api_error.dart';
 import '../../../core/format/dates.dart';
 import '../../../core/format/money.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../shared/widgets/deferred_delete.dart';
 import '../../../shared/widgets/group_card.dart';
 import '../../../shared/widgets/state_views.dart';
 import '../../../shared/widgets/tab_app_bar.dart';
@@ -139,8 +140,12 @@ class TransactionsScreen extends ConsumerWidget {
                     ),
                   ),
                   data: (page) {
-                    final accumulated = ref.watch(accumulatedTransactionsProvider);
-                    
+                    final hidden = ref.watch(pendingDeletesProvider);
+                    final accumulated = ref
+                        .watch(accumulatedTransactionsProvider)
+                        .where((t) => !hidden.contains(t.id))
+                        .toList();
+
                     if (accumulated.isEmpty) {
                       return ListView(
                         padding: const EdgeInsets.fromLTRB(16, 16, 16, 16 + _kFabClearance),

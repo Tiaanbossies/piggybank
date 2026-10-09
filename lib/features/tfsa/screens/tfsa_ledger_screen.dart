@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/api/api_error.dart';
 import '../../../core/format/money.dart';
 import '../../../core/theme/app_theme.dart';
-import '../../../shared/widgets/confirm_dialog.dart';
+import '../../../shared/widgets/deferred_delete.dart';
 import '../../../shared/widgets/group_card.dart';
 import '../../../shared/widgets/growth_projection_card.dart';
 import '../../../shared/widgets/hero_metric_card.dart';
@@ -37,7 +37,9 @@ class TfsaLedgerScreen extends ConsumerWidget {
           child: contributionsAsync.when(
             loading: () => const Center(child: CircularProgressIndicator()),
             error: (err, _) => Center(child: Text(err is ApiError ? err.message : 'Failed to load contributions')),
-            data: (contributions) {
+            data: (all) {
+              final hidden = ref.watch(pendingDeletesProvider);
+              final contributions = all.where((c) => !hidden.contains(c.id)).toList();
               // ListView.builder (not ListView(children:)) per
               // QA_PRODUCTION_AUDIT_2026-09-11.md L1 — same fix as the RA
               // ledger screen (structurally identical). The fixed sections
@@ -250,29 +252,26 @@ class _ContributionRow extends ConsumerWidget {
           IconButton(
             icon: const Icon(Icons.delete_outline),
             tooltip: 'Delete contribution',
-            onPressed: () => _delete(context, ref),
+            onPressed: () => _delete(context),
           ),
         ],
       ),
     );
   }
 
-  Future<void> _delete(BuildContext context, WidgetRef ref) async {
-    final confirmed = await confirmDestroy(
+  /// Undo instead of a confirm (spec §5).
+  void _delete(BuildContext context) {
+    deferDelete(
       context,
-      title: 'Delete contribution?',
-      message: 'This removes this contribution from your TFSA ledger. This cannot be undone.',
+      id: contribution.id,
+      message: 'Contribution deleted',
+      commit: (c) async {
+        await c.read(tfsaApiProvider).deleteContribution(contribution.id);
+        c
+          ..invalidate(tfsaContributionsProvider)
+          ..invalidate(tfsaSummaryProvider);
+      },
     );
-    if (!confirmed) return;
-    try {
-      await ref.read(tfsaApiProvider).deleteContribution(contribution.id);
-      ref.invalidate(tfsaContributionsProvider);
-      ref.invalidate(tfsaSummaryProvider);
-    } on ApiError catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
-      }
-    }
   }
 }
 

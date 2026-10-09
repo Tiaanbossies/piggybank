@@ -5,6 +5,7 @@ import '../../../core/api/api_error.dart';
 import '../../../core/format/money.dart';
 import '../../../core/theme/app_motion.dart';
 import '../../../shared/widgets/completed_goal_card.dart';
+import '../../../shared/widgets/deferred_delete.dart';
 import '../../../shared/widgets/progress_card.dart';
 import '../../../shared/widgets/state_views.dart';
 import '../models/goal.dart';
@@ -44,7 +45,9 @@ class GoalsBody extends ConsumerWidget {
               onRetry: () => ref.invalidate(goalsProvider),
             ),
           ),
-          data: (goals) {
+          data: (all) {
+            final hidden = ref.watch(pendingDeletesProvider);
+            final goals = all.where((g) => !hidden.contains(g.id)).toList();
             if (goals.isEmpty) {
               return ListView(
                 key: const ValueKey('empty'),
@@ -135,7 +138,6 @@ class _GoalSheetState extends ConsumerState<_GoalSheet> {
   late final TextEditingController _currentController;
   DateTime? _targetDate;
   bool _submitting = false;
-  bool _deleting = false;
   String? _error;
 
   @override
@@ -201,28 +203,26 @@ class _GoalSheetState extends ConsumerState<_GoalSheet> {
     }
   }
 
-  Future<void> _delete() async {
+  /// Undo instead of a confirm (spec §5).
+  void _delete() {
     final existing = widget.existing;
     if (existing == null) return;
-    setState(() {
-      _deleting = true;
-      _error = null;
-    });
-    try {
-      await ref.read(goalsApiProvider).delete(existing.id);
-      ref.invalidate(goalsProvider);
-      if (mounted) Navigator.of(context).pop();
-    } on ApiError catch (e) {
-      setState(() => _error = e.message);
-    } finally {
-      if (mounted) setState(() => _deleting = false);
-    }
+    deferDelete(
+      context,
+      id: existing.id,
+      message: '${existing.name} deleted',
+      commit: (c) async {
+        await c.read(goalsApiProvider).delete(existing.id);
+        c.invalidate(goalsProvider);
+      },
+    );
+    Navigator.of(context).pop();
   }
 
   @override
   Widget build(BuildContext context) {
     final isEdit = widget.existing != null;
-    final busy = _submitting || _deleting;
+    final busy = _submitting;
     return Padding(
       padding: EdgeInsets.only(left: 24, right: 24, top: 24, bottom: MediaQuery.of(context).viewInsets.bottom + 24),
       child: Column(
