@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/api/api_error.dart';
 import '../../../core/format/money.dart';
 import '../../../core/theme/app_motion.dart';
+import '../../../shared/motion/press_scale.dart';
 import '../../../shared/widgets/hero_metric_card.dart';
 import '../../../shared/widgets/state_views.dart';
 import '../../budgets/providers/budgets_provider.dart';
@@ -92,7 +93,12 @@ class _Hero extends ConsumerWidget {
     return switch (value) {
       UnderBudget(:final amount) => _Tappable(
           onTap: () => _openBudgets(context, ref),
-          child: HeroMetricCard(label: 'Left to spend · $month', value: formatZAR(amount), deltaText: subline),
+          child: HeroMetricCard(
+            label: 'Left to spend · $month',
+            value: formatZAR(amount),
+            amount: amount.toDouble(),
+            deltaText: subline,
+          ),
         ),
       OverBudget(:final amount) => _Tappable(
           onTap: () => _openBudgets(context, ref),
@@ -104,6 +110,7 @@ class _Hero extends ConsumerWidget {
             HeroMetricCard(
               label: 'Spent this month · $month',
               value: spentThisMonth == null ? '—' : formatZAR(spentThisMonth),
+              amount: spentThisMonth?.toDouble(),
               deltaText: subline,
             ),
             Align(
@@ -162,11 +169,13 @@ class _Tappable extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      borderRadius: BorderRadius.circular(24),
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(key: const Key('left-to-spend-hero'), onTap: onTap, child: child),
+    return PressScale(
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(24),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(key: const Key('left-to-spend-hero'), onTap: onTap, child: child),
+      ),
     );
   }
 }

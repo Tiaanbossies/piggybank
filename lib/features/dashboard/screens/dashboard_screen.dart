@@ -9,6 +9,7 @@ import '../../../core/format/dates.dart';
 import '../../../core/format/money.dart';
 import '../../../core/theme/app_motion.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../shared/motion/container_transform.dart';
 import '../../../shared/widgets/group_card.dart';
 import '../../../shared/widgets/icon_chip.dart';
 import '../../../shared/widgets/progress_card.dart';
@@ -271,19 +272,22 @@ class _NetWorthCard extends ConsumerWidget {
     );
     return GroupCard(
       children: [
-        GroupRow(
-          key: const Key('home-net-worth'),
-          leadingIcon: Icons.account_balance_outlined,
-          title: 'Net worth',
-          subtitle: trend,
-          trailing: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(value, style: moneyTextStyle(context, fontSize: 16)),
-              const Icon(Icons.chevron_right),
-            ],
+        ContainerTransform(
+          openBuilder: (_) => const NetWorthScreen(),
+          closedBuilder: (context, open) => GroupRow(
+            key: const Key('home-net-worth'),
+            leadingIcon: Icons.account_balance_outlined,
+            title: 'Net worth',
+            subtitle: trend,
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(value, style: moneyTextStyle(context, fontSize: 16)),
+                const Icon(Icons.chevron_right),
+              ],
+            ),
+            onTap: open,
           ),
-          onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const NetWorthScreen())),
         ),
       ],
     );

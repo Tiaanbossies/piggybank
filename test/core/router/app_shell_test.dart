@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:piggybank/core/router/app_shell.dart';
-import 'package:piggybank/core/theme/app_motion.dart';
 
 /// Step 3 of the nav/Stitch/OTA-update blueprint: verifies `AppShell`'s
 /// tab-switch fade in isolation, using a synthetic 5-branch router with
@@ -85,18 +84,22 @@ void main() {
   FadeTransition findFade() =>
       find.byKey(const ValueKey('appShellFade')).evaluate().single.widget as FadeTransition;
 
-  testWidgets('tab switch dips FadeTransition opacity then recovers to 1.0', (tester) async {
+  testWidgets('tab switch fades through: the new tab fades in from 0.92 scale', (tester) async {
     await pumpShell(tester);
     expect(find.text('Home count: 0'), findsOneWidget);
     expect(findFade().opacity.value, 1.0);
 
     await tester.tap(find.text('Invest')); // NavigationBar destination label
     await tester.pump();
-    // Mid-animation (half the pageTransition duration): opacity should have
-    // dipped below 1.0, proving the fade actually runs rather than jumping
-    // straight back to opaque.
-    await tester.pump(AppMotion.pageTransition ~/ 2);
-    expect(findFade().opacity.value, lessThan(1.0));
+    // Partway through the 160 ms fade-in, it is neither invisible nor done,
+    // and it is scaled down, proving the fade-through actually runs.
+    await tester.pump(const Duration(milliseconds: 40));
+    final scale = tester.widget<ScaleTransition>(
+      find.descendant(of: find.byKey(const ValueKey('appShellFade')), matching: find.byType(ScaleTransition)).first,
+    );
+    expect(findFade().opacity.value, inExclusiveRange(0.0, 1.0));
+    expect(scale.scale.value, inInclusiveRange(0.92, 1.0));
+    expect(scale.scale.value, lessThan(1.0));
 
     await tester.pumpAndSettle();
     expect(find.text('Invest branch content'), findsOneWidget);

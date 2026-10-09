@@ -1,3 +1,4 @@
+import 'package:animations/animations.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -17,6 +18,7 @@ import '../../features/settings/screens/data_export_screen.dart';
 import '../../features/transactions/screens/transactions_screen.dart';
 import '../auth/auth_controller.dart';
 import '../auth/auth_state.dart';
+import '../theme/app_motion.dart';
 import 'app_shell.dart';
 import 'placeholder_screens.dart';
 
@@ -46,7 +48,22 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       // it covers the bottom bar and pops back to whichever tab opened it.
       GoRoute(
         path: '/settings',
-        builder: (context, state) => const SettingsScreen(),
+        // Shared axis Z (spec §3.1): Settings comes forward, above the tabs,
+        // rather than sliding in like a sibling screen.
+        pageBuilder: (context, state) => CustomTransitionPage<void>(
+          key: state.pageKey,
+          child: const SettingsScreen(),
+          transitionDuration: AppMotion.pageTransition,
+          reverseTransitionDuration: AppMotion.pageTransition,
+          transitionsBuilder: (context, animation, secondaryAnimation, child) => context.reducedMotion
+              ? child
+              : SharedAxisTransition(
+                  animation: animation,
+                  secondaryAnimation: secondaryAnimation,
+                  transitionType: SharedAxisTransitionType.scaled,
+                  child: child,
+                ),
+        ),
         routes: [GoRoute(path: 'data-export', builder: (context, state) => const DataExportScreen())],
       ),
       StatefulShellRoute.indexedStack(

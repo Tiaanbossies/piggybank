@@ -1,6 +1,8 @@
+import 'package:animations/animations.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/theme/app_motion.dart';
 import '../../../shared/widgets/tab_app_bar.dart';
 import '../../budgets/providers/budgets_provider.dart';
 import '../../budgets/screens/budgets_screen.dart';
@@ -31,6 +33,10 @@ class _PlanScreenState extends ConsumerState<PlanScreen> {
   /// resume, not a rebuild. That's the moment a turned month must show.
   late final AppLifecycleListener _lifecycle;
 
+  /// Whether the last segment change went leftwards, so the shared axis
+  /// slides the way the segment control moved.
+  bool _reverse = false;
+
   @override
   void initState() {
     super.initState();
@@ -48,6 +54,9 @@ class _PlanScreenState extends ConsumerState<PlanScreen> {
   @override
   Widget build(BuildContext context) {
     final segment = ref.watch(planSegmentProvider);
+    ref.listen(planSegmentProvider, (previous, next) {
+      if (previous != null) _reverse = next.index < previous.index;
+    });
     return Scaffold(
       appBar: TabAppBar(
         title: 'Plan',
@@ -69,11 +78,26 @@ class _PlanScreenState extends ConsumerState<PlanScreen> {
               ),
             ),
             Expanded(
-              child: switch (segment) {
-                PlanSegment.budgets => const BudgetsBody(),
-                PlanSegment.goals => const GoalsBody(),
-                PlanSegment.savings => const SavingsPlanBody(),
-              },
+              // Shared axis X (spec §3.1), in segment order.
+              child: PageTransitionSwitcher(
+                duration: context.reducedMotion ? Duration.zero : AppMotion.pageTransition,
+                reverse: _reverse,
+                transitionBuilder: (child, primary, secondary) => SharedAxisTransition(
+                  animation: primary,
+                  secondaryAnimation: secondary,
+                  transitionType: SharedAxisTransitionType.horizontal,
+                  fillColor: Colors.transparent,
+                  child: child,
+                ),
+                child: KeyedSubtree(
+                  key: ValueKey(segment),
+                  child: switch (segment) {
+                    PlanSegment.budgets => const BudgetsBody(),
+                    PlanSegment.goals => const GoalsBody(),
+                    PlanSegment.savings => const SavingsPlanBody(),
+                  },
+                ),
+              ),
             ),
           ],
         ),
