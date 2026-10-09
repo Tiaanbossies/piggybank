@@ -23,6 +23,7 @@ import 'package:piggybank/features/detection/screens/pending_review_screen.dart'
 import 'package:piggybank/features/goals/data/goals_api.dart';
 import 'package:piggybank/features/goals/models/goal.dart';
 import 'package:piggybank/features/goals/providers/goals_provider.dart';
+import 'package:piggybank/features/networth/screens/net_worth_screen.dart';
 import 'package:piggybank/features/plan/screens/plan_screen.dart';
 import 'package:piggybank/features/savings/data/savings_api.dart';
 import 'package:piggybank/features/savings/models/savings.dart';
@@ -34,7 +35,6 @@ import 'package:piggybank/features/transactions/data/transactions_api.dart';
 import 'package:piggybank/features/transactions/models/transaction.dart';
 import 'package:piggybank/features/transactions/providers/transactions_provider.dart';
 import 'package:piggybank/features/transactions/widgets/transaction_sheet.dart';
-import 'package:piggybank/features/trends/screens/trends_screen.dart';
 import 'package:piggybank/features/updates/data/updates_api.dart';
 import 'package:piggybank/features/updates/models/latest_release.dart';
 import 'package:piggybank/shared/widgets/completed_goal_card.dart';
@@ -132,16 +132,19 @@ BudgetProgress _budget({
   required String id,
   String? category,
   bool overBudget = false,
+  double remaining = 500,
+  double? pctUsed,
+  String? parentBudgetId,
 }) =>
     BudgetProgress(
       id: id,
       month: DateTime(2026, 8, 1),
       category: category,
-      parentBudgetId: null,
+      parentBudgetId: parentBudgetId,
       budgetAmount: Decimal.fromInt(1000),
-      spent: Decimal.fromInt(500),
-      remaining: Decimal.fromInt(500),
-      pctUsed: overBudget ? 120.0 : 50.0,
+      spent: Decimal.parse((1000 - remaining).toString()),
+      remaining: Decimal.parse(remaining.toString()),
+      pctUsed: pctUsed ?? (overBudget ? 120.0 : 50.0),
       overBudget: overBudget,
       children: const [],
     );
@@ -284,73 +287,112 @@ void main() {
     stubDefaults();
   });
 
-  group('Net worth hero', () {
-    testWidgets('renders the figure from the mocked net-worth summary', (tester) async {
-      stubDefaults(netWorth: _netWorth(123456.78));
+  group('Left to spend hero', () {
+    HeroMetricCard hero(WidgetTester tester) => tester.widget<HeroMetricCard>(find.byType(HeroMetricCard));
 
+    testWidgets("sums what's left across top-level budgets", (tester) async {
+      stubDefaults(budgets: [
+        _budget(id: 'b1', category: 'Groceries', remaining: 300),
+        _budget(id: 'b2', category: 'Dining Out', remaining: 200),
+        // A sub-category is already inside its parent's figure.
+        _budget(id: 'b3', category: 'Takeaways', remaining: 50, parentBudgetId: 'b2'),
+      ]);
       await pumpApp(tester, const DashboardScreen(), overrides: overrides(), useAppTheme: true);
       await tester.pumpAndSettle();
 
-      final hero = tester.widget<HeroMetricCard>(find.byType(HeroMetricCard));
-      expect(hero.label, 'Net worth');
-      expect(hero.value, 'R\u00A0123\u00A0456,78');
+      expect(hero(tester).label, startsWith('Left to spend · '));
+      expect(hero(tester).value, 'R 500,00');
+    });
+
+    testWidgets("carries today's spend and the days left under the number", (tester) async {
+      stubDefaults(
+        budgets: [_budget(id: 'b1', category: 'Groceries')],
+        todayExpenses: [
+          _transaction(id: 'd1', category: 'Coffee', amount: 38.5),
+          _transaction(id: 'd2', category: 'Fuel', amount: 650),
+        ],
+      );
+      await pumpApp(tester, const DashboardScreen(), overrides: overrides(), useAppTheme: true);
+      await tester.pumpAndSettle();
+
+      expect(hero(tester).deltaText, startsWith('Spent today R 688,50 · '));
+    });
+
+    testWidgets('over budget says by how much, on the red card only', (tester) async {
+      stubDefaults(budgets: [_budget(id: 'b1', category: 'Groceries', remaining: -640, overBudget: true)]);
+      await pumpApp(tester, const DashboardScreen(), overrides: overrides(), useAppTheme: true);
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('hero-over-budget')), findsOneWidget);
+      expect(find.text('Over by R 640,00'), findsOneWidget);
+      expect(find.byType(HeroMetricCard), findsNothing);
+    });
+
+    testWidgets("with no budgets, shows the month's spending and invites one", (tester) async {
+      stubDefaults(cashflow: _cashflow(income: 8000, expense: 2500));
+      await pumpApp(tester, const DashboardScreen(), overrides: overrides(), useAppTheme: true);
+      await tester.pumpAndSettle();
+
+      expect(hero(tester).label, startsWith('Spent this month · '));
+      expect(hero(tester).value, 'R 2 500,00');
+      expect(find.byKey(const Key('hero-set-budget')), findsOneWidget);
+    });
+
+    testWidgets('a failed load recovers in place via Retry', (tester) async {
+      var calls = 0;
+      when(() => mockBudgetsApi.progress(any())).thenAnswer((_) async {
+        calls++;
+        if (calls == 1) throw Exception('offline');
+        return [_budget(id: 'b1', category: 'Groceries')];
+      });
+      await pumpApp(tester, const DashboardScreen(), overrides: overrides(), useAppTheme: true);
+      await tester.pumpAndSettle();
+      expect(find.text("Couldn't load this month's budgets"), findsOneWidget);
+
+      await tester.tap(find.widgetWithText(TextButton, 'Retry'));
+      await tester.pumpAndSettle();
+      expect(hero(tester).label, startsWith('Left to spend · '));
+    });
+
+    testWidgets('tapping it opens Plan on Budgets', (tester) async {
+      stubDefaults(budgets: [_budget(id: 'b1', category: 'Groceries')]);
+      await pumpRouted(tester);
+      await tester.tap(find.byKey(const Key('left-to-spend-hero')));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Plan route'), findsOneWidget);
+      final container = ProviderScope.containerOf(tester.element(find.text('Plan route')));
+      expect(container.read(planSegmentProvider), PlanSegment.budgets);
     });
   });
 
-  group('Cashflow stat strip', () {
-    testWidgets('shows income and expense totals for this month', (tester) async {
-      stubDefaults(cashflow: _cashflow(income: 8000, expense: 2500));
-
+  group('Net worth card', () {
+    testWidgets('shows the figure and opens the Net worth screen', (tester) async {
+      stubDefaults(netWorth: _netWorth(123456.78));
+      when(() => mockSummariesApi.netWorthHistory(months: any(named: 'months'))).thenAnswer((_) async => const []);
       await pumpApp(tester, const DashboardScreen(), overrides: overrides(), useAppTheme: true);
       await tester.pumpAndSettle();
 
-      expect(find.text('Income'), findsOneWidget);
-      expect(find.text('Expenses'), findsOneWidget);
-      expect(find.text('R\u00A08\u00A0000,00'), findsOneWidget);
-      expect(find.text('R\u00A02\u00A0500,00'), findsOneWidget);
+      expect(find.text('R 123 456,78'), findsOneWidget);
+      await tester.tap(find.byKey(const Key('home-net-worth')));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(NetWorthScreen), findsOneWidget);
+      for (final row in ['Accounts', 'Assets', 'Liabilities', 'Loan calculators']) {
+        expect(find.text(row), findsOneWidget);
+      }
     });
+  });
 
-    testWidgets("leads with today's spending, summed from today's expenses", (tester) async {
-      stubDefaults(todayExpenses: [
-        _transaction(id: 'd1', category: 'Coffee', amount: 38.5),
-        _transaction(id: 'd2', category: 'Fuel', amount: 650),
-      ]);
-
+  group('What left Home', () {
+    testWidgets('no quick links, Trends card or cashflow strip', (tester) async {
+      _useTallView(tester);
       await pumpApp(tester, const DashboardScreen(), overrides: overrides(), useAppTheme: true);
       await tester.pumpAndSettle();
 
-      expect(find.text('Spent today'), findsOneWidget);
-      expect(find.text('R\u00A0688,50'), findsOneWidget);
-      verify(() => mockTransactionsApi.list(
-            transactionType: TransactionType.expense,
-            dateFrom: any(named: 'dateFrom'),
-            dateTo: any(named: 'dateTo'),
-            limit: 200,
-          )).called(1);
-    });
-
-    testWidgets('a day with no spending reads R\u00A00,00, not blank', (tester) async {
-      await pumpApp(tester, const DashboardScreen(), overrides: overrides(), useAppTheme: true);
-      await tester.pumpAndSettle();
-
-      expect(find.text('Spent today'), findsOneWidget);
-      expect(find.text('R\u00A00,00'), findsOneWidget);
-    });
-
-    testWidgets("a failed today query doesn't hide the month figures", (tester) async {
-      stubDefaults(cashflow: _cashflow(income: 8000, expense: 2500));
-      when(() => mockTransactionsApi.list(
-            transactionType: TransactionType.expense,
-            dateFrom: any(named: 'dateFrom'),
-            dateTo: any(named: 'dateTo'),
-            limit: 200,
-          )).thenAnswer((_) async => throw Exception('today boom'));
-
-      await pumpApp(tester, const DashboardScreen(), overrides: overrides(), useAppTheme: true);
-      await tester.pumpAndSettle();
-
-      expect(find.textContaining("Couldn't load today's spending"), findsOneWidget);
-      expect(find.text('R\u00A08\u00A0000,00'), findsOneWidget);
+      for (final gone in ['Accounts', 'Assets', 'Liabilities', 'Calculators', 'Trends', 'Income']) {
+        expect(find.text(gone), findsNothing, reason: '$gone should have left Home');
+      }
     });
   });
 
@@ -378,13 +420,12 @@ void main() {
     });
   });
 
-  group('Progress block (goal-or-budget fallback)', () {
+  group('Needs attention', () {
     testWidgets('an over-budget category beats an in-progress goal', (tester) async {
       stubDefaults(
         goals: [_goal(id: 'g1', name: 'Emergency fund')],
         budgets: [_budget(id: 'b1', category: 'Groceries'), _budget(id: 'b2', category: 'Dining Out', overBudget: true)],
       );
-
       await pumpApp(tester, const DashboardScreen(), overrides: overrides(), useAppTheme: true);
       await tester.pumpAndSettle();
 
@@ -393,12 +434,33 @@ void main() {
       expect(card.overBudget, isTrue);
     });
 
-    testWidgets('a completed goal gives way to one still in progress', (tester) async {
+    testWidgets('a budget at 80% or more counts as at risk', (tester) async {
+      stubDefaults(
+        goals: [_goal(id: 'g1', name: 'Emergency fund')],
+        budgets: [_budget(id: 'b1', category: 'Groceries', pctUsed: 85)],
+      );
+      await pumpApp(tester, const DashboardScreen(), overrides: overrides(), useAppTheme: true);
+      await tester.pumpAndSettle();
+
+      expect(tester.widget<ProgressCard>(find.byType(ProgressCard)).title, 'Groceries');
+    });
+
+    testWidgets('a calm budget gives way to a goal in progress', (tester) async {
+      stubDefaults(
+        goals: [_goal(id: 'g1', name: 'Emergency fund')],
+        budgets: [_budget(id: 'b1', category: 'Groceries')],
+      );
+      await pumpApp(tester, const DashboardScreen(), overrides: overrides(), useAppTheme: true);
+      await tester.pumpAndSettle();
+
+      expect(tester.widget<ProgressCard>(find.byType(ProgressCard)).title, 'Emergency fund');
+    });
+
+    testWidgets('a completed goal is never shown', (tester) async {
       stubDefaults(goals: [
         _goal(id: 'g1', name: 'New laptop', current: 1000, status: GoalStatus.completed),
         _goal(id: 'g2', name: 'House deposit'),
       ]);
-
       await pumpApp(tester, const DashboardScreen(), overrides: overrides(), useAppTheme: true);
       await tester.pumpAndSettle();
 
@@ -406,74 +468,26 @@ void main() {
       expect(tester.widget<ProgressCard>(find.byType(ProgressCard)).title, 'House deposit');
     });
 
-    testWidgets('a completed goal gives way to a live budget too', (tester) async {
+    testWidgets('only calm budgets and completed goals: nothing to show', (tester) async {
       stubDefaults(
         goals: [_goal(id: 'g1', name: 'New laptop', current: 1000, status: GoalStatus.completed)],
         budgets: [_budget(id: 'b1', category: 'Groceries')],
       );
-
-      await pumpApp(tester, const DashboardScreen(), overrides: overrides(), useAppTheme: true);
-      await tester.pumpAndSettle();
-
-      expect(find.byType(CompletedGoalCard), findsNothing);
-      expect(tester.widget<ProgressCard>(find.byType(ProgressCard)).title, 'Groceries');
-    });
-
-    testWidgets('shows the goal when a goal exists, even if a budget also exists', (tester) async {
-      stubDefaults(
-        goals: [_goal(id: 'g1', name: 'Emergency fund')],
-        budgets: [_budget(id: 'b1', category: 'Groceries')],
-      );
-
-      await pumpApp(tester, const DashboardScreen(), overrides: overrides(), useAppTheme: true);
-      await tester.pumpAndSettle();
-
-      expect(find.byType(ProgressCard), findsOneWidget);
-      final card = tester.widget<ProgressCard>(find.byType(ProgressCard));
-      expect(card.title, 'Emergency fund');
-    });
-
-    testWidgets('falls back to the budget when no goal exists', (tester) async {
-      stubDefaults(goals: const [], budgets: [_budget(id: 'b1', category: 'Groceries')]);
-
-      await pumpApp(tester, const DashboardScreen(), overrides: overrides(), useAppTheme: true);
-      await tester.pumpAndSettle();
-
-      expect(find.byType(ProgressCard), findsOneWidget);
-      final card = tester.widget<ProgressCard>(find.byType(ProgressCard));
-      expect(card.title, 'Groceries');
-    });
-
-    testWidgets('renders the completed-goal treatment for a completed goal', (tester) async {
-      stubDefaults(goals: [_goal(id: 'g1', name: 'New Laptop', status: GoalStatus.completed)]);
-
-      await pumpApp(tester, const DashboardScreen(), overrides: overrides(), useAppTheme: true);
-      await tester.pumpAndSettle();
-
-      expect(find.byType(CompletedGoalCard), findsOneWidget);
-      expect(find.byType(ProgressCard), findsNothing);
-      final card = tester.widget<CompletedGoalCard>(find.byType(CompletedGoalCard));
-      expect(card.title, 'New Laptop');
-      expect(find.text('Goal complete!'), findsOneWidget);
-    });
-
-    testWidgets('renders the normal ProgressCard for an in-progress goal', (tester) async {
-      stubDefaults(goals: [_goal(id: 'g1', name: 'Emergency fund', status: GoalStatus.active)]);
-
-      await pumpApp(tester, const DashboardScreen(), overrides: overrides(), useAppTheme: true);
-      await tester.pumpAndSettle();
-
-      expect(find.byType(ProgressCard), findsOneWidget);
-      expect(find.byType(CompletedGoalCard), findsNothing);
-    });
-
-    testWidgets('shows nothing when neither a goal nor a budget exists', (tester) async {
-      stubDefaults(goals: const [], budgets: const []);
-
       await pumpApp(tester, const DashboardScreen(), overrides: overrides(), useAppTheme: true);
       await tester.pumpAndSettle();
 
       expect(find.byType(ProgressCard), findsNothing);
+      expect(find.byType(CompletedGoalCard), findsNothing);
+    });
+
+    testWidgets('tapping a goal opens Plan on Goals', (tester) async {
+      stubDefaults(goals: [_goal(id: 'g1', name: 'Emergency fund')]);
+      await pumpRouted(tester);
+      await tester.tap(find.byKey(const Key('needs-attention')));
+      await tester.pumpAndSettle();
+
+      final container = ProviderScope.containerOf(tester.element(find.text('Plan route')));
+      expect(container.read(planSegmentProvider), PlanSegment.goals);
     });
   });
 
@@ -500,31 +514,6 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('No transactions yet.'), findsOneWidget);
-    });
-  });
-
-  group('Trends entry point', () {
-    testWidgets('renders a Trends row that pushes the Trends screen (no new nav tab)', (tester) async {
-      // The pushed screen fetches on mount; stub its sources so the
-      // navigation assertion isn't racing an unstubbed call.
-      when(() => mockSummariesApi.netWorthHistory(months: any(named: 'months')))
-          .thenAnswer((_) async => const []);
-      when(() => mockSummariesApi.budgetUsage(month: any(named: 'month')))
-          .thenAnswer((_) async => BudgetUsageSummary.empty);
-      when(() => mockSummariesApi.recurringExpenses(month: any(named: 'month')))
-          .thenAnswer((_) async => const []);
-      when(() => mockSummariesApi.highCostExpenses(month: any(named: 'month'), topN: any(named: 'topN')))
-          .thenAnswer((_) async => const []);
-
-      await pumpApp(tester, const DashboardScreen(), overrides: overrides(), useAppTheme: true);
-      await tester.pumpAndSettle();
-
-      expect(find.text('Trends'), findsOneWidget);
-
-      await tester.tap(find.text('Trends'));
-      await tester.pumpAndSettle();
-
-      expect(find.byType(TrendsScreen), findsOneWidget);
     });
   });
 
@@ -584,74 +573,40 @@ void main() {
     testWidgets(
         'reloads every section independently: one failing section does not block the others',
         (tester) async {
-      // This test asserts on the hero (top of the list) and the recent-
-      // transactions preview (bottom) in the same pass. Since the Trends
-      // entry row was added the two no longer both fit inside the default
-      // 800x600 surface plus its cache extent, and the bottom section is
-      // simply never built. Give it a phone-height surface rather than
-      // scrolling, which would push the hero out of the tree instead.
-      tester.view.physicalSize = const Size(800, 1400);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(tester.view.reset);
-
-      // Initial successful load for every section.
+      _useTallView(tester);
       stubDefaults(
         netWorth: _netWorth(1000),
         goals: [_goal(id: 'g1', name: 'Holiday')],
+        budgets: [_budget(id: 'b1', category: 'Groceries')],
         recentTransactions: [_transaction(id: 't1', category: 'Coffee')],
       );
-
       await pumpApp(tester, const DashboardScreen(), overrides: overrides(), useAppTheme: true);
       await tester.pumpAndSettle();
 
-      expect(tester.widget<HeroMetricCard>(find.byType(HeroMetricCard)).value, 'R\u00A01\u00A0000,00');
+      expect(find.text('R 1 000,00'), findsOneWidget);
       expect(find.text('Holiday'), findsOneWidget);
       expect(find.textContaining('Coffee'), findsOneWidget);
 
-      // Re-stub for the post-refresh fetch: cashflow now fails, but every
-      // other section gets fresh, different data so we can prove it was
-      // actually re-fetched (not just left showing stale state).
+      // After the refresh, the budgets behind the hero fail; everything else
+      // gets fresh data, which proves it was really re-fetched.
       when(() => mockSummariesApi.netWorth()).thenAnswer((_) async => _netWorth(2000));
-      when(() => mockSummariesApi.cashflow()).thenThrow(Exception('cashflow boom'));
+      when(() => mockBudgetsApi.progress(any())).thenThrow(Exception('budgets boom'));
       when(() => mockGoalsApi.list()).thenAnswer((_) async => [_goal(id: 'g2', name: 'New car')]);
       when(() => mockTransactionsApi.list(limit: any(named: 'limit')))
           .thenAnswer((_) async => TransactionsPage(total: 1, items: [_transaction(id: 't2', category: 'Rent')]));
 
-      // Trigger pull-to-refresh the same way a user gesture would, via the
-      // RefreshIndicator's own public API.
-      //
-      // Root cause of an earlier hang here, isolated this step: `.show()`'s
-      // returned Future only completes once the indicator's own retract
-      // animation finishes, and that animation only advances via
-      // `tester.pump()` — it is driven by `SchedulerBinding`/`Ticker`
-      // callbacks, not by fake-async time elapsing on its own. `await`ing
-      // `.show()` directly therefore deadlocks the test: the single test
-      // isolate is blocked waiting on a Future that can only resolve via a
-      // `pump()` call the test body never reaches. This is unrelated to
-      // `cashflow()` being stubbed to throw — it reproduces on the very
-      // first pull-to-refresh call regardless of stubbing. Fix (standard
-      // Flutter test idiom, matches `flutter/packages/flutter/test/material/
-      // refresh_indicator_test.dart`): call `.show()` WITHOUT awaiting it,
-      // then pump frames to drive the animation and let the microtask queue
-      // (mocktail's `thenAnswer`/`thenThrow`, no real delay) resolve.
+      // `.show()` only completes once its retract animation runs, which
+      // needs pump(); awaiting it directly deadlocks the test.
       unawaited(tester.state<RefreshIndicatorState>(find.byType(RefreshIndicator)).show());
       for (var i = 0; i < 10; i++) {
         await tester.pump(const Duration(milliseconds: 100));
       }
       await tester.pumpAndSettle();
 
-      // Sections independent of cashflow reloaded successfully with fresh data.
-      expect(tester.widget<HeroMetricCard>(find.byType(HeroMetricCard)).value, 'R\u00A02\u00A0000,00');
+      expect(find.text('R 2 000,00'), findsOneWidget);
       expect(find.text('New car'), findsOneWidget);
-      expect(find.text('Holiday'), findsNothing);
       expect(find.textContaining('Rent'), findsOneWidget);
-      expect(find.textContaining('Coffee'), findsNothing);
-
-      // The cashflow section itself fails silently (SizedBox.shrink on
-      // error) rather than crashing the rest of the page.
-      expect(find.text('Income'), findsNothing);
-      expect(find.text('Expenses'), findsNothing);
-      expect(find.byType(HeroMetricCard), findsOneWidget);
+      expect(find.text("Couldn't load this month's budgets"), findsOneWidget);
     });
   });
 
@@ -709,27 +664,6 @@ void main() {
 
       expect(find.byType(TransactionSheet), findsOneWidget);
       expect(find.text('Add transaction'), findsOneWidget);
-    });
-  });
-
-  group('Retry (UX plan item 5)', () {
-    testWidgets('a failed cashflow section recovers in place via Retry', (tester) async {
-      var calls = 0;
-      when(() => mockSummariesApi.cashflow()).thenAnswer((_) async {
-        calls++;
-        if (calls == 1) throw Exception('offline');
-        return _cashflow(income: 8000, expense: 2500);
-      });
-
-      await pumpApp(tester, const DashboardScreen(), overrides: overrides(), useAppTheme: true);
-      await tester.pumpAndSettle();
-      expect(find.text('Failed to load cashflow'), findsOneWidget);
-
-      await tester.tap(find.widgetWithText(TextButton, 'Retry'));
-      await tester.pumpAndSettle();
-
-      expect(find.text('Failed to load cashflow'), findsNothing);
-      expect(find.text('R\u00A08\u00A0000,00'), findsOneWidget);
     });
   });
 

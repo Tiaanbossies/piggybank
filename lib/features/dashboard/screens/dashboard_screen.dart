@@ -9,43 +9,37 @@ import '../../../core/format/dates.dart';
 import '../../../core/format/money.dart';
 import '../../../core/theme/app_motion.dart';
 import '../../../core/theme/app_theme.dart';
-import '../../../shared/widgets/completed_goal_card.dart';
 import '../../../shared/widgets/group_card.dart';
-import '../../../shared/widgets/hero_metric_card.dart';
 import '../../../shared/widgets/icon_chip.dart';
 import '../../../shared/widgets/progress_card.dart';
-import '../../../shared/widgets/quick_link_tile.dart';
 import '../../../shared/widgets/state_views.dart';
 import '../../../shared/widgets/tab_app_bar.dart';
-import '../../accounts/screens/accounts_screen.dart';
-import '../../assets/screens/assets_screen.dart';
 import '../../budgets/models/budget.dart';
 import '../../budgets/providers/budgets_provider.dart';
-import '../../calculators/screens/calculators_screen.dart';
 import '../../detection/providers/detection_provider.dart';
 import '../../detection/widgets/review_banner.dart';
 import '../../goals/models/goal.dart';
 import '../../goals/providers/goals_provider.dart';
-import '../../liabilities/screens/liabilities_screen.dart';
+import '../../networth/screens/net_worth_screen.dart';
 import '../../plan/screens/plan_screen.dart';
 import '../../savings/providers/savings_provider.dart';
 import '../../summaries/providers/summaries_provider.dart';
 import '../../transactions/category_icons.dart';
 import '../../transactions/providers/transactions_provider.dart';
 import '../../transactions/widgets/transaction_sheet.dart';
-import '../../trends/screens/trends_screen.dart';
 import '../../updates/models/latest_release.dart';
 import '../../updates/providers/updates_provider.dart';
+import '../widgets/left_to_spend_hero.dart';
 
 /// Fixed v1 layout per DESIGN.md § Dashboard/Home: hero net-worth card,
 /// compact stat strip, one progress card, recent-transactions preview.
 /// Widget customization is explicitly deferred (parity matrix). Also hosts
 /// the quick-links row to Accounts/Assets/Liabilities/Calculators, since
 /// DESIGN.md's locked 5-tab nav has no dedicated slot for those domains.
-/// Tab-root app bar (avatar/title/bell placeholder) per DESIGN.md § Navigation
-/// — avatar and bell are static placeholders, not backed by real features
-/// (no profile-photo or notifications capability exists yet — see DESIGN.md's
-/// revision note).
+/// Home (UX rework spec §2.1): "am I OK today and this month?" in one
+/// glance. Fixed order, no customisation: update and review banners when
+/// they apply, the Left to spend hero, the savings card, net worth, the one
+/// thing that needs attention, and recent transactions.
 class DashboardScreen extends ConsumerWidget {
   const DashboardScreen({super.key});
 
@@ -57,6 +51,7 @@ class DashboardScreen extends ConsumerWidget {
         child: RefreshIndicator(
           onRefresh: () async {
             ref.invalidate(netWorthProvider);
+            ref.invalidate(netWorthHistoryProvider);
             ref.invalidate(cashflowProvider);
             ref.invalidate(todaySpendProvider);
             ref.invalidate(goalsProvider);
@@ -73,16 +68,12 @@ class DashboardScreen extends ConsumerWidget {
             children: const [
               _UpdateBanner(),
               ReviewBanner(),
-              _NetWorthHero(),
-              SizedBox(height: 16),
-              _CashflowStatStrip(),
+              LeftToSpendHero(),
               SizedBox(height: 16),
               _SavingsCard(),
-              _ProgressBlock(),
-              SizedBox(height: 8),
-              _TrendsEntryCard(),
+              _NetWorthCard(),
               SizedBox(height: 16),
-              _QuickLinksRow(),
+              _NeedsAttention(),
               SizedBox(height: 24),
               _RecentTransactionsPreview(),
             ],
@@ -263,170 +254,52 @@ class _SavingsCard extends ConsumerWidget {
   }
 }
 
-class _NetWorthHero extends ConsumerWidget {
-  const _NetWorthHero();
+/// Net worth, demoted from the hero to a card (decision D1): it barely moves
+/// day to day, so it no longer takes the top slot. It opens the Net worth
+/// screen, which now holds Accounts, Assets, Liabilities and Calculators.
+class _NetWorthCard extends ConsumerWidget {
+  const _NetWorthCard();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final netWorthAsync = ref.watch(netWorthProvider);
-    return AnimatedSwitcher(
-      duration: context.reducedMotion ? Duration.zero : AppMotion.stateChange,
-      switchInCurve: AppMotion.easeOut,
-      switchOutCurve: AppMotion.easeOut,
-      child: netWorthAsync.when(
-        loading: () => const SizedBox(
-          key: ValueKey('loading'),
-          height: 64,
-          child: Center(child: CircularProgressIndicator()),
+    final netWorth = ref.watch(netWorthProvider);
+    final trend = netWorthTrendText(ref);
+    final value = netWorth.when(
+      data: (n) => formatZAR(n.netWorth),
+      loading: () => '—',
+      error: (_, _) => "Couldn't load",
+    );
+    return GroupCard(
+      children: [
+        GroupRow(
+          key: const Key('home-net-worth'),
+          leadingIcon: Icons.account_balance_outlined,
+          title: 'Net worth',
+          subtitle: trend,
+          trailing: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(value, style: moneyTextStyle(context, fontSize: 16)),
+              const Icon(Icons.chevron_right),
+            ],
+          ),
+          onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const NetWorthScreen())),
         ),
-        error: (err, _) => InlineError(
-          key: const ValueKey('error'),
-          message: err is ApiError ? err.message : 'Failed to load net worth',
-          onRetry: () => ref.invalidate(netWorthProvider),
-        ),
-        data: (netWorth) => HeroMetricCard(
-          key: const ValueKey('data'),
-          label: 'Net worth',
-          value: formatZAR(netWorth.netWorth),
-          deltaText: _NetWorthTrend.of(ref),
-        ),
-      ),
+      ],
     );
   }
 }
 
-/// "+2.4% this month"-style trend pill per the Stitch Dashboard mockup —
-/// backed by real data (the daily snapshot job, `summaries/snapshot_job.py`),
-/// not a fabricated number. Omitted entirely (returns null, no pill shown)
-/// until at least ~25 days of snapshot history exist for this account, since
-/// there's no meaningful "this month" comparison before then.
-class _NetWorthTrend {
-  static const _minDaysForComparison = 25;
-
-  static String? of(WidgetRef ref) {
-    final historyAsync = ref.watch(netWorthHistoryProvider);
-    final snapshots = historyAsync.valueOrNull;
-    if (snapshots == null || snapshots.length < 2) return null;
-
-    final sorted = [...snapshots]..sort((a, b) => a.snapshotDate.compareTo(b.snapshotDate));
-    final latest = sorted.last;
-    final comparison = sorted.firstWhere(
-      (s) => latest.snapshotDate.difference(s.snapshotDate).inDays >= _minDaysForComparison,
-      orElse: () => sorted.first,
-    );
-    final daysSpanned = latest.snapshotDate.difference(comparison.snapshotDate).inDays;
-    if (daysSpanned < _minDaysForComparison || comparison.netWorth == Decimal.zero) return null;
-
-    final change = (latest.netWorth - comparison.netWorth).toDouble();
-    final pct = change / comparison.netWorth.abs().toDouble() * 100;
-    final up = pct >= 0;
-    return '${up ? '+' : ''}${pct.toStringAsFixed(1)}% this month';
-  }
-}
-
-/// Today's spend over this month's cashflow — the one thing on Home that
-/// changes every day, and so the reason to open it daily (UX plan item 1).
-/// Net worth barely moves day to day; "what did I spend today?" does.
-/// The two halves load and fail independently: a month the summaries
-/// endpoint can't produce shouldn't hide a today figure that loaded fine.
-class _CashflowStatStrip extends ConsumerWidget {
-  const _CashflowStatStrip();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final cashflowAsync = ref.watch(cashflowProvider);
-    final todayAsync = ref.watch(todaySpendProvider);
-    final semantic = Theme.of(context).extension<AppSemanticColors>();
-    final labelStyle = Theme.of(context).textTheme.labelMedium;
-
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Spent today', style: labelStyle),
-            const SizedBox(height: 2),
-            AnimatedSwitcher(
-              duration: context.reducedMotion ? Duration.zero : AppMotion.stateChange,
-              switchInCurve: AppMotion.easeOut,
-              switchOutCurve: AppMotion.easeOut,
-              child: todayAsync.when(
-                // A dash rather than a spinner: the figure's slot keeps its
-                // height, so the month row below doesn't jump when it lands.
-                loading: () => Text('—', key: const ValueKey('loading'), style: moneyTextStyle(context, fontSize: 28)),
-                error: (_, _) => InlineError(
-                  key: const ValueKey('error'),
-                  message: "Couldn't load today's spending",
-                  onRetry: () => ref.invalidate(todaySpendProvider),
-                ),
-                data: (spent) => Text(
-                  formatZAR(spent),
-                  key: const ValueKey('data'),
-                  style: moneyTextStyle(context, fontSize: 28),
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-            Text('This month', style: labelStyle),
-            const SizedBox(height: 8),
-            AnimatedSwitcher(
-              duration: context.reducedMotion ? Duration.zero : AppMotion.stateChange,
-              switchInCurve: AppMotion.easeOut,
-              switchOutCurve: AppMotion.easeOut,
-              child: cashflowAsync.when(
-                loading: () => const SizedBox(
-                  key: ValueKey('loading'),
-                  height: 40,
-                  child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
-                ),
-                error: (_, _) => InlineError(
-                  key: const ValueKey('error'),
-                  message: 'Failed to load cashflow',
-                  onRetry: () => ref.invalidate(cashflowProvider),
-                ),
-                data: (cashflow) => Row(
-                  key: const ValueKey('data'),
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text('Income', style: labelStyle),
-                          Text(formatZAR(cashflow.incomeTotal), style: moneyTextStyle(context, fontSize: 18, color: semantic?.success)),
-                        ],
-                      ),
-                    ),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text('Expenses', style: labelStyle),
-                          Text(formatZAR(cashflow.expenseTotal), style: moneyTextStyle(context, fontSize: 18)),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// The single most actionable progress card (UX plan item 4), in order:
-/// 1. a category over budget this month — the thing to act on today;
-/// 2. a goal still in progress;
-/// 3. this month's busiest budget;
-/// 4. a completed goal, only when there's nothing live to show.
-/// It used to be `goals.first` regardless of status, so a finished laptop
-/// fund sat here for weeks, and its budget fallback followed whichever
-/// month the Budgets tab had last been browsed to.
-class _ProgressBlock extends ConsumerWidget {
-  const _ProgressBlock();
+/// "Needs attention" (UX rework spec §2.1): the one thing worth a look,
+/// in order:
+/// 1. the category most over budget this month;
+/// 2. a category at 80% or more of its budget;
+/// 3. a goal still in progress.
+/// Never a completed goal, and nothing at all when none of these exists.
+/// The hero already carries the month's total, so a calm budget doesn't
+/// need repeating here. Tapping opens the matching Plan segment.
+class _NeedsAttention extends ConsumerWidget {
+  const _NeedsAttention();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -475,102 +348,57 @@ class _ProgressBlock extends ConsumerWidget {
     BudgetProgress? busiest(Iterable<BudgetProgress> candidates) =>
         candidates.isEmpty ? null : candidates.reduce((a, b) => b.pctUsed > a.pctUsed ? b : a);
 
-    final overBudget = busiest(budgets.where((b) => b.overBudget));
-    if (overBudget != null) return _budgetCard(overBudget);
+    final atRisk = busiest(budgets.where((b) => b.overBudget)) ?? busiest(budgets.where((b) => b.pctUsed >= 80));
+    if (atRisk != null) return _budgetCard(atRisk);
 
     final inProgress = goals.where((g) => g.status != GoalStatus.completed);
     if (inProgress.isNotEmpty) return _goalCard(inProgress.first);
 
-    final busiestBudget = busiest(budgets);
-    if (busiestBudget != null) return _budgetCard(busiestBudget);
-
-    if (goals.isNotEmpty) return _goalCard(goals.first);
     return const SizedBox.shrink();
   }
 
   Widget _goalCard(Goal goal) {
-    final footnote = '${formatZAR(goal.currentAmount)} saved / ${formatZAR(goal.targetAmount)} goal';
-    if (goal.status == GoalStatus.completed) {
-      return CompletedGoalCard(title: goal.name, footnote: footnote);
-    }
-    return ProgressCard(title: goal.name, pct: goal.progressPct / 100, footnote: footnote);
+    return _OpensPlan(
+      segment: PlanSegment.goals,
+      child: ProgressCard(
+        title: goal.name,
+        pct: goal.progressPct / 100,
+        footnote: '${formatZAR(goal.currentAmount)} saved / ${formatZAR(goal.targetAmount)} goal',
+      ),
+    );
   }
 
   Widget _budgetCard(BudgetProgress budget) {
-    return ProgressCard(
-      title: budget.category ?? 'Total budget',
-      pct: budget.pctUsed / 100,
-      overBudget: budget.overBudget,
-      footnote: budget.overBudget
-          ? '${formatZAR(budget.remaining.abs())} over budget'
-          : '${formatZAR(budget.spent)} / ${formatZAR(budget.budgetAmount)}',
+    return _OpensPlan(
+      segment: PlanSegment.budgets,
+      child: ProgressCard(
+        title: budget.category ?? 'Total budget',
+        pct: budget.pctUsed / 100,
+        overBudget: budget.overBudget,
+        footnote: budget.overBudget
+            ? '${formatZAR(budget.remaining.abs())} over budget'
+            : '${formatZAR(budget.spent)} / ${formatZAR(budget.budgetAmount)}',
+      ),
     );
   }
 }
 
-/// Entry point to the Trends analytics screen. A pushed route
-/// (`Navigator.push`, like Accounts/Assets/Liabilities below) rather than a
-/// sixth bottom-nav tab — DESIGN.md § Navigation locks the shell at five
-/// destinations. Given its own full-width row rather than a fifth quick-link
-/// tile because it's a destination, not a domain shortcut.
-class _TrendsEntryCard extends StatelessWidget {
-  const _TrendsEntryCard();
+/// Makes a Needs attention card open its Plan segment.
+class _OpensPlan extends ConsumerWidget {
+  const _OpensPlan({required this.segment, required this.child});
+  final PlanSegment segment;
+  final Widget child;
 
   @override
-  Widget build(BuildContext context) {
-    return GroupCard(
-      children: [
-        GroupRow(
-          leadingIcon: Icons.trending_up,
-          title: 'Trends',
-          // Kept short deliberately: GroupRow ellipsizes its subtitle at one
-          // line, and the longer phrasing truncated mid-word on a 1080px
-          // phone (verified live on the emulator).
-          subtitle: 'Net worth, budgets and spending',
-          trailing: const Icon(Icons.chevron_right),
-          onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const TrendsScreen())),
-        ),
-      ],
-    );
-  }
-}
-
-class _QuickLinksRow extends StatelessWidget {
-  const _QuickLinksRow();
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Expanded(
-          child: QuickLinkTile(
-            label: 'Accounts',
-            icon: Icons.account_balance_wallet_outlined,
-            onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const AccountsScreen())),
-          ),
-        ),
-        Expanded(
-          child: QuickLinkTile(
-            label: 'Assets',
-            icon: Icons.savings_outlined,
-            onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const AssetsScreen())),
-          ),
-        ),
-        Expanded(
-          child: QuickLinkTile(
-            label: 'Liabilities',
-            icon: Icons.request_quote_outlined,
-            onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const LiabilitiesScreen())),
-          ),
-        ),
-        Expanded(
-          child: QuickLinkTile(
-            label: 'Calculators',
-            icon: Icons.calculate_outlined,
-            onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const CalculatorsScreen())),
-          ),
-        ),
-      ],
+  Widget build(BuildContext context, WidgetRef ref) {
+    return GestureDetector(
+      key: const Key('needs-attention'),
+      behavior: HitTestBehavior.opaque,
+      onTap: () {
+        ref.read(planSegmentProvider.notifier).state = segment;
+        context.go('/plan');
+      },
+      child: child,
     );
   }
 }
