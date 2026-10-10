@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 
-import '../../core/theme/app_theme.dart';
+import '../../core/theme/app_tokens.dart';
 import '../motion/count_up_text.dart';
 
-/// Full-width green-gradient hero card per DESIGN.md § Signature components —
-/// used once per screen, at the top, for Net Worth (Dashboard) and Total
-/// balance (Accounts). Never repeated as a pattern for lesser numbers.
+/// The light hero panel (visual spec §1.1, §3): one per screen, at the top,
+/// for the screen's main figure. Light mode is the pale `hero` green with
+/// dark ink; dark mode is the tonal deep green, never the brightest thing on
+/// screen. Never repeated as a pattern for lesser numbers.
 class HeroMetricCard extends StatelessWidget {
   const HeroMetricCard({required this.label, required this.value, this.amount, this.deltaText, super.key});
 
@@ -19,23 +20,24 @@ class HeroMetricCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final valueStyle =
-        Theme.of(context).textTheme.headlineLarge?.copyWith(color: Colors.white, fontWeight: FontWeight.w800);
+    final t = context.tokens;
+    final valueStyle = Theme.of(context).textTheme.headlineLarge?.copyWith(
+      color: t.heroInk,
+      fontWeight: FontWeight.w800,
+      fontFeatures: const [FontFeature.tabularFigures()],
+    );
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(AppSpace.cardPad),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [AppColors.heroGradientStart, AppColors.heroGradientEnd],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(24),
+        color: t.hero,
+        borderRadius: AppRadius.cardAll,
+        boxShadow: AppShadows.level1(Theme.of(context).brightness),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label, style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.white70)),
+          Text(label, style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: t.heroSecondary)),
           const SizedBox(height: 6),
           if (amount == null)
             Text(value, style: valueStyle)
@@ -46,12 +48,12 @@ class HeroMetricCard extends StatelessWidget {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
               decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.2),
+                color: t.heroTrack,
                 borderRadius: BorderRadius.circular(999),
               ),
               child: Text(
                 deltaText!,
-                style: Theme.of(context).textTheme.labelMedium?.copyWith(color: Colors.white, fontWeight: FontWeight.w600),
+                style: Theme.of(context).textTheme.labelMedium?.copyWith(color: t.heroInk, fontWeight: FontWeight.w600),
               ),
             ),
           ],

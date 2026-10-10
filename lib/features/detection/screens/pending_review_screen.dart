@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/api/api_error.dart';
 import '../../../core/format/money.dart';
+import '../../../core/theme/app_haptics.dart';
 import '../../../shared/widgets/mascot_moment.dart';
 import '../../../shared/widgets/swipe_background.dart';
 import '../../accounts/models/account.dart';
@@ -248,7 +248,7 @@ class _EventCard extends ConsumerWidget {
         alignment: Alignment.centerRight,
       ),
       onDismissed: (direction) {
-        HapticFeedback.lightImpact();
+        AppHaptics.light();
         direction == DismissDirection.startToEnd ? onConfirm(oneTap!) : onDiscard();
       },
       child: Card(

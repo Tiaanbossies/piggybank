@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/api/api_error.dart';
 import '../../../core/format/money.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/theme/app_tokens.dart';
 import '../../../shared/widgets/group_card.dart';
 import '../../../shared/widgets/hero_metric_card.dart';
 import '../providers/expenses_provider.dart';
@@ -53,7 +54,7 @@ class ExpensesSummaryScreen extends ConsumerWidget {
               children: [
                 HeroMetricCard(label: 'Total', value: formatZAR(summary.total)),
                 const SizedBox(height: 24),
-                _ExpenseAllocationBar(categories: summary.byCategory, colors: _chartColors(summary.byCategory.length)),
+                _ExpenseAllocationBar(categories: summary.byCategory, colors: _chartColors(context, summary.byCategory.length)),
                 const SizedBox(height: 24),
                 const SizedBox(height: 12),
                 Text('By category', style: Theme.of(context).textTheme.labelMedium),
@@ -63,7 +64,7 @@ class ExpensesSummaryScreen extends ConsumerWidget {
                     for (var i = 0; i < summary.byCategory.length; i++)
                       _CategoryRow(
                         bucket: summary.byCategory[i],
-                        color: _chartColors(summary.byCategory.length)[i],
+                        color: _chartColors(context, summary.byCategory.length)[i],
                       ),
                   ],
                 ),
@@ -129,17 +130,15 @@ class _ExpenseAllocationBar extends StatelessWidget {
   }
 }
 
-/// A brand-derived qualitative palette for the pie chart and category list —
-/// lightness steps around the accent hue rather than an arbitrary rainbow,
-/// per DESIGN.md's "one confident green accent" identity (a categorical data
-/// palette stays in-hue even where individual UI chrome wouldn't).
-List<Color> _chartColors(int count) {
-  if (count <= 0) return const [];
-  final hsl = HSLColor.fromColor(AppColors.lightAccent);
+/// The chart ramp from the visual spec §1.3 (forest, ochre, clay, sage),
+/// cycled, with each further lap lighter so neighbours still differ. Rows
+/// also carry their category name, so identity never rests on colour alone.
+List<Color> _chartColors(BuildContext context, int count) {
+  final series = context.tokens.chartSeries;
+  final surface = context.tokens.surface;
   return List.generate(count, (i) {
-    final t = count == 1 ? 0.0 : i / (count - 1);
-    final lightness = (0.28 + t * 0.45).clamp(0.0, 1.0);
-    return hsl.withLightness(lightness).toColor();
+    final lap = i ~/ series.length;
+    return Color.lerp(series[i % series.length], surface, (lap * 0.3).clamp(0.0, 0.6))!;
   });
 }
 

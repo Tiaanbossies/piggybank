@@ -1,48 +1,19 @@
-/// Piggybank's visual identity, per DESIGN.md — rewritten 2026-08-16 to match
-/// 9 delivered UI mockups (mostly white/black, one green accent), superseding
-/// the original warm-cream/terracotta written-spec version. See DESIGN.md's
-/// "Revision — 2026-08-16" header for what changed and why.
+/// Piggybank's visual identity, "Ledger Pocket" (visual rework, 2026-10):
+/// Ledger's forest green on warm paper with Pocket's soft, rounded shapes.
+/// Every value comes from `docs/visual-rework/04-visual-spec.md` §1 via
+/// [AppTokens]; see DESIGN.md's "Revision — 2026-10" note for the history.
 library;
 
 import 'package:animations/animations.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-/// Mostly white/black + one green accent, per DESIGN.md § Colour. Dark values
-/// are inferred (no dark mockup was delivered) — see DESIGN.md's revision note.
-abstract final class AppColors {
-  // Light
-  static const lightBackground = Color(0xFFFFFFFF);
-  static const lightSurface = Color(0xFFFFFFFF);
-  static const lightTextPrimary = Color(0xFF111812);
-  static const lightTextMuted = Color(0xFF6B7280);
-  static const lightBorder = Color(0xFFEDEFEA);
-  static const lightAccent = Color(0xFF1F8A4C);
-  static const lightAccentChipBg = Color(0xFFE4F5EA);
-  static const lightSuccess = Color(0xFF1F8A4C);
-  static const lightDanger = Color(0xFFD64545);
-  static const lightDangerChipBg = Color(0xFFFCE8E8);
-  static const heroGradientStart = Color(0xFF6FBE8C);
-  static const heroGradientEnd = Color(0xFF227A4E);
+import 'app_tokens.dart';
 
-  // Dark (inferred, unconfirmed — see DESIGN.md revision note)
-  static const darkBackground = Color(0xFF0F1412);
-  static const darkSurface = Color(0xFF181F1B);
-  static const darkTextPrimary = Color(0xFFF2F5F1);
-  static const darkTextMuted = Color(0xFF9AA69E);
-  static const darkBorder = Color(0xFF28322C);
-  static const darkAccent = Color(0xFF3FC876);
-  static const darkAccentChipBg = Color(0xFF17301F);
-  static const darkSuccess = Color(0xFF3FC876);
-  static const darkDanger = Color(0xFFE8685F);
-  static const darkDangerChipBg = Color(0xFF3A1F1F);
-}
-
-/// Money/percentage figures render in the same UI sans as everything else now
-/// (DESIGN.md § Typography) — the mockups don't use a distinct mono face.
-/// Tabular figures are kept for column alignment; the typeface is not.
+/// Money and percentage figures: Plus Jakarta Sans with tabular figures, so
+/// amounts in a column align digit for digit (spec §1.5).
 TextStyle moneyTextStyle(BuildContext context, {double? fontSize, FontWeight? fontWeight, Color? color}) {
-  return GoogleFonts.manrope(
+  return GoogleFonts.plusJakartaSans(
     fontSize: fontSize,
     fontWeight: fontWeight ?? FontWeight.w700,
     color: color,
@@ -56,99 +27,278 @@ abstract final class AppTheme {
 
   static ThemeData _build(Brightness brightness) {
     final isDark = brightness == Brightness.dark;
-    final background = isDark ? AppColors.darkBackground : AppColors.lightBackground;
-    final surface = isDark ? AppColors.darkSurface : AppColors.lightSurface;
-    final textPrimary = isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
-    final textMuted = isDark ? AppColors.darkTextMuted : AppColors.lightTextMuted;
-    final border = isDark ? AppColors.darkBorder : AppColors.lightBorder;
-    final accent = isDark ? AppColors.darkAccent : AppColors.lightAccent;
-    final accentChipBg = isDark ? AppColors.darkAccentChipBg : AppColors.lightAccentChipBg;
-    final dangerChipBg = isDark ? AppColors.darkDangerChipBg : AppColors.lightDangerChipBg;
+    final t = isDark ? AppTokens.dark : AppTokens.light;
 
     final colorScheme = ColorScheme(
       brightness: brightness,
-      primary: accent,
-      onPrimary: Colors.white,
-      secondary: accent,
-      onSecondary: Colors.white,
-      error: isDark ? AppColors.darkDanger : AppColors.lightDanger,
-      onError: Colors.white,
-      surface: surface,
-      onSurface: textPrimary,
-      outline: border,
+      primary: t.primary,
+      onPrimary: t.onPrimary,
+      primaryContainer: t.primaryContainer,
+      onPrimaryContainer: t.onPrimaryContainer,
+      secondary: t.primary,
+      onSecondary: t.onPrimary,
+      secondaryContainer: t.primaryContainer,
+      onSecondaryContainer: t.onPrimaryContainer,
+      error: t.danger,
+      onError: isDark ? t.onPrimary : t.surface,
+      errorContainer: t.dangerContainer,
+      onErrorContainer: t.onDangerContainer,
+      surface: t.surface,
+      onSurface: t.ink,
+      onSurfaceVariant: t.muted,
+      surfaceContainerLowest: t.surface,
+      surfaceContainerLow: t.surface,
+      surfaceContainer: t.surface,
+      surfaceContainerHigh: t.surfaceRaised,
+      surfaceContainerHighest: t.sunk,
+      outline: t.outline,
+      outlineVariant: t.outline.withValues(alpha: 0.3),
+      inverseSurface: t.ink,
+      onInverseSurface: t.bg,
+      inversePrimary: t.primaryContainer,
+      shadow: const Color(0xFF1E5B3E),
+      scrim: t.ink,
     );
 
-    // DESIGN.md § Typography specifies a 28/22/17/15/13sp scale for
-    // display/title/body-large/body/caption. Material's default titleLarge
-    // (22) already matches "title" exactly, so it's left alone. displaySmall
-    // diverged (Material default: 36) and was corrected to 28 in a prior
-    // session (login_screen.dart's title, its one call site). The remaining
-    // three named tiers — body-large/body/caption — map onto Material's
-    // bodyLarge/bodyMedium/bodySmall (defaults 16/14/12) and are corrected
-    // here to 17/15/13, completing the 5-tier scale. This was deferred
-    // earlier for lack of a way to visually verify ~90 call sites at once;
-    // a live device/browser pass is now available, and the deltas here are
-    // small (≤3sp) relative to Material's own defaults, so the regression
-    // risk is low.
-    //
-    // Material's remaining roles (titleMedium/titleSmall, labelLarge/Medium/
-    // Small, headlineLarge/Medium/Small) are used across the app for things
-    // DESIGN.md's 5-tier scale doesn't individually name (card titles,
-    // footnotes, subtitles, nav labels) — left at Material defaults, since
-    // there is no documented value to correct them to.
-    final baseText = GoogleFonts.manropeTextTheme().apply(
-      bodyColor: textPrimary,
-      displayColor: textPrimary,
-    );
-    final textTheme = baseText.copyWith(
-      displaySmall: baseText.displaySmall?.copyWith(fontSize: 28),
-      bodyLarge: baseText.bodyLarge?.copyWith(fontSize: 17),
-      bodyMedium: baseText.bodyMedium?.copyWith(fontSize: 15),
-      bodySmall: baseText.bodySmall?.copyWith(fontSize: 13),
+    // Spec §1.5: Plus Jakarta Sans for display, headline, title and money;
+    // Nunito Sans for body, label and overline.
+    final body = GoogleFonts.nunitoSansTextTheme();
+    TextStyle? jakarta(TextStyle? s, double size, double height, FontWeight w, {double tracking = 0}) =>
+        GoogleFonts.plusJakartaSans(
+          textStyle: s,
+          fontSize: size,
+          height: height / size,
+          fontWeight: w,
+          letterSpacing: tracking,
+        );
+    TextStyle? nunito(TextStyle? s, double size, double height, FontWeight w, {double tracking = 0}) =>
+        s?.copyWith(fontSize: size, height: height / size, fontWeight: w, letterSpacing: tracking);
+
+    final textTheme = body
+        .copyWith(
+          displayLarge: jakarta(body.displayLarge, 40, 44, FontWeight.w800, tracking: -0.4),
+          displayMedium: jakarta(body.displayMedium, 40, 44, FontWeight.w800, tracking: -0.4),
+          displaySmall: jakarta(body.displaySmall, 40, 44, FontWeight.w800, tracking: -0.4),
+          headlineLarge: jakarta(body.headlineLarge, 28, 34, FontWeight.w800),
+          headlineMedium: jakarta(body.headlineMedium, 28, 34, FontWeight.w800),
+          headlineSmall: jakarta(body.headlineSmall, 24, 30, FontWeight.w800),
+          titleLarge: jakarta(body.titleLarge, 20, 26, FontWeight.w700),
+          titleMedium: jakarta(body.titleMedium, 16, 22, FontWeight.w700),
+          titleSmall: jakarta(body.titleSmall, 16, 22, FontWeight.w700),
+          bodyLarge: nunito(body.bodyLarge, 16, 24, FontWeight.w400),
+          bodyMedium: nunito(body.bodyMedium, 14, 20, FontWeight.w400),
+          bodySmall: nunito(body.bodySmall, 14, 20, FontWeight.w400),
+          labelLarge: nunito(body.labelLarge, 14, 20, FontWeight.w600),
+          labelMedium: nunito(body.labelMedium, 14, 20, FontWeight.w600),
+          // The overline role ("LEFT TO SPEND · OCTOBER"): 12/16/700, +6 %.
+          labelSmall: nunito(body.labelSmall, 12, 16, FontWeight.w700, tracking: 0.72),
+        )
+        .apply(bodyColor: t.ink, displayColor: t.ink);
+
+    const pill = StadiumBorder();
+    final pillInput = OutlineInputBorder(
+      borderRadius: BorderRadius.circular(999),
+      borderSide: BorderSide.none,
     );
 
     return ThemeData(
       useMaterial3: true,
       brightness: brightness,
       colorScheme: colorScheme,
-      scaffoldBackgroundColor: background,
+      scaffoldBackgroundColor: t.bg,
+      canvasColor: t.bg,
       textTheme: textTheme,
-      cardTheme: CardThemeData(
-        color: surface,
-        elevation: 1,
-        shadowColor: Colors.black.withValues(alpha: 0.12),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-          side: BorderSide(color: border),
+      extensions: [
+        t,
+        AppSemanticColors(
+          success: t.positive,
+          danger: t.danger,
+          textMuted: t.muted,
+          accentChipBg: t.primaryContainer,
+          dangerChipBg: t.dangerContainer,
         ),
+      ],
+      appBarTheme: AppBarTheme(
+        backgroundColor: t.bg,
+        foregroundColor: t.ink,
+        surfaceTintColor: Colors.transparent,
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        titleTextStyle: textTheme.titleLarge,
+      ),
+      // Depth comes from AppCard's tinted shadow (light) or the tonal
+      // surface (dark), not Material elevation (spec §1.6).
+      cardTheme: CardThemeData(
+        color: t.surface,
+        surfaceTintColor: Colors.transparent,
+        elevation: 0,
+        margin: EdgeInsets.zero,
+        shape: const RoundedRectangleBorder(borderRadius: AppRadius.cardAll),
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: surface,
+        fillColor: t.sunk,
         // Material's default is one line, which cut helpers like "Leave
         // empty to use the income Piggybank has reco…" on a phone.
         helperMaxLines: 2,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: BorderSide(color: border),
+        errorMaxLines: 2,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        border: pillInput,
+        enabledBorder: pillInput,
+        focusedBorder: pillInput.copyWith(borderSide: BorderSide(color: t.primary, width: 2)),
+        errorBorder: pillInput.copyWith(borderSide: BorderSide(color: t.danger)),
+        focusedErrorBorder: pillInput.copyWith(borderSide: BorderSide(color: t.danger, width: 2)),
+        labelStyle: TextStyle(color: t.muted),
+        floatingLabelStyle: TextStyle(color: t.primary),
+        hintStyle: TextStyle(color: t.muted),
+        helperStyle: TextStyle(color: t.muted),
+        errorStyle: TextStyle(color: t.danger),
+      ),
+      filledButtonTheme: FilledButtonThemeData(
+        style: FilledButton.styleFrom(
+          backgroundColor: t.primary,
+          foregroundColor: t.onPrimary,
+          shape: pill,
+          minimumSize: const Size(64, 52),
+          padding: const EdgeInsets.symmetric(horizontal: 24),
+          textStyle: textTheme.labelLarge,
         ),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-          backgroundColor: accent,
-          foregroundColor: Colors.white,
-          shape: const StadiumBorder(),
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+          backgroundColor: t.primary,
+          foregroundColor: t.onPrimary,
+          elevation: 0,
+          shape: pill,
+          minimumSize: const Size(64, 52),
+          padding: const EdgeInsets.symmetric(horizontal: 24),
+          textStyle: textTheme.labelLarge,
         ),
+      ),
+      outlinedButtonTheme: OutlinedButtonThemeData(
+        style: OutlinedButton.styleFrom(
+          foregroundColor: t.primary,
+          side: BorderSide(color: t.outline),
+          shape: pill,
+          minimumSize: const Size(64, 52),
+          padding: const EdgeInsets.symmetric(horizontal: 24),
+          textStyle: textTheme.labelLarge,
+        ),
+      ),
+      textButtonTheme: TextButtonThemeData(
+        style: TextButton.styleFrom(foregroundColor: t.primary, shape: pill, textStyle: textTheme.labelLarge),
+      ),
+      floatingActionButtonTheme: FloatingActionButtonThemeData(
+        backgroundColor: t.primary,
+        foregroundColor: t.onPrimary,
+        shape: pill,
+        elevation: isDark ? 0 : 3,
+        highlightElevation: isDark ? 0 : 4,
+        extendedTextStyle: textTheme.labelLarge,
       ),
       navigationBarTheme: NavigationBarThemeData(
-        backgroundColor: surface,
-        indicatorColor: accent.withValues(alpha: 0.16),
-        labelTextStyle: WidgetStateProperty.all(
-          GoogleFonts.manrope(fontSize: 12, fontWeight: FontWeight.w600, color: textPrimary),
+        backgroundColor: t.surface,
+        surfaceTintColor: Colors.transparent,
+        elevation: 0,
+        indicatorColor: t.primaryContainer,
+        indicatorShape: pill,
+        iconTheme: WidgetStateProperty.resolveWith(
+          (s) => IconThemeData(color: s.contains(WidgetState.selected) ? t.onPrimaryContainer : t.muted),
+        ),
+        labelTextStyle: WidgetStateProperty.resolveWith(
+          (s) => textTheme.labelMedium!.copyWith(
+            fontSize: 12,
+            color: s.contains(WidgetState.selected) ? t.ink : t.muted,
+          ),
         ),
       ),
-      dividerTheme: DividerThemeData(color: border, space: 1),
+      // M7: radius 28 top, 4 × 32 handle, scrim ink @ 40 %.
+      bottomSheetTheme: BottomSheetThemeData(
+        backgroundColor: t.surfaceRaised,
+        modalBackgroundColor: t.surfaceRaised,
+        surfaceTintColor: Colors.transparent,
+        shape: const RoundedRectangleBorder(borderRadius: AppRadius.sheetTop),
+        showDragHandle: true,
+        dragHandleColor: t.outline,
+        dragHandleSize: const Size(32, 4),
+        modalBarrierColor: t.ink.withValues(alpha: 0.4),
+      ),
+      // M17: radius 24.
+      dialogTheme: DialogThemeData(
+        backgroundColor: t.surfaceRaised,
+        surfaceTintColor: Colors.transparent,
+        shape: const RoundedRectangleBorder(borderRadius: AppRadius.cardAll),
+        titleTextStyle: textTheme.titleLarge,
+        contentTextStyle: textTheme.bodyLarge,
+        barrierColor: t.ink.withValues(alpha: 0.4),
+      ),
+      // M38: a floating ink pill above the nav.
+      snackBarTheme: SnackBarThemeData(
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: t.ink,
+        contentTextStyle: textTheme.bodyMedium?.copyWith(color: t.bg),
+        actionTextColor: isDark ? t.primary : t.primaryContainer,
+        shape: pill,
+        insetPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+      ),
+      chipTheme: ChipThemeData(
+        shape: StadiumBorder(side: BorderSide(color: t.outline)),
+        backgroundColor: t.surface,
+        selectedColor: t.primary,
+        checkmarkColor: t.onPrimary,
+        labelStyle: textTheme.labelLarge?.copyWith(color: t.ink),
+        secondaryLabelStyle: textTheme.labelLarge?.copyWith(color: t.onPrimary),
+        side: BorderSide(color: t.outline),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      ),
+      segmentedButtonTheme: SegmentedButtonThemeData(
+        style: SegmentedButton.styleFrom(
+          backgroundColor: t.sunk,
+          foregroundColor: t.muted,
+          selectedBackgroundColor: t.surface,
+          selectedForegroundColor: t.ink,
+          side: BorderSide.none,
+          shape: pill,
+          textStyle: textTheme.labelLarge,
+        ),
+      ),
+      // M28: thumb and track colours.
+      switchTheme: SwitchThemeData(
+        thumbColor: WidgetStateProperty.resolveWith((s) => s.contains(WidgetState.selected) ? t.onPrimary : t.outline),
+        trackColor: WidgetStateProperty.resolveWith((s) => s.contains(WidgetState.selected) ? t.primary : t.sunk),
+        trackOutlineColor: WidgetStateProperty.resolveWith(
+          (s) => s.contains(WidgetState.selected) ? Colors.transparent : t.outline,
+        ),
+      ),
+      checkboxTheme: CheckboxThemeData(
+        fillColor: WidgetStateProperty.resolveWith((s) => s.contains(WidgetState.selected) ? t.primary : null),
+        checkColor: WidgetStatePropertyAll(t.onPrimary),
+        side: BorderSide(color: t.outline, width: 1.5),
+      ),
+      radioTheme: RadioThemeData(
+        fillColor: WidgetStateProperty.resolveWith((s) => s.contains(WidgetState.selected) ? t.primary : t.outline),
+      ),
+      progressIndicatorTheme: ProgressIndicatorThemeData(
+        color: t.primary,
+        linearTrackColor: t.sunk,
+        circularTrackColor: Colors.transparent,
+        linearMinHeight: 8,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      // M12: indicator in primary on surface.
+      tabBarTheme: TabBarThemeData(labelColor: t.ink, unselectedLabelColor: t.muted, indicatorColor: t.primary),
+      listTileTheme: ListTileThemeData(iconColor: t.muted, textColor: t.ink),
+      iconTheme: IconThemeData(color: t.ink),
+      dividerTheme: DividerThemeData(color: t.outline.withValues(alpha: 0.3), space: 1, thickness: 1),
+      popupMenuTheme: PopupMenuThemeData(
+        color: t.surfaceRaised,
+        surfaceTintColor: Colors.transparent,
+        shape: const RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(16))),
+      ),
+      tooltipTheme: TooltipThemeData(
+        decoration: BoxDecoration(color: t.ink, borderRadius: BorderRadius.circular(999)),
+        textStyle: textTheme.labelMedium?.copyWith(color: t.bg, fontSize: 12),
+      ),
       pageTransitionsTheme: const PageTransitionsTheme(
         builders: {
           TargetPlatform.android: _ReducedMotionAwarePageTransitionsBuilder(),
@@ -158,15 +308,6 @@ abstract final class AppTheme {
           TargetPlatform.windows: _ReducedMotionAwarePageTransitionsBuilder(),
         },
       ),
-      extensions: [
-        AppSemanticColors(
-          success: isDark ? AppColors.darkSuccess : AppColors.lightSuccess,
-          danger: isDark ? AppColors.darkDanger : AppColors.lightDanger,
-          textMuted: textMuted,
-          accentChipBg: accentChipBg,
-          dangerChipBg: dangerChipBg,
-        ),
-      ],
     );
   }
 }
@@ -208,9 +349,9 @@ class _ReducedMotionAwarePageTransitionsBuilder extends PageTransitionsBuilder {
   }
 }
 
-/// Success/danger/muted/chip-background tokens that don't map onto Material's
-/// ColorScheme roles. `accentChipBg`/`dangerChipBg` back the icon-chip and
-/// percentage-pill components (DESIGN.md § Signature components).
+/// Success/danger/muted/chip-background roles kept under their original
+/// names so the ~34 widgets that read them carry over unchanged; the values
+/// now come from [AppTokens]. New code reads `context.tokens` directly.
 class AppSemanticColors extends ThemeExtension<AppSemanticColors> {
   const AppSemanticColors({
     required this.success,
