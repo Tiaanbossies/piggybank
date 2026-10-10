@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/api/api_error.dart';
 import '../../../core/auth/auth_controller.dart';
+import '../../../shared/widgets/mascot_moment.dart';
 
 /// Step 1 of the self-service password-reset flow: collect an email and
 /// request a reset code. Always succeeds from the user's point of view
@@ -58,11 +59,8 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Center(
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(24),
-                    child: Image.asset('assets/mascot_thinking.jpg', width: 96, height: 96, fit: BoxFit.cover),
-                  ),
+                const Center(
+                  child: PennyImage(MascotMoment.thinking, size: 96),
                 ),
                 const SizedBox(height: 24),
                 if (!_sent) ...[

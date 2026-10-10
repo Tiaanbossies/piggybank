@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/api/api_error.dart';
 import '../../../core/auth/auth_controller.dart';
 import '../../../core/theme/app_motion.dart';
+import '../../../shared/widgets/mascot_moment.dart';
 
 /// The server answers a wrong login with a bare "invalid credentials", and a
 /// malformed one with the validator's own words ("password: String should
@@ -90,11 +91,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> with SingleTickerProv
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 const SizedBox(height: 48),
-                Center(
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(24),
-                    child: Image.asset('assets/mascot_welcoming.jpg', width: 120, height: 120, fit: BoxFit.cover),
-                  ),
+                const Center(
+                  child: PennyImage(MascotMoment.welcoming, size: 120),
                 ),
                 const SizedBox(height: 16),
                 Text(

@@ -4,6 +4,7 @@
 //
 // The API is faked at the HTTP layer (a Dio interceptor answering from
 // [sampleResponses]), so every repository, provider and model runs unchanged.
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -99,6 +100,11 @@ Future<void> loadRealFonts() async {
     return f.existsSync() ? ByteData.sublistView(await f.readAsBytes()) : null;
   });
   GoogleFonts.config.allowRuntimeFetching = false;
+
+  // AssetImage resolves through the asset manifest, cached as a Future on
+  // rootBundle. Load it here, in real time, so a Penny load started under
+  // fake-time pumps isn't stuck behind a manifest read that never finishes.
+  await AssetManifest.loadFromAssetBundle(rootBundle);
 }
 
 String _d(DateTime d) => d.toIso8601String().substring(0, 10);
@@ -399,6 +405,24 @@ Future<void> settle(WidgetTester tester) async {
   for (var i = 0; i < 20; i++) {
     await tester.pump(const Duration(milliseconds: 100));
   }
+  // Asset images decode on real async I/O, which fake-time pumps never
+  // wait for, so without this every Penny shot is an empty gap. Loads begun
+  // in the fake zone never finish, so start them again in the real one and
+  // have every Image re-resolve from the now-warm cache. The on-screen Image
+  // keeps its stuck load "live", so clearing pending loads alone isn't enough.
+  final images = [for (final e in find.byType(Image).evaluate()) ((e.widget as Image).image, e)];
+  if (images.isEmpty) return;
+  imageCache
+    ..clear()
+    ..clearLiveImages();
+  await tester.runAsync(() async {
+    for (final (provider, element) in images) {
+      await precacheImage(provider, element);
+    }
+  });
+  // Not awaited: it waits for a frame, and only the pump below draws one.
+  unawaited(tester.binding.reassembleApplication());
+  await tester.pump();
 }
 
 /// Restores the painting flag [pumpShell] changed; call last in each test.

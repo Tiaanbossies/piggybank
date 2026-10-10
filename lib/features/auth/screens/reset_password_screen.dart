@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/api/api_error.dart';
 import '../../../core/auth/auth_controller.dart';
+import '../../../shared/widgets/mascot_moment.dart';
 
 /// Step 2 of the self-service password-reset flow: enter the 8-digit code
 /// emailed by `POST /auth/password-reset/request` plus a new password.
@@ -67,11 +68,8 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Center(
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(24),
-                    child: Image.asset('assets/mascot_thinking.jpg', width: 96, height: 96, fit: BoxFit.cover),
-                  ),
+                const Center(
+                  child: PennyImage(MascotMoment.thinking, size: 96),
                 ),
                 const SizedBox(height: 24),
                 Text(

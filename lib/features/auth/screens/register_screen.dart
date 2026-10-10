@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/api/api_error.dart';
 import '../../../core/auth/auth_controller.dart';
+import '../../../shared/widgets/mascot_moment.dart';
 
 class RegisterScreen extends ConsumerStatefulWidget {
   const RegisterScreen({super.key});
@@ -71,11 +72,8 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Center(
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(20),
-                  child: Image.asset('assets/mascot_welcoming.jpg', width: 100, height: 100, fit: BoxFit.cover),
-                ),
+              const Center(
+                child: PennyImage(MascotMoment.welcoming, size: 100),
               ),
               const SizedBox(height: 16),
               Text(

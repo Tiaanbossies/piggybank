@@ -1,10 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:piggybank/core/theme/app_motion.dart';
 import 'package:piggybank/core/theme/shared_preferences_provider.dart';
 import 'package:piggybank/shared/motion/once_per_day.dart';
 import 'package:piggybank/shared/widgets/mascot_moment.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+/// The asset behind an [Image.asset], through the decode-size wrapper.
+String assetName(Image image) {
+  final provider = image.image;
+  return ((provider is ResizeImage ? provider.imageProvider : provider) as AssetImage).assetName;
+}
 
 void main() {
   late SharedPreferences prefs;
@@ -65,11 +72,46 @@ void main() {
       expect(prefs.getString('mascot.test-pop'), isNull);
     });
 
-    testWidgets('is a circle-clipped existing asset', (tester) async {
+    testWidgets('is a cutout straight on the surface: no clip, no box', (tester) async {
       await pump(tester, const MascotMoment(asset: MascotMoment.sleeping));
-      expect(find.byType(ClipOval), findsOneWidget);
+      expect(find.byType(ClipOval), findsNothing);
+      expect(find.byType(ClipRRect), findsNothing);
+      expect(find.byType(DecoratedBox), findsNothing);
       final image = tester.widget<Image>(find.byType(Image));
-      expect((image.image as AssetImage).assetName, 'assets/mascot_sleeping.jpg');
+      expect(image.fit, BoxFit.contain);
+      expect(assetName(image), 'assets/penny/sleeping.png');
     });
+
+    test('every pose is a cutout under assets/penny/', () {
+      for (final pose in [
+        MascotMoment.celebrating,
+        MascotMoment.thinking,
+        MascotMoment.sleeping,
+        MascotMoment.welcoming,
+      ]) {
+        expect(pose, startsWith('assets/penny/'));
+        expect(pose, endsWith('.png'));
+      }
+    });
+
+    testWidgets('the pop runs on a spring and settles at full size', (tester) async {
+      await pump(tester, pop);
+      final scales = <double>[];
+      for (var i = 0; i < 40; i++) {
+        await tester.pump(const Duration(milliseconds: 16));
+        scales.add(tester.widget<Transform>(find.byKey(const Key('mascot-pop'))).transform.storage[0]);
+      }
+      expect(scales.first, lessThan(1));
+      expect(scales.reduce((a, b) => a > b ? a : b), lessThanOrEqualTo(1 + AppMotion.popOvershootCap));
+      await tester.pumpAndSettle();
+      expect(tester.widget<Transform>(find.byKey(const Key('mascot-pop'))).transform.storage[0],
+          closeTo(1, 0.01));
+    });
+  });
+
+  test('popScale starts at 0.8 and caps the overshoot at 6 %', () {
+    expect(popScale(0), 0.8);
+    expect(popScale(1), 1);
+    expect(popScale(2), 1 + AppMotion.popOvershootCap);
   });
 }
