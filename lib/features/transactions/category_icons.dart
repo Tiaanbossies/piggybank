@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../core/theme/app_tokens.dart';
+
 /// Category → icon mapping per the Stitch Transactions mockup, which shows a
 /// distinct icon per merchant/category rather than one generic direction
 /// arrow for every row. Shared by Transactions, the Dashboard's
@@ -46,5 +48,38 @@ IconData categoryIcon(String? category, {bool isExpense = true, bool isTransfer 
       return Icons.payments_outlined;
   }
   if (isTransfer) return Icons.swap_horiz;
-  return isExpense ? Icons.arrow_upward : Icons.arrow_downward;
+  // A neutral tag, never a direction arrow: an arrow on an unknown category
+  // read as "money went up/down", which the amount already says (S6).
+  return Icons.sell_outlined;
+}
+
+/// Which tinted tile a category sits on (visual spec §1.3). A presentation
+/// lookup over the same names as [categoryIcon]; nothing is stored.
+CategoryFamily categoryFamily(String? category) {
+  switch (category?.trim().toLowerCase()) {
+    case 'groceries':
+    case 'food':
+    case 'salary':
+    case 'freelance':
+    case 'interest':
+      return CategoryFamily.forest;
+    case 'transport':
+    case 'gas':
+    case 'petrol':
+      return CategoryFamily.ochre;
+    case 'dining':
+    case 'dining out':
+    case 'shopping':
+    case 'clothing':
+    case 'entertainment':
+      return CategoryFamily.clay;
+    case 'utilities':
+    case 'rent':
+    case 'insurance':
+    case 'gym':
+    case 'healthcare':
+    case 'medical':
+      return CategoryFamily.sage;
+  }
+  return CategoryFamily.neutral;
 }

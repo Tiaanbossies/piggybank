@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:piggybank/core/theme/app_theme.dart';
+import 'package:piggybank/shared/widgets/app_card.dart';
 import 'package:piggybank/shared/widgets/progress_card.dart';
 
 /// Focused coverage for [ProgressCard]'s bar-colour conditional — the
@@ -78,8 +79,8 @@ void main() {
       ),
     );
 
-    final card = tester.widget<Card>(find.byType(Card));
-    final margin = card.margin! as EdgeInsets;
+    final card = tester.widget<AppCard>(find.byType(AppCard));
+    final margin = card.margin as EdgeInsets;
     expect(margin.left, 24);
   });
 }

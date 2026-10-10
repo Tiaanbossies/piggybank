@@ -67,22 +67,32 @@ void main() {
   });
 
   group('PressScale', () {
-    testWidgets('shrinks to 0.97 while pressed and the tap still lands', (tester) async {
+    double scaleOf(WidgetTester tester) => tester
+        .widget<Transform>(find.descendant(of: find.byType(PressScale), matching: find.byType(Transform)).first)
+        .transform
+        .storage[0];
+
+    testWidgets('springs to 0.97 from pointer-down, back on release, and the tap still lands', (tester) async {
       var taps = 0;
       await _pump(tester, PressScale(child: TextButton(onPressed: () => taps++, child: const Text('Card'))));
       final gesture = await tester.startGesture(tester.getCenter(find.text('Card')));
+      // Feedback starts before the finger lifts (M4): the spring's first
+      // frame sets its clock, the second (16 ms on) already shows it.
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 16));
+      expect(scaleOf(tester), lessThan(1));
       await tester.pumpAndSettle();
-      expect(tester.widget<AnimatedScale>(find.byType(AnimatedScale)).scale, 0.97);
+      expect(scaleOf(tester), closeTo(PressScale.pressedScale, 0.001));
 
       await gesture.up();
       await tester.pumpAndSettle();
-      expect(tester.widget<AnimatedScale>(find.byType(AnimatedScale)).scale, 1.0);
+      expect(scaleOf(tester), closeTo(1, 0.001));
       expect(taps, 1);
     });
 
     testWidgets('reduced motion: no scale at all', (tester) async {
       await _pump(tester, PressScale(child: TextButton(onPressed: () {}, child: const Text('Card'))), reduced: true);
-      expect(find.byType(AnimatedScale), findsNothing);
+      expect(find.descendant(of: find.byType(PressScale), matching: find.byType(Transform)), findsNothing);
     });
   });
 
