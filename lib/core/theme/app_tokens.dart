@@ -252,6 +252,9 @@ abstract final class AppRadius {
   static const cardAll = BorderRadius.all(Radius.circular(card));
   static const sheetTop = BorderRadius.vertical(top: Radius.circular(sheet));
   static const tileAll = BorderRadius.all(Radius.circular(tile));
+
+  /// Inputs, chips, buttons, banners, progress bars (spec §1.6: full pill).
+  static const pillAll = BorderRadius.all(Radius.circular(999));
 }
 
 /// Forest-tinted shadows in light mode; none in dark, where depth is tonal

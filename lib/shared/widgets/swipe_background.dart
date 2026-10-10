@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 
+import '../../core/theme/app_tokens.dart';
+
 /// What sits behind a card while it's swiped: a coloured slab with the
 /// action's icon and name on the side the swipe reveals. Extracted from
 /// `pending_review_screen.dart` so the Savings plan's suggestions can
-/// swipe the same way.
+/// swipe the same way. Callers pass token colours; the slab takes the card
+/// radius so it lines up with the card it sits behind.
 class SwipeBackground extends StatelessWidget {
   const SwipeBackground({
     required this.color,
@@ -28,7 +31,7 @@ class SwipeBackground extends StatelessWidget {
     return Container(
       margin: EdgeInsets.only(bottom: bottomMargin),
       padding: const EdgeInsets.symmetric(horizontal: 24),
-      decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(12)),
+      decoration: BoxDecoration(color: color, borderRadius: AppRadius.cardAll),
       alignment: alignment,
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -37,7 +40,7 @@ class SwipeBackground extends StatelessWidget {
           const SizedBox(width: 8),
           Text(
             label,
-            style: TextStyle(color: foreground, fontWeight: FontWeight.w600),
+            style: Theme.of(context).textTheme.labelLarge?.copyWith(color: foreground),
           ),
         ],
       ),

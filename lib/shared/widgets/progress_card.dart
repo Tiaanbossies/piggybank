@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
 
-import '../../core/theme/app_motion.dart';
-import '../../core/theme/app_theme.dart';
+import '../../core/theme/app_tokens.dart';
+import 'app_card.dart';
+import 'hero_metric_card.dart';
 import 'icon_chip.dart';
 import 'percent_pill.dart';
 
-/// Budget/goal progress row per DESIGN.md § Signature components — a
-/// [RowCard]-shell card holding a title + [PercentPill], a linear progress
-/// bar (never a ring — resolved by the delivered mockups), and a muted
-/// footnote line. Used by Budgets, Goals, and the Dashboard progress block.
+/// Budget/goal progress row: an [AppCard] holding a title + [PercentPill],
+/// the 8 dp [PillBar] on a sunk track (never a ring), and a muted footnote
+/// line. Used by Budgets, Goals, and the Dashboard progress block.
 class ProgressCard extends StatefulWidget {
   const ProgressCard({
     required this.title,
@@ -17,6 +17,8 @@ class ProgressCard extends StatefulWidget {
     this.overBudget = false,
     this.indented = false,
     this.icon,
+    this.family,
+    this.onReached,
     super.key,
   });
 
@@ -34,68 +36,56 @@ class ProgressCard extends StatefulWidget {
   /// row) — omitted rather than shown as a generic placeholder.
   final IconData? icon;
 
+  /// The category's tile family, when [icon] is a category's.
+  final CategoryFamily? family;
+
+  /// Fires once the bar lands on 100 % — the goal step's pulse hook (M23).
+  final VoidCallback? onReached;
+
   @override
   State<ProgressCard> createState() => _ProgressCardState();
 }
 
 class _ProgressCardState extends State<ProgressCard> {
-  late double _displayedPct = widget.pct;
-
-  @override
-  void didUpdateWidget(ProgressCard oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.pct != widget.pct) _displayedPct = oldWidget.pct;
-  }
-
   @override
   Widget build(BuildContext context) {
-    final semantic = Theme.of(context).extension<AppSemanticColors>();
-    final barColor = widget.overBudget ? semantic?.danger : Theme.of(context).colorScheme.primary;
+    final t = context.tokens;
+    final text = Theme.of(context).textTheme;
     final pctLabel = (widget.pct * 100).round();
     return Semantics(
       label:
           '${widget.title}, $pctLabel percent${widget.overBudget ? ', over budget' : ''}. ${widget.footnote}',
       child: ExcludeSemantics(
-        child: Card(
-          margin: EdgeInsets.only(left: widget.indented ? 24 : 0, bottom: 12),
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    if (widget.icon != null) ...[
-                      IconChip(icon: widget.icon!, danger: widget.overBudget),
-                      const SizedBox(width: 12),
-                    ],
-                    Expanded(child: Text(widget.title, style: Theme.of(context).textTheme.titleMedium)),
-                    PercentPill(pct: (widget.pct * 100).round(), danger: widget.overBudget),
+        child: AppCard(
+          margin: EdgeInsets.only(left: widget.indented ? 24 : 0, bottom: AppSpace.rowGap),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  if (widget.icon != null) ...[
+                    IconChip(icon: widget.icon!, danger: widget.overBudget, family: widget.family, size: 40),
+                    const SizedBox(width: AppSpace.s12),
                   ],
-                ),
-                const SizedBox(height: 10),
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(8),
-                  child: TweenAnimationBuilder<double>(
-                    tween: Tween(begin: _displayedPct, end: widget.pct),
-                    duration: context.reducedMotion ? Duration.zero : AppMotion.valueTransition,
-                    curve: AppMotion.easeOut,
-                    onEnd: () => _displayedPct = widget.pct,
-                    builder: (context, value, _) => LinearProgressIndicator(
-                      value: value.clamp(0.0, 1.0),
-                      minHeight: 8,
-                      color: barColor,
-                      backgroundColor: semantic?.accentChipBg,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  widget.footnote,
-                  style: TextStyle(color: widget.overBudget ? semantic?.danger : semantic?.textMuted, fontSize: 12),
-                ),
-              ],
-            ),
+                  Expanded(child: Text(widget.title, style: text.titleMedium)),
+                  PercentPill(pct: pctLabel, danger: widget.overBudget),
+                ],
+              ),
+              const SizedBox(height: AppSpace.s12),
+              PillBar(
+                value: widget.pct,
+                // Red only when a budget is over (J4); a goal past 100 % is
+                // good news and stays primary.
+                color: widget.overBudget ? t.danger : t.primary,
+                track: t.sunk,
+                onReached: widget.onReached,
+              ),
+              const SizedBox(height: AppSpace.s8),
+              Text(
+                widget.footnote,
+                style: text.bodySmall?.copyWith(color: widget.overBudget ? t.danger : t.muted, fontSize: 13),
+              ),
+            ],
           ),
         ),
       ),

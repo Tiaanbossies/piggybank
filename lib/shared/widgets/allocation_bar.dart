@@ -1,7 +1,7 @@
 import 'package:decimal/decimal.dart';
 import 'package:flutter/material.dart';
 
-import '../../core/theme/app_theme.dart';
+import '../../core/theme/app_tokens.dart';
 import '../../features/portfolios/asset_class_style.dart';
 import '../../features/portfolios/models/holding.dart';
 import '../../features/portfolios/models/investment_overview.dart';
@@ -19,15 +19,18 @@ class AllocationBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (items.isEmpty) return const SizedBox.shrink();
-    final semantic = Theme.of(context).extension<AppSemanticColors>();
+    final t = context.tokens;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // The 8 dp pill bar (spec §3) on a sunk track. The series colours
+        // move to tokens in Step 7, with the rest of the Invest palette.
         ClipRRect(
-          borderRadius: BorderRadius.circular(6),
-          child: SizedBox(
-            height: 12,
+          borderRadius: AppRadius.pillAll,
+          child: Container(
+            height: 8,
+            color: t.sunk,
             child: Row(
               children: [
                 for (final item in items)
@@ -56,7 +59,7 @@ class AllocationBar extends StatelessWidget {
                   const SizedBox(width: 6),
                   Text(
                     '${assetClassLabels[item.assetClass]} · ${_formatPercent(item.percent)}%',
-                    style: TextStyle(color: semantic?.textMuted, fontSize: 12, fontWeight: FontWeight.w600),
+                    style: Theme.of(context).textTheme.labelMedium?.copyWith(color: t.muted, fontSize: 12),
                   ),
                 ],
               ),

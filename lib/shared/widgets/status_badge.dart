@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../core/theme/app_theme.dart';
+import '../../core/theme/app_tokens.dart';
 import '../../features/imports/models/import_job.dart';
 
 /// Status pill for an [ImportStatus] — extracted from
@@ -14,27 +14,17 @@ class StatusBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final semantic = Theme.of(context).extension<AppSemanticColors>();
-    final Color fg;
-    final Color? bg;
-    switch (status) {
-      case ImportStatus.completed:
-        fg = semantic?.success ?? Colors.green;
-        bg = semantic?.accentChipBg;
-      case ImportStatus.partial:
-        fg = Theme.of(context).colorScheme.primary;
-        bg = semantic?.accentChipBg;
-      case ImportStatus.failed:
-        fg = semantic?.danger ?? Colors.red;
-        bg = semantic?.dangerChipBg;
-      case ImportStatus.pending:
-        fg = semantic?.textMuted ?? Colors.grey;
-        bg = null;
-    }
+    final t = context.tokens;
+    // Pills in primaryContainer; the danger container only for a failure.
+    final (fg, bg) = switch (status) {
+      ImportStatus.completed || ImportStatus.partial => (t.onPrimaryContainer, t.primaryContainer),
+      ImportStatus.failed => (t.onDangerContainer, t.dangerContainer),
+      ImportStatus.pending => (t.muted, t.sunk),
+    };
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(999)),
-      child: Text(status.name.toUpperCase(), style: TextStyle(color: fg, fontWeight: FontWeight.w700, fontSize: 11)),
+      decoration: BoxDecoration(color: bg, borderRadius: AppRadius.pillAll),
+      child: Text(status.name.toUpperCase(), style: Theme.of(context).textTheme.labelSmall?.copyWith(color: fg)),
     );
   }
 }
