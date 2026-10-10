@@ -1,11 +1,11 @@
 import 'package:decimal/decimal.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/api/api_error.dart';
 import '../../../core/format/dates.dart';
 import '../../../core/format/money.dart';
+import '../../../core/theme/app_haptics.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/deferred_delete.dart';
 import '../../../shared/widgets/icon_chip.dart';
@@ -492,7 +492,7 @@ class _SuggestionCard extends StatelessWidget {
         bottomMargin: 8,
       ),
       onDismissed: (direction) {
-        HapticFeedback.lightImpact();
+        AppHaptics.light();
         direction == DismissDirection.startToEnd ? onConfirm() : onDismiss();
       },
       child: Card(

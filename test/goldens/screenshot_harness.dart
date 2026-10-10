@@ -40,34 +40,45 @@ Future<void> loadRealFonts() async {
   const dir = 'test/goldens/fonts';
   Future<ByteData> bytes(String file) async => ByteData.sublistView(await File('$dir/$file').readAsBytes());
 
-  // google_fonts names each weight as its own family ("Manrope_700"); we only
-  // have 400/600/700 on disk, so 300/500 borrow regular and 800 borrows bold.
-  const weights = {
-    'regular': 'Manrope-regular.ttf',
-    '300': 'Manrope-regular.ttf',
-    '500': 'Manrope-regular.ttf',
-    '600': 'Manrope-600.ttf',
-    '700': 'Manrope-700.ttf',
-    '800': 'Manrope-700.ttf',
+  // google_fonts names each weight as its own family ("NunitoSans_700", with
+  // 400 as "_regular"). Only the weights the spec uses are on disk, so the
+  // others borrow the nearest one.
+  const families = {
+    // Display, headline, title and money (visual spec §1.5).
+    'PlusJakartaSans': {
+      300: 'PlusJakartaSans-Regular.ttf',
+      400: 'PlusJakartaSans-Regular.ttf',
+      500: 'PlusJakartaSans-Regular.ttf',
+      600: 'PlusJakartaSans-Bold.ttf',
+      700: 'PlusJakartaSans-Bold.ttf',
+      800: 'PlusJakartaSans-ExtraBold.ttf',
+    },
+    // Body, label and overline.
+    'NunitoSans': {
+      300: 'NunitoSans-Regular.ttf',
+      400: 'NunitoSans-Regular.ttf',
+      500: 'NunitoSans-Regular.ttf',
+      600: 'NunitoSans-SemiBold.ttf',
+      700: 'NunitoSans-Bold.ttf',
+      800: 'NunitoSans-Bold.ttf',
+    },
   };
-  for (final e in weights.entries) {
-    await (FontLoader('Manrope_${e.key}')..addFont(bytes(e.value))).load();
-  }
-  await (FontLoader('Manrope')..addFont(bytes('Manrope-regular.ttf'))).load();
-  await (FontLoader('MaterialIcons')..addFont(bytes('materialicons-regular.otf'))).load();
-  await (FontLoader('Roboto')..addFont(bytes('Manrope-regular.ttf'))).load();
+  const apiNames = {300: 'Light', 400: 'Regular', 500: 'Medium', 600: 'SemiBold', 700: 'Bold', 800: 'ExtraBold'};
 
   // google_fonts still tries to fetch each weight it's asked for. Serve the
   // same files as if the app bundled them (test only; the app is unchanged)
   // and turn fetching off, so nothing reaches the network.
-  const bundled = {
-    'google_fonts/Manrope-Light.ttf': 'Manrope-regular.ttf',
-    'google_fonts/Manrope-Regular.ttf': 'Manrope-regular.ttf',
-    'google_fonts/Manrope-Medium.ttf': 'Manrope-regular.ttf',
-    'google_fonts/Manrope-SemiBold.ttf': 'Manrope-600.ttf',
-    'google_fonts/Manrope-Bold.ttf': 'Manrope-700.ttf',
-    'google_fonts/Manrope-ExtraBold.ttf': 'Manrope-700.ttf',
-  };
+  final bundled = <String, String>{};
+  for (final MapEntry(key: family, value: weights) in families.entries) {
+    for (final MapEntry(key: weight, value: file) in weights.entries) {
+      final suffix = weight == 400 ? 'regular' : '$weight';
+      await (FontLoader('${family}_$suffix')..addFont(bytes(file))).load();
+      bundled['google_fonts/$family-${apiNames[weight]}.ttf'] = file;
+    }
+    await (FontLoader(family)..addFont(bytes(weights[400]!))).load();
+  }
+  await (FontLoader('MaterialIcons')..addFont(bytes('materialicons-regular.otf'))).load();
+  await (FontLoader('Roboto')..addFont(bytes('NunitoSans-Regular.ttf'))).load();
   const realAssets = 'build/unit_test_assets';
   const codec = StandardMessageCodec();
   TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMessageHandler('flutter/assets',

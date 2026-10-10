@@ -208,16 +208,13 @@ class _TierBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
-        gradient: isPro
-            ? const LinearGradient(colors: [AppColors.heroGradientStart, AppColors.heroGradientEnd])
-            : null,
-        color: isPro ? null : semantic?.accentChipBg,
+        color: isPro ? Theme.of(context).colorScheme.primary : semantic?.accentChipBg,
         borderRadius: BorderRadius.circular(999),
       ),
       child: Text(
         isPro ? 'PRO' : 'FREE',
         style: TextStyle(
-          color: isPro ? Colors.white : Theme.of(context).colorScheme.primary,
+          color: isPro ? Theme.of(context).colorScheme.onPrimary : Theme.of(context).colorScheme.primary,
           fontSize: 11,
           fontWeight: FontWeight.w700,
           letterSpacing: 0.4,
