@@ -61,16 +61,17 @@ dev_dependencies:
   flutter_launcher_icons: ^0.14.4
   url_launcher_platform_interface: ^2.3.2
 
-# flutter_launcher_icons config — source art cropped from the Stitch-generated
-# "Piggybank app logo.jpeg" mascot comp (assets/icon/app_icon.png, see Step 9b
-# of plans/piggybank-production-completion.md).
+# flutter_launcher_icons config. The source art is the welcoming Penny cutout
+# (assets/penny/welcoming.png) on the hero green #DCEBDD, matching the visual
+# rework spec (docs/visual-rework/04-visual-spec.md section 2). The adaptive
+# foreground keeps Penny inside the 66/108 safe zone.
 flutter_launcher_icons:
   android: true
   ios: false # no ios/ platform folder in this project — Android/Google Play only
   image_path: "assets/icon/app_icon.png"
   min_sdk_android: 21
-  adaptive_icon_background: "#FEF9F3"
-  adaptive_icon_foreground: "assets/icon/app_icon.png"
+  adaptive_icon_background: "#DCEBDD"
+  adaptive_icon_foreground: "assets/icon/app_icon_foreground.png"
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec

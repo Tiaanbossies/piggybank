@@ -229,7 +229,7 @@ Uses Flutter's predefined constants, which honour the system setting.
 - **Retiring `mascot.jpg` (build step):**
   - `PennyAvatar`'s default `assetPath` (`penny_avatar.dart:10`) and onboarding's non-welcome pages (`onboarding_screen.dart:130`) switch to `assets/penny/welcoming.png`.
   - Then `assets/mascot.jpg` leaves `pubspec.yaml` and is deleted once nothing references it.
-  - The launcher-icon comp (`assets/Piggybank mascot.jpeg`, `assets/icon/app_icon.png`) is out of scope here. Flag it if Tiaan wants the icon to match.
+  - The launcher icon now uses welcoming Penny on the hero green `#DCEBDD` (`assets/icon/app_icon.png`, adaptive foreground `app_icon_foreground.png`, Play Store `play_store_icon_512.png`), done 2026-10-10 at Tiaan's request. The old comp `assets/Piggybank mascot.jpeg` stays as history.
 
 ---
 
