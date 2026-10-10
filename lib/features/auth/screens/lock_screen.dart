@@ -6,6 +6,7 @@ import '../../../core/auth/biometric_preference.dart';
 import '../../../core/theme/app_motion.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/icon_chip.dart';
+import '../../../shared/widgets/mascot_moment.dart';
 import '../../settings/data/security_api.dart';
 
 /// Shown when [AuthState.locked] is true — biometric/PIN app-lock, per the
@@ -95,12 +96,9 @@ class _LockScreenState extends ConsumerState<LockScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // Sleeping pose, smaller — this is a returning-user screen,
-                // not a first impression.
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(16),
-                  child: Image.asset('assets/mascot_sleeping.jpg', width: 80, height: 80, fit: BoxFit.cover),
-                ),
+                // Welcoming, smaller — this is a returning-user screen, not a
+                // first impression (visual spec §2: lock is welcoming).
+                const PennyImage(MascotMoment.welcoming, size: 80),
                 const SizedBox(height: 16),
                 Text(
                   'Piggybank is locked',
