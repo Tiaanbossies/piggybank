@@ -378,3 +378,27 @@ What each one shows faithfully, and what the pick is really between:
 
 Session 3 then produces every screen in light and dark, `04-visual-spec.md` (all
 M1–M42 rows answered) and the DESIGN.md rewrite.
+
+---
+
+## Decision (2026-10-10)
+
+Tiaan's answers to the three questions:
+
+1. **Merge:** B · Pocket's warmth and style (24 dp radius, pills, soft tinted shadows,
+   springy motion, Plus Jakarta Sans + Nunito Sans) with **A · Ledger's colour theme**
+   (paper `#F7F4EC`, forest `#1E5B3E`).
+2. **Light hero panel.** It's `#DCEBDD` with `#123A27` text, measured at 10.22:1. Dark
+   mode keeps A's tonal `#1F3A2A`.
+3. **Penny isn't at rest on Home.** She is a **transparent cutout**, never a square white
+   background (B's hero "overlap" rendered as a white box). Home keeps its two existing
+   small moments: sleeping Penny beside "Quiet day so far", and celebrating Penny when
+   the savings target is met.
+
+The merged direction is named "Ledger Pocket". Its tokens, contrast, components, screens
+and the M1–M42 motion table are in `04-visual-spec.md`, and the Penny cutouts are in
+`assets/penny/`.
+
+**Follow-up (2026-10-10):** Tiaan approved `04-visual-spec.md` and retired the first,
+default pose (`mascot.jpg`). He found it stale, generic and unlike the other four.
+Penny now uses four poses, with **welcoming** as the default.

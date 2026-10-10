@@ -4,6 +4,28 @@ Phase 0 deliverable for the Flutter migration (see the approved migration plan a
 `C:\Users\tiaan\.claude\plans\run-the-full-prompt-eager-nebula.md`). Originally a
 **written spec, not generated mockups** — that changed on 2026-08-16 (see below).
 
+> ## Revision — 2026-10: visual rework, "Ledger Pocket" (spec `docs/visual-rework/04-visual-spec.md`, pending approval)
+>
+> Tiaan picked the direction on 2026-10-10: B · Pocket's warmth and shape, A · Ledger's
+> colours, a **light** hero panel, and Penny as a **transparent cutout** that is never at
+> rest on Home. The sections below (Brand read, Colour, Typography, Spacing/shape/
+> elevation, Iconography, Signature components, Motion and mascot) are rewritten to
+> match. The spec has the full tokens, measured contrast and the M1–M42 motion table.
+> - **Colour:** a warm paper and forest-green palette replaces white plus one green.
+>   - The green gradient hero is gone.
+>   - Every pair passes WCAG AA in both themes (65 pairs, 0 failures).
+> - **Type:** Plus Jakarta Sans (display, titles, money) and Nunito Sans (body, labels) replace Manrope.
+> - **Shape:**
+>   - 24 dp cards, with pills for chips, buttons, segments and the FAB.
+>   - Forest-tinted soft shadows in light mode; tonal surfaces in dark.
+>   - One card per group, not per row.
+> - **Penny:** the four Gemini poses (welcoming, sleeping, thinking, celebrating) are cut out to `assets/penny/*.png`. There's no circle clip and nothing new is generated. The old default pose `mascot.jpg` is retired, and welcoming is the default now.
+> - **This supersedes:**
+>   - the 2026-08-16 colour and type notes below;
+>   - "every list row is its own card";
+>   - the gradient hero;
+>   - the circle-clipped mascot.
+>
 > ## Revision — 2026-10: UX rework (approved spec `docs/ux-rework/04-spec.md`)
 >
 > The UX rework (2026-10-09, approvals A1–A6) rewrites these locked rules; the sections
@@ -59,73 +81,86 @@ Phase 0 deliverable for the Flutter migration (see the approved migration plan a
 
 ## Brand read
 
-Clean, professional, approachable personal finance — mostly white and black, one
-restrained green accent. Not a cold corporate bank app (FNB/Absa/Standard Bank
-navy-and-blue), not a corporate-SaaS dashboard (navy sidebar, blue buttons), and not a
-gamified trading app (no confetti, no streaks, no badges) — same underlying discipline as
-before, new execution. Money and percentage figures render with confident, precise
-typography. Dark mode is a first-class target in principle, though unconfirmed visually
-(see revision note above).
+Warm, calm, friendly personal finance: forest green ink on warm paper, with soft rounded
+shapes. Think of a well-kept pocket notebook that's pleasant to open every day.
+- It's not a cold corporate bank app (navy and blue).
+- It's not a SaaS dashboard.
+- It's not a gamified trading app (no confetti, streaks or badges).
+
+Money figures are confident and tabular. Penny the piggy is the warmth: she shows up for
+moments that reward finishing something, never to guilt. Dark mode is designed rather
+than inverted (2026-10 visual rework).
 
 ## Colour
 
-Mostly white/black, one confident green accent — eyeballed from the delivered JPEGs, not
-sampled pixel-exact. Treat as a strong first pass; get real hex values from the user or a
-design tool if pixel-perfect matching starts to matter.
+"Ledger Pocket" (2026-10). Every value is measured, with 0 failures against WCAG AA; see
+`docs/visual-rework/04-visual-spec.md` §1 for the full table, including category tiles and
+chart series.
 
-| Role | Light | Dark (inferred, unconfirmed) |
+| Role | Light | Dark |
 |---|---|---|
-| Background | `#FFFFFF` | `#0F1412` |
-| Surface (cards) | `#FFFFFF` (differentiated from background by border + shadow, not colour) | `#181F1B` |
-| Text — primary | `#111812` (near-black) | `#F2F5F1` |
-| Text — muted | `#6B7280` | `#9AA69E` |
-| Border / divider | `#EDEFEA` | `#28322C` |
-| Accent (primary CTA, active nav, links, progress fill) | `#1F8A4C` | `#3FC876` (brightened for dark contrast) |
-| Accent chip background (icon chips, positive pills) | `#E4F5EA` | `#17301F` |
-| Hero-card gradient | `#6FBE8C` → `#227A4E`, top-left to bottom-right | same, unconfirmed in dark |
-| Success (positive figures) | same as accent, `#1F8A4C` — the mockups reuse one green throughout rather than a separate success tone | `#3FC876` |
-| Danger (negative/over-budget/destructive) | `#D64545` | `#E8685F` |
-| Danger chip background | `#FCE8E8` | `#3A1F1F` |
+| Background (paper) | `#F7F4EC` | `#121512` |
+| Surface (cards, sheets) | `#FFFDF8` | `#1A1E1A` (raised `#222722`) |
+| Sunk (inputs, tracks) | `#EFEADF` | `#0E110E` |
+| Text: ink / muted | `#1A1F1A` / `#595E54` | `#ECEAE2` / `#A7ACA2` |
+| Outline (lines only) | `#8C8A7C` | `#6E7469` |
+| Primary (CTA, active nav, links, progress) | `#1E5B3E`, white text | `#8FCBA4`, **dark** text `#0E2A1C` |
+| Primary container (chips, pills, banners, avatar) | `#DCEBDD` / `#123A27` | `#24402F` / `#C6E6CF` |
+| **Hero panel** | **light** `#DCEBDD`, figure `#123A27`, secondary `#3D6150` | tonal `#1F3A2A`, figure `#ECEAE2`, secondary `#A9C9B4` |
+| Positive (income, +P/L, always with "+") | `#1E6B44` | `#8FCBA4` |
+| Danger (over budget, destructive only) / container | `#A8322D` / `#F6E1DC` | `#F2A49B` / `#4A2421` |
 
-The accent is still used sparingly — primary buttons, active nav, progress fills, links —
-never as a dominant fill. Danger is reserved for over-budget states and destructive
-actions (e.g. "Log out"); ordinary negative transaction amounts render in the primary
-text colour, not danger — only budgets/goals that are actually over/at-risk get red.
+Primary is used for actions and progress, never as a large fill. The hero is the one
+tinted panel per screen. Danger is reserved for over-budget states and destructive
+actions. Ordinary spending renders in ink, and a budget at 84 % is not red.
 
 ## Typography
 
-- **UI sans (headings, body, labels, AND money/percentage figures)**: **Manrope**,
-  unchanged from the original spec — it reads compatibly with the mockups' rounded
-  geometric letterforms, so no font swap was needed.
-- **Money & percentage figures no longer use a distinct mono face.** The mockups render
-  every amount in the same Manrope family as surrounding text (semibold/bold weight for
-  emphasis). Tabular figures are kept via Manrope's tabular-figure font feature where
-  available, for alignment in lists — the *discipline* of predictable-width numerals
-  carries over, just not a separate typeface. `moneyTextStyle()` in `app_theme.dart` is
-  the one place this is implemented; nothing else in the app should hardcode a font.
-- Scale: 28/22/17/15/13sp for display/title/body-large/body/caption, unchanged — nothing
-  in the mockups contradicts this.
+- **Plus Jakarta Sans** (google_fonts, OFL) is used for the display figure, titles and every money figure, at weights 700 and 800.
+- **Nunito Sans** (OFL) is used for body text, labels, buttons and chips, at weights 400, 600 and 700.
+- Both replace Manrope (2026-10).
+- **Every money figure uses tabular figures.** `moneyTextStyle()` in `app_theme.dart` stays the one place this is implemented.
+- **Hero money format:** no cents. Rows show "R 1 245,50". Income carries "+" in positive; spending carries "−" in ink.
+- **Scale** (size/line/weight):
+  - display 40/44/800, hero only
+  - headline 28/34/800
+  - title 20/26/700
+  - titleSmall 16/22/700
+  - body 16/24/400
+  - bodySmall 14/20/400
+  - label 14/20/600
+  - overline 12/16/700, caps, +6 % tracking
 
 ## Spacing, shape, elevation
 
-- 4px base unit; common steps 4/8/12/16/24/32/48.
-- Card corner radius: 20px, unchanged — the mockups' cards read at roughly this radius.
-- Buttons: pill-shaped, fully rounded — unchanged, confirmed by every CTA in the mockups.
-- Shadows: soft, low-opacity, **neutral grey** now (not warm-tinted, since the base is no
-  longer warm cream) — still barely-there elevation.
-- **Every list row is now its own card** (white surface, border + soft shadow, 20px
-  radius, ~16px internal padding) — a real structural change from the superseded spec's
-  flat grouped-rows pattern. See Signature components below.
+- **Spacing:** a 4 dp base, with steps 4/8/12/16/20/24/32/40.
+  - Gutter 16, card padding 20, gap between rows 12.
+  - Gap between sections 24, always larger than any gap inside a section.
+- **Radius:**
+  - Cards and hero: 24.
+  - Sheet top corners: 28.
+  - Category tiles: 14.
+  - Chips, buttons, inputs, segmented controls, banners and the FAB: full pills.
+- **Elevation, light:** shadows are forest-tinted, never grey.
+  - Level 1: `0 4 16` at 8 %, for cards and the hero.
+  - Level 2: `0 8 24` at 12 %, for the FAB, sheets and menus.
+- **Elevation, dark:** no shadows. Depth comes from tonal steps: `surface`, then `surfaceRaised`.
+- **One card per group, not per row** (2026-10; reverses 2026-08). Rows inside a group are separated by space, so Home and lists stop reading as a stack of identical boxes.
+- **FAB:** scrollables under it get 88 dp of bottom padding.
 
 ## Iconography
 
-Simple filled/outlined icons sitting inside a circular colour-tinted "icon chip"
-(accent-tinted by default, danger-tinted for warning/negative contexts) — this reads as
-Material Symbols (rounded/outlined variant) in the mockups, not a bespoke custom line-icon
-set. Relaxes the superseded spec's "custom 1.5px-stroke" requirement, since a bespoke icon
-set isn't achievable from mockup images alone and isn't what the mockups actually show.
-The "ledger-line grid" background texture on empty states/login is dropped — not visible
-in any of the 9 mockups.
+Material Symbols Rounded sit inside a **40 dp rounded-square category tile** (radius 14).
+- **Tile colour comes from the category family**, so rows carry identity without relying on colour alone:
+  - forest: food, income
+  - ochre: transport
+  - clay: dining, shopping
+  - sage: bills, health
+  - neutral: other
+
+  Spec §1.3 has the measured tile and icon hexes.
+- **The unknown-category fallback** is a neutral tag icon, never an arrow (an arrow read as income).
+- **No background textures.**
 
 ## Navigation
 
@@ -144,17 +179,16 @@ own stack and scroll position.
 
 ## Signature components (used consistently across the app)
 
-1. **Hero metric card** — full-width, rounded 24px, green gradient fill (see Colour),
-   white text: a small label, a large bold figure (net worth, total balance, portfolio
-   value), and an optional translucent-white delta pill below. Used once per screen, at
-   the top, never repeated as a pattern for lesser numbers.
+1. **Hero metric card:** full width, radius 24, level 1.
+   - In light mode it's a **light** primary-container panel (`#DCEBDD`) with dark forest text. In dark mode it's the tonal `#1F3A2A`.
+   - It holds an overline label, a display figure that counts up, an optional pill progress bar, and one line of context.
+   - Used once per screen, at the top. No gradient.
 2. **Compact stat strip** — a horizontal row of 2-3 small stat blocks (e.g. "Income" /
    "Expenses" this month), each just a label + bold figure, no borders between them, just
    spacing.
-3. **Row card** — the new base pattern for every list (Accounts, Transactions, Assets,
-   Liabilities, Settings, recent-transactions previews): a white rounded-20px card per
-   row, with a leading circular icon chip, title + muted subtitle, and a trailing
-   value/chevron. Replaces the superseded spec's flat "grouped list cells."
+3. **Group card:** one `surface` card per group of rows, radius 24 (2026-10; replaces the per-row card).
+   - Each row is at least 64 dp: a category tile, a title and muted subtitle, then a trailing tabular value or chevron.
+   - Pressing a row highlights it in `sunk`.
 4. **Progress card** — same row-card shell, holding: title + a small rounded percentage
    pill (accent-tinted, or danger-tinted when over-budget/at-risk) on one row, a linear
    progress bar beneath it (never a ring — the mockups consistently use linear, resolving
@@ -179,13 +213,26 @@ OS reduced-motion setting**. Reusable pieces live in `lib/shared/motion/`.
 - **Deletes:** single-row deletes hide the row behind a 4 s Undo snackbar instead of a
   confirm dialog. Holdings, portfolios, liability payments and log out keep their
   confirms.
-- **Mascot moments** (existing jpg poses, circle-clipped): celebrating when the review
-  queue is cleared, a goal is first seen complete, or the savings target is met;
-  thinking (a 2 px bob) while Penny replies; sleeping beside "Quiet day so far";
-  welcoming on empty Transactions, Goals and Savings. A pop plays at most once a day per
-  kind. **Never on over-budget, missed-target or error states.**
+- **Mascot moments.** As of 2026-10, these use the **transparent cutouts** in `assets/penny/` and have no circle clip.
+  - **Celebrating:** when the review queue is cleared, a goal is first seen complete, or the savings target is met.
+  - **Thinking:** a 2 px bob while Penny replies.
+  - **Sleeping:** beside "Quiet day so far".
+  - **Welcoming:** on the empty Transactions, Goals and Savings screens, and on login, lock and onboarding.
+  - A pop plays at most once a day per kind.
+  - **Penny is never at rest on Home.** Only the sleeping and savings-target moments appear there.
+  - **Never on over-budget, missed-target or error states.**
+- **2026-10 additions** (spec §1.7, §1.8, §5):
+  - Springs for press, settle and pop. Pop is mascot-only, with overshoot capped at 6 %.
+  - A 30 ms stagger on first list load, after skeletons (`skeletonizer`).
+  - A haptic vocabulary: `selectionClick` for selection; `lightImpact` for save, confirm and threshold; `mediumImpact` for delete and goal reached; none on errors.
+  - Every one of M1–M42 has defined feedback.
 
 ## Screen-by-screen direction
+
+> The structure below still holds. The 2026-10 visual treatment of each screen
+> (palette, grouping, Penny placement, motion) is in `docs/visual-rework/04-visual-spec.md`
+> §4, with Stitch mockups in light and dark. Where this section says "green gradient" or
+> "circle-clipped mascot", the spec wins.
 
 ### 1. Login / Register
 Confirmed directly by mockups. Piggy-bank mascot illustration (placeholder icon in code
@@ -212,7 +259,7 @@ Rewritten by the UX rework (spec §2.1). Fixed order, no customisation:
    monthly budget ›" link. "Quiet day so far" (Penny asleep) sits under it when nothing
    has been spent today, never alongside over budget.
 3. The savings card (target, gap or "target met this month").
-4. A **Net worth** row card that opens the Net worth hub.
+4. A **Net worth** card that opens the Net worth hub.
 5. **Needs attention:** one card, in priority order: the most over-budget category, a
    budget at 80 % or more, a goal in progress. Never a completed goal; nothing when
    none applies.
@@ -225,7 +272,7 @@ destinations live in the Net worth hub, Transactions and Plan.
 Confirmed directly by mockup — and the mockup adds a hero metric card ("Total balance")
 above the list that the superseded spec didn't have; added since the account balances are
 already loaded client-side (a client-side sum, no new API call). Active accounts render
-as row cards (institution as muted subtext, balance trailing). Soft-deleted (deactivated)
+as rows in a group card (institution as muted subtext, balance trailing). Soft-deleted (deactivated)
 accounts render in a collapsed "Inactive" group beneath active ones, matching the
 backend's soft-delete/restore semantics — never just hidden with no way back in. A pill
 "+ Add account" CTA as a persistent FAB, per mockup.
@@ -233,7 +280,7 @@ backend's soft-delete/restore semantics — never just hidden with no way back i
 ### 5. Transactions — list + detail/edit
 Confirmed directly by mockup. List: filter chip row (All/Income/Expense/Transfer — visual
 only for now, matching the mockup; wiring it to the existing-but-unused filter provider is
-a separate, already-tracked gap, not part of this visual pass) then row cards grouped by
+a separate, already-tracked gap, not part of this visual pass) then rows in group cards, grouped by
 date (day headers as muted small-caps labels), each row: merchant-icon chip + merchant/
 description, category as muted subtext, amount trailing (success/danger-tinted by
 direction — income green, expense red — matching the Dashboard's recent-transactions
