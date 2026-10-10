@@ -1,7 +1,7 @@
 # Visual rework 04: visual spec, "Ledger Pocket"
 
-**Status:** draft for Tiaan's approval (Session 3). Nothing here is built yet; Session 4
-turns it into the blueprint.
+**Status:** approved by Tiaan 2026-10-10 (tokens, Penny choices; default pose retired).
+Nothing here is built yet; the build order is `plans/visual-rework-blueprint.md`.
 
 **The pick (2026-10-10):** B · Pocket's warmth and style, with A · Ledger's colour theme
 and a **light** hero panel. Penny is shown as a **transparent cutout**, never a square,
