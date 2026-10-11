@@ -9,6 +9,7 @@ import 'package:image_picker/image_picker.dart';
 import '../../../core/api/api_error.dart';
 import '../../../core/format/money.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/theme/app_tokens.dart';
 import '../../../shared/widgets/app_skeleton.dart';
 import '../../../shared/widgets/group_card.dart';
 import '../../../shared/widgets/icon_chip.dart';
@@ -582,27 +583,18 @@ class _ConfidenceBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final semantic = Theme.of(context).extension<AppSemanticColors>();
-    final Color fg;
-    final Color? bg;
-    final String label;
-    if (score >= 0.8) {
-      fg = semantic?.success ?? Colors.green;
-      bg = semantic?.accentChipBg;
-      label = 'HIGH';
-    } else if (score >= 0.5) {
-      fg = Theme.of(context).colorScheme.primary;
-      bg = semantic?.accentChipBg;
-      label = 'MEDIUM';
-    } else {
-      fg = semantic?.danger ?? Colors.red;
-      bg = semantic?.dangerChipBg;
-      label = 'LOW';
-    }
+    final t = context.tokens;
+    // A low score is a cue to check the fields, not an error, so it stays
+    // out of danger red (J4); the label carries the level.
+    final (label, fg, bg) = switch (score) {
+      >= 0.8 => ('HIGH', t.onPrimaryContainer, t.primaryContainer),
+      >= 0.5 => ('MEDIUM', t.ink, t.sunk),
+      _ => ('LOW', t.muted, t.sunk),
+    };
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(999)),
-      child: Text('$label CONFIDENCE', style: TextStyle(color: fg, fontWeight: FontWeight.w700, fontSize: 11)),
+      decoration: BoxDecoration(color: bg, borderRadius: AppRadius.pillAll),
+      child: Text('$label CONFIDENCE', style: Theme.of(context).textTheme.labelSmall?.copyWith(color: fg)),
     );
   }
 }

@@ -6,6 +6,7 @@ import '../../../core/format/money.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../shared/motion/spring_swipe.dart';
 import '../../../shared/widgets/app_card.dart';
+import '../../../shared/widgets/app_controls.dart';
 import '../../../shared/widgets/app_skeleton.dart';
 import '../../../shared/widgets/mascot_moment.dart';
 import '../../../shared/widgets/swipe_background.dart';
@@ -145,7 +146,7 @@ class _PendingReviewScreenState extends ConsumerState<PendingReviewScreen> {
     return Scaffold(
       appBar: AppBar(title: const Text('Review detected items')),
       body: SafeArea(
-        child: RefreshIndicator(
+        child: AppRefresh(
           onRefresh: () async => ref.invalidate(pendingEventsProvider),
           child: SkeletonSwitcher(child: pendingAsync.when(
             loading: () => const SkeletonPage(rows: 4),

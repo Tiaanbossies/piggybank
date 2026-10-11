@@ -15,6 +15,7 @@ import '../../../shared/motion/count_up_text.dart';
 import '../../../shared/motion/stagger_in.dart';
 import '../../../shared/widgets/app_banner.dart';
 import '../../../shared/widgets/app_card.dart';
+import '../../../shared/widgets/app_controls.dart';
 import '../../../shared/widgets/app_skeleton.dart';
 import '../../../shared/widgets/group_card.dart';
 import '../../../shared/widgets/icon_chip.dart';
@@ -58,7 +59,7 @@ class DashboardScreen extends ConsumerWidget {
     return Scaffold(
       appBar: const TabAppBar(title: 'Piggybank'),
       body: SafeArea(
-        child: RefreshIndicator(
+        child: AppRefresh(
           onRefresh: () async {
             ref.invalidate(netWorthProvider);
             ref.invalidate(netWorthHistoryProvider);
@@ -225,11 +226,19 @@ class _SavingsCard extends ConsumerWidget {
             ),
           ),
           if (target != null && !overview.targetMet)
-            CrossfadeDigits(
-              key: const Key('home-savings-pct'),
-              text: '$pct%',
-              amount: overview.progress,
-              style: text.labelMedium?.copyWith(color: t.muted),
+            // The percent says what it's of, stacked so the subtitle keeps
+            // its width.
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                CrossfadeDigits(
+                  key: const Key('home-savings-pct'),
+                  text: '$pct%',
+                  amount: overview.progress,
+                  style: text.labelMedium?.copyWith(color: t.muted),
+                ),
+                Text('of target', style: text.labelSmall?.copyWith(color: t.muted)),
+              ],
             ),
           Icon(Icons.chevron_right, color: t.muted),
         ],

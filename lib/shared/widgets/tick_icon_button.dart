@@ -19,7 +19,7 @@ class TickIconButton extends StatefulWidget {
   /// The action itself. The tick shows once it completes without throwing.
   final Future<void> Function() onPressed;
 
-  static const tickFor = Duration(milliseconds: 1500);
+  static const tickFor = AppMotion.tickHold;
 
   @override
   State<TickIconButton> createState() => _TickIconButtonState();

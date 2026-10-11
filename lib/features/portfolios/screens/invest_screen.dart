@@ -8,6 +8,7 @@ import '../../../core/theme/app_tokens.dart';
 import '../../../shared/motion/container_transform.dart';
 import '../../../shared/widgets/allocation_donut.dart';
 import '../../../shared/widgets/app_card.dart';
+import '../../../shared/widgets/app_controls.dart';
 import '../../../shared/widgets/app_skeleton.dart';
 import '../../../shared/widgets/group_card.dart';
 import '../../../shared/widgets/hero_metric_card.dart';
@@ -55,7 +56,7 @@ class InvestScreen extends ConsumerWidget {
         ],
       ),
       body: SafeArea(
-        child: RefreshIndicator(
+        child: AppRefresh(
           onRefresh: () async {
             ref.invalidate(investmentOverviewProvider);
             ref.invalidate(portfoliosProvider);
@@ -161,21 +162,24 @@ class _OverviewSection extends ConsumerWidget {
               label: 'Total value',
               value: formatZAR(overview.totalValue),
               amount: overview.totalValue.toDouble(),
-              deltaText: '${signedPl(overview.unrealizedPl)} unrealized',
+              deltaText: '${signedPl(overview.unrealizedPl)} if sold today',
             ),
             const SizedBox(height: AppSpace.rowGap),
             AppCard(
+              // Aligned on the figures, so a label that wraps on a narrow
+              // phone lifts itself rather than dropping its figure.
               child: Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   Expanded(
                     child: _StatColumn(
-                      label: 'Unrealized P&L',
+                      label: 'Gain if sold today',
                       value: signedPl(overview.unrealizedPl),
                       color: plColor(t, overview.unrealizedPl),
                     ),
                   ),
                   Expanded(
-                    child: _StatColumn(label: 'YTD dividends', value: formatZAR(overview.ytdDividends)),
+                    child: _StatColumn(label: "Year's dividends", value: formatZAR(overview.ytdDividends)),
                   ),
                   Expanded(
                     child: _StatColumn(label: 'Portfolios', value: '${overview.portfolioCount}'),

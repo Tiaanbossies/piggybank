@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/api/api_error.dart';
 import '../../../core/format/money.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../shared/widgets/app_controls.dart';
 import '../../../shared/widgets/app_skeleton.dart';
 import '../../../shared/widgets/group_card.dart';
 import '../asset_class_style.dart';
@@ -27,7 +28,7 @@ class AllHoldingsScreen extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(title: const Text('All Holdings')),
       body: SafeArea(
-        child: RefreshIndicator(
+        child: AppRefresh(
           onRefresh: () async => ref.invalidate(allHoldingsProvider),
           child: SkeletonSwitcher(child: holdingsAsync.when(
             loading: () => const SkeletonPage(),

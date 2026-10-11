@@ -10,6 +10,7 @@ import '../../../core/theme/app_haptics.dart';
 import '../../../core/theme/app_motion.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../shared/motion/saved_highlight.dart';
+import '../../../shared/widgets/app_controls.dart';
 import '../../../shared/widgets/app_skeleton.dart';
 import '../../../shared/widgets/deferred_delete.dart';
 import '../../../shared/widgets/progress_card.dart';
@@ -43,7 +44,7 @@ class BudgetsBody extends ConsumerWidget {
     final progressAsync = ref.watch(budgetProgressProvider);
     const padding = EdgeInsets.fromLTRB(AppSpace.gutter, AppSpace.s8, AppSpace.gutter, AppSpace.s16 + AppSpace.fabInset);
 
-    return RefreshIndicator(
+    return AppRefresh(
       onRefresh: () => ref.refresh(budgetProgressProvider.future),
       // A month change slides the content the way the month moved (M26).
       child: _MonthSlide(

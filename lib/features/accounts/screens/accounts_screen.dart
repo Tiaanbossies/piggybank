@@ -10,6 +10,7 @@ import '../../../core/format/money.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../shared/motion/container_transform.dart';
+import '../../../shared/widgets/app_controls.dart';
 import '../../../shared/widgets/app_skeleton.dart';
 import '../../../shared/widgets/group_card.dart';
 import '../../../shared/widgets/hero_metric_card.dart';
@@ -51,7 +52,7 @@ class _AccountsScreenState extends ConsumerState<AccountsScreen> {
         ],
       ),
       body: SafeArea(
-        child: RefreshIndicator(
+        child: AppRefresh(
           onRefresh: () => ref.refresh(accountsProvider.future),
           child: SkeletonSwitcher(child: accountsAsync.when(
             loading: () => const SkeletonPage(hero: true),

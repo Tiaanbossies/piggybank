@@ -75,7 +75,7 @@ class _GroupRowState extends State<GroupRow> {
       onPointerCancel: (_) => _set(false),
       child: AnimatedContainer(
         key: const Key('group-row-highlight'),
-        duration: _pressed ? const Duration(milliseconds: 100) : AppMotion.feedback,
+        duration: _pressed ? AppMotion.pressIn : AppMotion.feedback,
         color: t.sunk.withValues(alpha: _pressed ? 0.6 : 0),
         child: InkWell(
           onTap: widget.onTap,

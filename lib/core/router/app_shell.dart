@@ -35,7 +35,7 @@ class AppShell extends StatefulWidget {
 
 class _AppShellState extends State<AppShell> with SingleTickerProviderStateMixin {
   /// The fade-through's incoming half (spec §3.1: in 160 ms).
-  static const _fadeIn = Duration(milliseconds: 160);
+  static const _fadeIn = AppMotion.fadeThroughIn;
 
   late final AnimationController _controller;
   late final Animation<double> _opacity;
