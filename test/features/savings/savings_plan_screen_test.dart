@@ -1,9 +1,11 @@
 import 'package:decimal/decimal.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:piggybank/core/api/api_error.dart';
+import 'package:piggybank/core/theme/app_tokens.dart';
 import 'package:piggybank/features/chatbot/providers/chatbot_provider.dart';
 import 'package:piggybank/features/plan/screens/plan_screen.dart';
 import 'package:piggybank/features/savings/data/savings_api.dart';
@@ -131,7 +133,7 @@ void main() {
       when(() => api.overview()).thenAnswer((_) async => _overview(target: _rent, gap: '1500.00'));
       await pump(tester);
       expect(find.text('Rent'), findsOneWidget);
-      expect(find.text('Gap R\u00A01\u00A0500,00'), findsOneWidget);
+      expect(find.text('Gap R\u00A01\u00A0500'), findsOneWidget);
       expect(find.text('Target R\u00A09\u00A0000,00 a month'), findsOneWidget);
     });
 
@@ -565,6 +567,68 @@ void main() {
       expect(parseAmount('0'), isNull);
       expect(parseAmount('abc'), isNull);
       expect(parseAmount(''), isNull);
+    });
+  });
+  group('Savings look (spec §4.1, M19)', () {
+    testWidgets('the target card wears the hero palette', (tester) async {
+      when(() => api.overview()).thenAnswer((_) async => _overview(target: _rent, gap: '1500.00'));
+      await pump(tester);
+      final material = tester.widget<Material>(
+        find.descendant(of: find.byKey(const Key('savings-target')), matching: find.byType(Material)).first,
+      );
+      expect(material.color, AppTokens.light.hero);
+    });
+
+    testWidgets('confirmed costs share one group card; Ask Penny comes last', (tester) async {
+      when(() => api.listRecurring()).thenAnswer((_) async => [
+            _cost('c1', 'Gym', amount: '450.00'),
+            _cost('c2', 'Netflix', amount: '199.00'),
+          ]);
+      await pump(tester);
+      final group = find.byKey(const Key('recurring-costs'));
+      expect(find.descendant(of: group, matching: find.text('Gym')), findsOneWidget);
+      expect(find.descendant(of: group, matching: find.text('Netflix')), findsOneWidget);
+      expect(
+        tester.getTopLeft(find.byKey(const Key('where-to-cut'))).dy,
+        greaterThan(tester.getBottomLeft(group).dy),
+      );
+    });
+
+    testWidgets('a suggestion swipe ticks once at the threshold and springs back if let go short', (tester) async {
+      when(() => api.listRecurring()).thenAnswer((_) async => [_suggestion('s1', 'Netflix')]);
+      await pump(tester);
+      final haptics = <Object?>[];
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(SystemChannels.platform, (call) async {
+        if (call.method == 'HapticFeedback.vibrate') haptics.add(call.arguments);
+        return null;
+      });
+      addTearDown(() => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(SystemChannels.platform, null));
+
+      // Short of the threshold: no tick, and the card comes home.
+      final gesture = await tester.startGesture(tester.getCenter(find.byKey(const ValueKey('dismiss-s1'))));
+      await gesture.moveBy(const Offset(40, 0));
+      await gesture.moveBy(const Offset(40, 0));
+      await tester.pump();
+      await gesture.up();
+      await tester.pumpAndSettle();
+      expect(haptics, isEmpty);
+      expect(
+        tester.widget<Transform>(find.byKey(const Key('spring-swipe-card'))).transform.getTranslation().x,
+        closeTo(0, 0.01),
+      );
+      expect(find.text('Netflix'), findsOneWidget);
+
+      // Past it: one light tick as it crosses, none on release.
+      final again = await tester.startGesture(tester.getCenter(find.byKey(const ValueKey('dismiss-s1'))));
+      for (var i = 0; i < 8; i++) {
+        await again.moveBy(const Offset(60, 0));
+        await tester.pump();
+      }
+      expect(haptics, ['HapticFeedbackType.lightImpact']);
+      await again.up();
+      await tester.pumpAndSettle();
+      expect(haptics, hasLength(1));
+      expect(find.text('Confirmed · Netflix'), findsOneWidget);
     });
   });
 }

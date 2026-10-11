@@ -4,8 +4,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/calc/chart_utils.dart';
 import '../../../core/calc/risk_metrics.dart' as risk;
+import '../../../core/theme/app_motion.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/theme/app_tokens.dart';
+import '../../../shared/motion/chart_reveal.dart';
 import '../../../shared/widgets/app_skeleton.dart';
+import '../../../shared/widgets/chart_style.dart';
 import '../../../shared/widgets/ticker_autocomplete_field.dart';
 import '../models/comparison_entry.dart';
 import '../models/ticker_search_result.dart';
@@ -133,7 +137,7 @@ class _InstrumentComparisonScreenState extends ConsumerState<InstrumentCompariso
                           message: entry.error ?? '',
                           triggerMode: entry.error == null ? TooltipTriggerMode.manual : null,
                           child: InputChip(
-                            avatar: CircleAvatar(backgroundColor: entry.color, radius: 6),
+                            avatar: CircleAvatar(backgroundColor: _lineColor(context, comparison.entries, entry), radius: 6),
                             label: Text(
                               entry.loading ? '${entry.ticker} …' : (entry.error != null ? '${entry.ticker} ⚠' : entry.ticker),
                             ),
@@ -208,9 +212,8 @@ class _InstrumentComparisonScreenState extends ConsumerState<InstrumentCompariso
 }
 
 class _EntryStats {
-  _EntryStats(ComparisonEntry entry, double nominalYears)
+  _EntryStats(ComparisonEntry entry, double nominalYears, this.color)
       : ticker = entry.ticker,
-        color = entry.color,
         currency = entry.currency,
         dividendYield = entry.lookup?.dividendYield?.toDouble() {
     final prices = entry.data.map((p) => p.close.toDouble()).toList();
@@ -236,6 +239,16 @@ class _EntryStats {
   late final List<double> dailyReturns;
 }
 
+/// A comparison line's colour: its place in the list on the chart ramp
+/// (visual spec §1.3), picked at render time. The colour the provider
+/// stores on the entry is ignored, so this stays presentation-only (Step 7
+/// mutation log).
+Color _lineColor(BuildContext context, List<ComparisonEntry> all, ComparisonEntry entry) {
+  final ramp = chartPalette(context.tokens);
+  final index = all.indexOf(entry);
+  return ramp[(index < 0 ? 0 : index) % ramp.length];
+}
+
 String _pct(double v, {int decimals = 1}) => '${(v * 100).toStringAsFixed(decimals)}%';
 
 class _ComparisonLineChart extends StatelessWidget {
@@ -259,8 +272,14 @@ class _ComparisonLineChart extends StatelessWidget {
     ];
     final rows = buildChartData(series, percent: percentMode);
     if (rows.isEmpty) return const SizedBox.shrink();
+    final haptics = DatatipHaptics();
 
-    return LineChart(
+    // Lines draw in left to right whenever the set or the mode changes;
+    // touch shows a datatip with a tick (M24).
+    return ChartReveal(
+      revealKey: '${ready.map((e) => e.ticker).join(',')}|$percentMode',
+      child: LineChart(
+      duration: context.reducedMotion ? Duration.zero : AppMotion.stateChange,
       LineChartData(
         titlesData: FlTitlesData(
           topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
@@ -289,12 +308,16 @@ class _ComparisonLineChart extends StatelessWidget {
             ),
           ),
         ),
-        lineTouchData: const LineTouchData(enabled: true),
+        lineTouchData: chartTouch(
+          context,
+          haptics,
+          label: (y) => percentMode ? '${y.toStringAsFixed(1)}%' : y.toStringAsFixed(2),
+        ),
         lineBarsData: [
           for (final e in ready)
             LineChartBarData(
               isCurved: false,
-              color: e.color,
+              color: _lineColor(context, entries, e),
               barWidth: 2,
               dotData: const FlDotData(show: false),
               spots: [
@@ -304,6 +327,7 @@ class _ComparisonLineChart extends StatelessWidget {
             ),
         ],
       ),
+    ),
     );
   }
 }
@@ -319,7 +343,7 @@ class _SummaryTab extends StatelessWidget {
     if (ready.isEmpty) {
       return const Center(child: Text('Add at least one ticker with price history'));
     }
-    final stats = [for (final e in ready) _EntryStats(e, periodYears)];
+    final stats = [for (final e in ready) _EntryStats(e, periodYears, _lineColor(context, entries, e))];
     final semantic = Theme.of(context).extension<AppSemanticColors>();
     final headerStyle = TextStyle(color: semantic?.textMuted, fontSize: 12, fontWeight: FontWeight.w600);
     Widget money(String v) => Text(v, style: moneyTextStyle(context, fontSize: 13));
@@ -385,7 +409,7 @@ class _RiskMetricsTab extends StatelessWidget {
       padding: const EdgeInsets.all(16),
       children: [
         for (final e in ready) ...[
-          _RiskMetricCard(stats: _EntryStats(e, periodYears)),
+          _RiskMetricCard(stats: _EntryStats(e, periodYears, _lineColor(context, entries, e))),
           const SizedBox(height: 12),
         ],
       ],
@@ -458,16 +482,19 @@ class _CorrelationTab extends StatelessWidget {
     }
     final returns = {for (final e in ready) e.ticker: risk.calcDailyReturns(e.data.map((p) => p.close.toDouble()).toList())};
     final semantic = Theme.of(context).extension<AppSemanticColors>();
-    final success = semantic?.success ?? Colors.green;
-    final danger = semantic?.danger ?? Colors.red;
-    final border = Theme.of(context).colorScheme.outline;
+    final t = context.tokens;
+    // Correlation isn't good or bad, so neither end is red (J4): aligned
+    // reads in forest, inverse in clay, from the chart ramp.
+    final aligned = t.chartSeries[0];
+    final inverse = t.chartSeries[2];
+    final border = t.outline;
 
     Color cellColor(double v) {
-      if (v >= 0) return success.withValues(alpha: v * 0.7);
-      return danger.withValues(alpha: -v * 0.7);
+      if (v >= 0) return aligned.withValues(alpha: v * 0.7);
+      return inverse.withValues(alpha: -v * 0.7);
     }
 
-    Color textColorFor(double v) => v.abs() >= 0.5 ? Colors.white : Theme.of(context).colorScheme.onSurface;
+    Color textColorFor(double v) => v.abs() >= 0.5 ? t.surface : t.ink;
 
     return Padding(
       padding: const EdgeInsets.all(16),
@@ -565,7 +592,7 @@ class _CorrelationTab extends StatelessWidget {
                       height: 6,
                       decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(3),
-                        gradient: LinearGradient(colors: [danger, border, success]),
+                        gradient: LinearGradient(colors: [inverse, border, aligned]),
                       ),
                     ),
                   ),
@@ -601,7 +628,7 @@ class _FactsheetTab extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(children: [
-                    CircleAvatar(backgroundColor: e.color, radius: 6),
+                    CircleAvatar(backgroundColor: _lineColor(context, entries, e), radius: 6),
                     const SizedBox(width: 8),
                     Text(e.name, style: Theme.of(context).textTheme.titleMedium),
                   ]),

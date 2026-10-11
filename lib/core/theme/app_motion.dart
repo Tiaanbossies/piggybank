@@ -25,6 +25,10 @@ abstract final class AppMotion {
   /// Smooth value transitions (progress bars, numeric fills).
   static const valueTransition = Duration(milliseconds: 400);
 
+  /// A chart drawing in (M24): the line left to right, a donut or bar
+  /// sweeping. The spec's one exception to the 300 ms transition cap.
+  static const chartDraw = Duration(milliseconds: 600);
+
   // Visual rework spec §1.7: B's "springy" personality inside the epic budget
   // (feedback < 100 ms, transitions ≤ 300 ms).
 

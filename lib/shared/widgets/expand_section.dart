@@ -25,6 +25,15 @@ class _ExpandSectionState extends State<ExpandSection> with SingleTickerProvider
   );
   late final Animation<double> _curve = CurvedAnimation(parent: _open, curve: AppMotion.easeInOut);
 
+  @override
+  void initState() {
+    super.initState();
+    // Drops the body once it has finished closing.
+    _open.addStatusListener((status) {
+      if (status == AnimationStatus.dismissed && mounted) setState(() {});
+    });
+  }
+
   bool get _expanded => _open.status == AnimationStatus.completed || _open.status == AnimationStatus.forward;
 
   void _toggle() {
@@ -76,7 +85,9 @@ class _ExpandSectionState extends State<ExpandSection> with SingleTickerProvider
           key: const Key('expand-body'),
           sizeFactor: _curve,
           alignment: Alignment.topCenter,
-          child: widget.child,
+          // Closed, the body isn't built at all, so nothing inside it (a
+          // goal's first-seen pop) plays out of sight.
+          child: _open.isDismissed ? const SizedBox(width: double.infinity) : widget.child,
         ),
       ],
     );

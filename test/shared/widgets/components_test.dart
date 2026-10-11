@@ -241,7 +241,9 @@ void main() {
       bar = tester.widget<LinearProgressIndicator>(find.byType(LinearProgressIndicator));
       expect(bar.color, light.primary);
 
+      // Crossing into over budget crossfades to danger (M40).
       await pump(tester, const ProgressCard(title: 'Food', pct: 1.3, footnote: 'f', overBudget: true));
+      await tester.pumpAndSettle();
       bar = tester.widget<LinearProgressIndicator>(find.byType(LinearProgressIndicator));
       expect(bar.color, light.danger);
     });

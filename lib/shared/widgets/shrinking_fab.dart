@@ -64,16 +64,18 @@ class _ShrinkingFabState extends State<ShrinkingFab> {
 
   @override
   Widget build(BuildContext context) {
+    final label = _extended ? Text(widget.label) : const SizedBox.shrink();
     return FloatingActionButton.extended(
       onPressed: widget.onPressed,
       tooltip: widget.label,
       isExtended: _extended,
       icon: Icon(widget.icon),
-      label: AnimatedSize(
-        duration: context.reducedMotion ? Duration.zero : AppMotion.feedback,
-        curve: AppMotion.easeOut,
-        child: _extended ? Text(widget.label) : const SizedBox.shrink(),
-      ),
+      // Under reduced motion there's no AnimatedSize at all: a zero-length
+      // one finishes inside its own layout and throws when the label
+      // changes (Plan's FAB changes with its segment).
+      label: context.reducedMotion
+          ? label
+          : AnimatedSize(duration: AppMotion.feedback, curve: AppMotion.easeOut, child: label),
     );
   }
 }

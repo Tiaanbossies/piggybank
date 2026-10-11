@@ -1,17 +1,19 @@
-import 'package:decimal/decimal.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/api/api_error.dart';
 import '../../../core/format/money.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/theme/app_tokens.dart';
 import '../../../shared/motion/container_transform.dart';
 import '../../../shared/widgets/allocation_donut.dart';
+import '../../../shared/widgets/app_card.dart';
 import '../../../shared/widgets/app_skeleton.dart';
 import '../../../shared/widgets/group_card.dart';
 import '../../../shared/widgets/hero_metric_card.dart';
 import '../../../shared/widgets/state_views.dart';
 import '../../../shared/widgets/tab_app_bar.dart';
+import '../asset_class_style.dart';
 import '../models/portfolio.dart';
 import '../providers/portfolios_provider.dart';
 import 'all_holdings_screen.dart';
@@ -33,12 +35,21 @@ class InvestScreen extends ConsumerWidget {
       appBar: TabAppBar(
         title: 'Invest',
         actions: [
-          TextButton.icon(
-            key: const Key('invest-compare'),
-            icon: const Icon(Icons.stacked_line_chart),
-            label: const Text('Compare'),
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const InstrumentComparisonScreen()),
+          // A labelled pill, not a bare icon (spec §4.1).
+          Padding(
+            padding: const EdgeInsets.only(right: AppSpace.s8),
+            child: OutlinedButton.icon(
+              key: const Key('invest-compare'),
+              // App-bar size; the 48 dp tap target stays.
+              style: OutlinedButton.styleFrom(
+                minimumSize: const Size(0, 40),
+                padding: const EdgeInsets.symmetric(horizontal: AppSpace.s16),
+              ),
+              icon: const Icon(Icons.stacked_line_chart, size: 18),
+              label: const Text('Compare'),
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const InstrumentComparisonScreen()),
+              ),
             ),
           ),
         ],
@@ -67,10 +78,10 @@ class InvestScreen extends ConsumerWidget {
             data: (portfolios) {
               if (portfolios.isEmpty) return const _EmptyState();
               return ListView(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.fromLTRB(AppSpace.gutter, AppSpace.s8, AppSpace.gutter, AppSpace.sectionGap),
                 children: [
                   const _OverviewSection(),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: AppSpace.sectionGap),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
@@ -134,7 +145,7 @@ class _OverviewSection extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final overviewAsync = ref.watch(investmentOverviewProvider);
-    final semantic = Theme.of(context).extension<AppSemanticColors>();
+    final t = context.tokens;
 
     return SkeletonSwitcher(child: overviewAsync.when(
       loading: () => const SkeletonHero(),
@@ -143,7 +154,6 @@ class _OverviewSection extends ConsumerWidget {
         onRetry: () => ref.invalidate(investmentOverviewProvider),
       ),
       data: (overview) {
-        final plUp = overview.unrealizedPl >= Decimal.zero;
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -151,37 +161,34 @@ class _OverviewSection extends ConsumerWidget {
               label: 'Total value',
               value: formatZAR(overview.totalValue),
               amount: overview.totalValue.toDouble(),
-              deltaText: '${plUp ? '+' : ''}${formatZAR(overview.unrealizedPl)} unrealized',
+              deltaText: '${signedPl(overview.unrealizedPl)} unrealized',
             ),
-            const SizedBox(height: 16),
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: _StatColumn(
-                        label: 'Unrealized P&L',
-                        value: formatZAR(overview.unrealizedPl),
-                        color: plUp ? semantic?.success : semantic?.danger,
-                      ),
+            const SizedBox(height: AppSpace.rowGap),
+            AppCard(
+              child: Row(
+                children: [
+                  Expanded(
+                    child: _StatColumn(
+                      label: 'Unrealized P&L',
+                      value: signedPl(overview.unrealizedPl),
+                      color: plColor(t, overview.unrealizedPl),
                     ),
-                    Expanded(
-                      child: _StatColumn(label: 'YTD dividends', value: formatZAR(overview.ytdDividends)),
-                    ),
-                    Expanded(
-                      child: _StatColumn(label: 'Portfolios', value: '${overview.portfolioCount}'),
-                    ),
-                  ],
-                ),
+                  ),
+                  Expanded(
+                    child: _StatColumn(label: 'YTD dividends', value: formatZAR(overview.ytdDividends)),
+                  ),
+                  Expanded(
+                    child: _StatColumn(label: 'Portfolios', value: '${overview.portfolioCount}'),
+                  ),
+                ],
               ),
             ),
             if (overview.allocation.isNotEmpty) ...[
-              const SizedBox(height: 16),
+              const SizedBox(height: AppSpace.rowGap),
               AllocationDonut(items: overview.allocation),
             ],
             if (overview.topHoldings.isNotEmpty) ...[
-              const SizedBox(height: 24),
+              const SizedBox(height: AppSpace.sectionGap),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -206,10 +213,10 @@ class _OverviewSection extends ConsumerWidget {
                         children: [
                           Text(formatZAR(holding.value), style: moneyTextStyle(context, fontSize: 14)),
                           Text(
-                            formatZAR(holding.unrealizedPl),
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: holding.unrealizedPl >= Decimal.zero ? semantic?.success : semantic?.danger,
+                            signedPl(holding.unrealizedPl),
+                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: plColor(t, holding.unrealizedPl),
+                              fontFeatures: const [FontFeature.tabularFigures()],
                             ),
                           ),
                         ],
@@ -233,12 +240,12 @@ class _StatColumn extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final semantic = Theme.of(context).extension<AppSemanticColors>();
+    final t = context.tokens;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: TextStyle(color: semantic?.textMuted, fontSize: 12)),
-        const SizedBox(height: 4),
+        Text(label, style: Theme.of(context).textTheme.bodySmall?.copyWith(color: t.muted)),
+        const SizedBox(height: AppSpace.s4),
         Text(value, style: moneyTextStyle(context, fontSize: 15, color: color)),
       ],
     );
