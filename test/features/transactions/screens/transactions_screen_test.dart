@@ -2,9 +2,11 @@ import 'dart:async';
 
 import 'package:decimal/decimal.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:piggybank/core/api/api_error.dart';
+import 'package:piggybank/core/theme/app_tokens.dart';
 import 'package:piggybank/features/detection/widgets/review_banner.dart';
 import 'package:piggybank/features/transactions/data/transactions_api.dart';
 import 'package:piggybank/features/transactions/models/transaction.dart';
@@ -162,13 +164,13 @@ void main() {
       expect(find.text('Woolworths'), findsOneWidget);
       expect(find.text('Employer Inc'), findsOneWidget);
 
-      await tester.tap(find.widgetWithText(ChoiceChip, 'Expense'));
+      await tester.tap(find.widgetWithText(FilterChip, 'Expense'));
       await tester.pumpAndSettle();
 
       expect(find.text('Woolworths'), findsOneWidget);
       expect(find.text('Employer Inc'), findsNothing);
 
-      await tester.tap(find.widgetWithText(ChoiceChip, 'Income'));
+      await tester.tap(find.widgetWithText(FilterChip, 'Income'));
       await tester.pumpAndSettle();
 
       expect(find.text('Woolworths'), findsNothing);
@@ -347,6 +349,72 @@ void main() {
       await tester.tap(find.byKey(const Key('transactions-filter')));
       await tester.pumpAndSettle();
       expect(find.text('Clear all filters'), findsOneWidget);
+    });
+  });
+
+  group('Transactions look (visual rework Step 6)', () {
+    testWidgets('each day header shows its net total; spending is ink, not red', (tester) async {
+      _stubList(mockApi, [
+        _tx(id: '1', type: TransactionType.expense, category: 'Groceries', merchantName: 'Woolworths',
+            date: DateTime(2026, 8, 20), amount: Decimal.parse('300')),
+        _tx(id: '2', type: TransactionType.income, category: 'Salary', merchantName: 'Employer',
+            date: DateTime(2026, 8, 20), amount: Decimal.parse('1000')),
+        _tx(id: '3', type: TransactionType.expense, category: 'Fuel', merchantName: 'Engen',
+            date: DateTime(2026, 8, 19), amount: Decimal.parse('50')),
+      ]);
+      await pumpApp(tester, const TransactionsScreen(), overrides: [transactionsApiProvider.overrideWithValue(mockApi)]);
+      await tester.pumpAndSettle();
+
+      expect(tester.widget<Text>(find.byKey(ValueKey('day-total-${DateTime(2026, 8, 20).toIso8601String()}'))).data,
+          '+R\u00A0700,00');
+      expect(tester.widget<Text>(find.byKey(ValueKey('day-total-${DateTime(2026, 8, 19).toIso8601String()}'))).data,
+          '\u2212R\u00A050,00');
+      final spent = tester.widget<Text>(find.text('\u2212R\u00A0300,00'));
+      expect(spent.style?.color, isNot(AppTokens.light.danger));
+    });
+
+    testWidgets('Insights is labelled and the Review action is hidden at 0', (tester) async {
+      _stubList(mockApi, [_tx(id: '1', type: TransactionType.expense, category: 'Groceries')]);
+      await pumpApp(tester, const TransactionsScreen(), overrides: [transactionsApiProvider.overrideWithValue(mockApi)]);
+      await tester.pumpAndSettle();
+
+      expect(find.byTooltip('Insights'), findsOneWidget);
+      expect(find.byKey(const Key('transactions-review')), findsNothing);
+    });
+
+    testWidgets('deleting a row slides it out with one medium tap, then Undo brings it back (M15, M16)',
+        (tester) async {
+      final haptics = <Object?>[];
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(SystemChannels.platform, (call) async {
+        if (call.method == 'HapticFeedback.vibrate') haptics.add(call.arguments);
+        return null;
+      });
+      addTearDown(() => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(SystemChannels.platform, null));
+      _stubList(mockApi, [
+        _tx(id: '1', type: TransactionType.expense, category: 'Groceries', merchantName: 'Woolworths'),
+        _tx(id: '2', type: TransactionType.expense, category: 'Fuel', merchantName: 'Engen'),
+      ]);
+      await pumpApp(tester, const TransactionsScreen(), overrides: [transactionsApiProvider.overrideWithValue(mockApi)]);
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Woolworths'));
+      await tester.pumpAndSettle();
+      await tester.ensureVisible(find.byKey(const Key('transaction-delete')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('transaction-delete')));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 90));
+      // The nearest is the row's own; the day's wraps it too.
+      final exit = find.ancestor(of: find.text('Woolworths'), matching: find.byKey(const Key('delete-exit'))).first;
+      expect(tester.widget<Opacity>(exit).opacity, inExclusiveRange(0, 1));
+      await tester.pumpAndSettle();
+      expect(find.text('Woolworths').hitTestable(), findsNothing);
+      expect(haptics.where((h) => h == 'HapticFeedbackType.mediumImpact'), hasLength(1));
+
+      await tester.tap(find.text('Undo'));
+      await tester.pumpAndSettle();
+      expect(find.text('Woolworths').hitTestable(), findsOneWidget);
+      expect(haptics.where((h) => h == 'HapticFeedbackType.lightImpact'), hasLength(1));
     });
   });
 }

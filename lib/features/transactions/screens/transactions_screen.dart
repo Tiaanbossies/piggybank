@@ -1,15 +1,18 @@
+import 'package:decimal/decimal.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/api/api_error.dart';
 import '../../../core/format/dates.dart';
 import '../../../core/format/money.dart';
-import '../../../core/theme/app_theme.dart';
+import '../../../core/theme/app_tokens.dart';
 import '../../../shared/motion/saved_highlight.dart';
 import '../../../shared/motion/stagger_in.dart';
+import '../../../shared/widgets/app_filter_chip.dart';
 import '../../../shared/widgets/app_skeleton.dart';
 import '../../../shared/widgets/deferred_delete.dart';
 import '../../../shared/widgets/group_card.dart';
+import '../../../shared/widgets/shrinking_fab.dart';
 import '../../../shared/widgets/state_views.dart';
 import '../../../shared/widgets/tab_app_bar.dart';
 import '../../accounts/providers/accounts_provider.dart';
@@ -21,6 +24,7 @@ import '../../trends/screens/trends_screen.dart';
 import '../category_icons.dart';
 import '../models/transaction.dart';
 import '../providers/transactions_provider.dart';
+import '../widgets/signed_amount.dart';
 import '../widgets/transaction_sheet.dart';
 
 /// The Transactions tab's overflow menu items.
@@ -31,14 +35,6 @@ enum _TransactionsMenu { expenses, import, importHistory }
 /// fields as create.
 class TransactionsScreen extends ConsumerWidget {
   const TransactionsScreen({super.key});
-
-  // FloatingActionButton.extended's own height (56) plus its default margin
-  // from the screen edge (kFloatingActionButtonMargin, 16) plus a little
-  // breathing room, reserved as extra bottom padding so the last row(s) of
-  // the list never sit underneath the FAB (QA_PRODUCTION_AUDIT_2026-09-11.md
-  // M3 — a transaction's amount was fully hidden behind the FAB at certain
-  // scroll depths).
-  static const double _kFabClearance = 88;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -55,11 +51,13 @@ class TransactionsScreen extends ConsumerWidget {
         // UX rework spec §2.2: Review (only when there's real pending work),
         // Insights, and the rarer data tools in the overflow menu.
         actions: [
+          // Labelled, never icon-only (visual spec §4.3): the tooltip is also
+          // what a screen reader says. Hidden when nothing is waiting.
           if (reviewCount > 0)
             IconButton(
               key: const Key('transactions-review'),
               icon: Badge(label: Text('$reviewCount'), child: const Icon(Icons.fact_check_outlined)),
-              tooltip: 'Review detected transactions',
+              tooltip: reviewCount == 1 ? 'Review 1 detected transaction' : 'Review $reviewCount detected transactions',
               onPressed: () => openPendingReview(context),
             ),
           IconButton(
@@ -91,9 +89,12 @@ class TransactionsScreen extends ConsumerWidget {
       body: SafeArea(
         child: Column(
           children: [
-            const Padding(padding: EdgeInsets.fromLTRB(16, 8, 16, 0), child: ReviewBanner()),
+            const Padding(
+              padding: EdgeInsets.fromLTRB(AppSpace.gutter, AppSpace.s8, AppSpace.gutter, 0),
+              child: ReviewBanner(),
+            ),
             Padding(
-              padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
+              padding: const EdgeInsets.fromLTRB(AppSpace.gutter, AppSpace.s4, AppSpace.gutter, AppSpace.s4),
               child: SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
                 child: Row(
@@ -105,9 +106,10 @@ class TransactionsScreen extends ConsumerWidget {
                       TransactionType.transfer: 'Transfer',
                     }.entries)
                       Padding(
-                        padding: const EdgeInsets.only(right: 8),
-                        child: ChoiceChip(
-                          label: Text(entry.value),
+                        padding: const EdgeInsets.only(right: AppSpace.s8),
+                        child: AppFilterChip(
+                          key: Key('transactions-type-${entry.value.toLowerCase()}'),
+                          label: entry.value,
                           selected: selectedType == entry.key,
                           onSelected: (_) =>
                               ref.read(transactionFiltersProvider.notifier).setTransactionType(entry.key),
@@ -148,10 +150,9 @@ class TransactionsScreen extends ConsumerWidget {
                   ),
                   data: (page) {
                     final hidden = ref.watch(pendingDeletesProvider);
-                    final accumulated = ref
-                        .watch(accumulatedTransactionsProvider)
-                        .where((t) => !hidden.contains(t.id))
-                        .toList();
+                    // Rows being deleted stay in the list so they can leave
+                    // on screen (M15) and come back on Undo (M16).
+                    final accumulated = ref.watch(accumulatedTransactionsProvider);
 
                     if (accumulated.isEmpty) {
                       final f = ref.watch(transactionFiltersProvider);
@@ -161,7 +162,8 @@ class TransactionsScreen extends ConsumerWidget {
                           f.dateTo == null &&
                           f.category == null;
                       return ListView(
-                        padding: const EdgeInsets.fromLTRB(16, 16, 16, 16 + _kFabClearance),
+                        primary: true,
+                        padding: const EdgeInsets.fromLTRB(AppSpace.gutter, AppSpace.s16, AppSpace.gutter, AppSpace.fabInset),
                         children: [
                           if (unfiltered)
                             const EmptyState(
@@ -191,27 +193,26 @@ class TransactionsScreen extends ConsumerWidget {
                     // constructed up front on every rebuild — this list grows
                     // unboundedly via "Load more" (QA_PRODUCTION_AUDIT_2026-09-11.md M2).
                     return ListView.builder(
-                      padding: const EdgeInsets.fromLTRB(16, 16, 16, 16 + _kFabClearance),
+                      key: const Key('transactions-list'),
+                      primary: true,
+                      padding: const EdgeInsets.fromLTRB(AppSpace.gutter, AppSpace.s8, AppSpace.gutter, AppSpace.fabInset),
                       itemCount: itemCount,
                       itemBuilder: (context, index) {
                         if (index < groupEntries.length) {
                           final entry = groupEntries[index];
+                          final left = entry.value.where((t) => !hidden.contains(t.id)).toList();
                           return StaggerIn(
                             index: index,
-                            child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              Padding(
-                                padding: const EdgeInsets.only(top: 16, bottom: 8),
-                                child: Text(_formatGroupDate(entry.key), style: Theme.of(context).textTheme.labelMedium),
+                            // A day whose last row is deleted goes with it.
+                            child: CollapseOut(
+                              gone: left.isEmpty,
+                              slide: false,
+                              child: _DayGroup(
+                                date: entry.key,
+                                total: _dayTotal(left),
+                                first: index == 0,
+                                transactions: entry.value,
                               ),
-                              GroupCard(
-                                children: [
-                                  for (final transaction in entry.value)
-                                    SavedHighlight(id: transaction.id, child: _TransactionRow(transaction: transaction)),
-                                ],
-                              ),
-                            ],
                             ),
                           );
                         }
@@ -224,7 +225,7 @@ class TransactionsScreen extends ConsumerWidget {
                         }
                         // Trailing "Load more" row — only reached once, after the last group.
                         return Padding(
-                          padding: const EdgeInsets.only(top: 24),
+                          padding: const EdgeInsets.only(top: AppSpace.sectionGap),
                           child: Center(
                             child: ElevatedButton.icon(
                               icon: const Icon(Icons.add),
@@ -242,10 +243,14 @@ class TransactionsScreen extends ConsumerWidget {
           ],
         ),
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => showTransactionSheet(context),
-        label: const Text('Add transaction'),
-        icon: const Icon(Icons.add),
+      // Folds to its icon while the list scrolls down (M42).
+      floatingActionButton: Builder(
+        builder: (context) => ShrinkingFab(
+          controller: PrimaryScrollController.of(context),
+          icon: Icons.add,
+          label: 'Add transaction',
+          onPressed: () => showTransactionSheet(context),
+        ),
       ),
     );
   }
@@ -267,38 +272,84 @@ class TransactionsScreen extends ConsumerWidget {
     return groups;
   }
 
-  String _formatGroupDate(DateTime date) => dayLabel(date);
+  /// The day's net movement: income in, spending out, transfers ignored.
+  Decimal _dayTotal(List<Transaction> items) => items.fold(
+        Decimal.zero,
+        (sum, t) => switch (t.transactionType) {
+          TransactionType.income => sum + t.amount,
+          TransactionType.expense => sum - t.amount,
+          TransactionType.transfer => sum,
+        },
+      );
 }
 
-class _TransactionRow extends ConsumerWidget {
+/// One day of the list (visual spec §4.1): the date on the left and the
+/// day's total on the right in `overline`, over one group card. Days are
+/// separated by a hairline in `outline` at 30 %.
+class _DayGroup extends StatelessWidget {
+  const _DayGroup({required this.date, required this.total, required this.first, required this.transactions});
+
+  final DateTime date;
+  final Decimal total;
+  final bool first;
+  final List<Transaction> transactions;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.tokens;
+    final overline = Theme.of(context).textTheme.labelSmall?.copyWith(color: t.muted);
+    final totalText = total == Decimal.zero
+        ? formatZAR(total)
+        : SignedAmount.format(total.abs(), total < Decimal.zero ? TransactionType.expense : TransactionType.income);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (!first) Divider(height: 1, thickness: 1, color: t.outline.withValues(alpha: 0.3)),
+        Padding(
+          padding: const EdgeInsets.only(top: AppSpace.s16, bottom: AppSpace.s8),
+          child: Row(
+            children: [
+              Expanded(child: Text(dayLabel(date), style: overline)),
+              Text(
+                totalText,
+                key: ValueKey('day-total-${date.toIso8601String()}'),
+                style: overline?.copyWith(fontFeatures: const [FontFeature.tabularFigures()]),
+              ),
+            ],
+          ),
+        ),
+        GroupCard(
+          children: [
+            for (final transaction in transactions)
+              DeleteExit(
+                id: transaction.id,
+                child: SavedHighlight(id: transaction.id, child: _TransactionRow(transaction: transaction)),
+              ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+class _TransactionRow extends StatelessWidget {
   const _TransactionRow({required this.transaction});
   final Transaction transaction;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final isExpense = transaction.transactionType == TransactionType.expense;
-    final isIncome = transaction.transactionType == TransactionType.income;
-    final signedAmount = isExpense ? -transaction.amount.toDouble() : transaction.amount.toDouble();
-
-    // Per DESIGN.md § Transactions (superseded 2026-09-01): amount trailing
-    // tinted success/danger by direction, matching the Dashboard preview.
-    final semantic = Theme.of(context).extension<AppSemanticColors>();
+  Widget build(BuildContext context) {
+    // Only what the data has (visual spec §4.3): no invented times or tags.
     return GroupRow(
+      key: ValueKey('transaction-${transaction.id}'),
       leadingIcon: categoryIcon(
         transaction.category,
-        isExpense: isExpense,
+        isExpense: transaction.transactionType == TransactionType.expense,
         isTransfer: transaction.transactionType == TransactionType.transfer,
       ),
+      family: categoryFamily(transaction.category),
       title: transaction.merchantName ?? transaction.description ?? transaction.category,
       subtitle: transaction.category,
-      trailing: Text(
-        formatZAR(signedAmount),
-        style: moneyTextStyle(
-          context,
-          fontSize: 15,
-          color: isIncome ? semantic?.success : (isExpense ? semantic?.danger : null),
-        ),
-      ),
+      trailing: SignedAmount.of(transaction),
       onTap: () => showTransactionSheet(context, existing: transaction),
     );
   }

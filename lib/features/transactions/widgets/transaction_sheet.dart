@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/api/api_error.dart';
+import '../../../core/theme/app_tokens.dart';
 import '../../../shared/motion/saved_highlight.dart';
 import '../../../shared/widgets/deferred_delete.dart';
 import '../../../shared/widgets/state_views.dart';
@@ -205,10 +206,18 @@ class _TransactionSheetState extends ConsumerState<TransactionSheet> {
                     style: Theme.of(context).textTheme.titleLarge,
                   ),
                 ),
+                // M8: a 16 dp ring while saving, then the sheet closes and
+                // the saved row tints in its list.
                 ElevatedButton(
+                  key: const Key('transaction-save'),
                   onPressed: busy ? null : _submit,
                   child: _submitting
-                      ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                      ? const SizedBox(
+                          key: Key('transaction-save-ring'),
+                          height: 16,
+                          width: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
                       : const Text('Save'),
                 ),
               ],
@@ -224,11 +233,22 @@ class _TransactionSheetState extends ConsumerState<TransactionSheet> {
               onSelectionChanged: (selection) => setState(() => _type = selection.first),
             ),
             const SizedBox(height: 16),
+            // The amount is the point of the sheet (visual spec §4.1): set
+            // large, in the display face, with the rand sign in front.
             TextField(
+              key: const Key('transaction-amount'),
               controller: _amountController,
               autofocus: _isAdding,
               keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              decoration: const InputDecoration(labelText: 'Amount (ZAR)'),
+              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                    fontFeatures: const [FontFeature.tabularFigures()],
+                  ),
+              decoration: InputDecoration(
+                labelText: 'Amount (ZAR)',
+                hintText: '0,00',
+                prefixText: 'R ',
+                prefixStyle: Theme.of(context).textTheme.headlineMedium?.copyWith(color: context.tokens.muted),
+              ),
             ),
             const SizedBox(height: 12),
             Wrap(
@@ -294,13 +314,14 @@ class _TransactionSheetState extends ConsumerState<TransactionSheet> {
             ),
             if (_error != null) ...[
               const SizedBox(height: 12),
-              Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
+              Text(_error!, style: TextStyle(color: context.tokens.danger)),
             ],
             if (!_isAdding) ...[
               const SizedBox(height: 12),
               TextButton(
                 onPressed: busy ? null : _delete,
-                child: Text('Delete', style: TextStyle(color: Theme.of(context).colorScheme.error)),
+                key: const Key('transaction-delete'),
+                child: Text('Delete', style: TextStyle(color: context.tokens.danger)),
               ),
             ],
           ],

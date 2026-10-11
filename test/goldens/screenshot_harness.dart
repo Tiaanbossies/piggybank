@@ -219,9 +219,10 @@ Map<String, Object?> sampleResponses(DateTime now) {
     '/savings/recurring': <Object?>[],
     '/detection/pending': {
       'items': [
-        {'id': 'e1', 'source_type': 'notification', 'source_ref': 'za.co.capitec', 'raw_text': 'Purchase R89.90 at Vida e Caffe', 'captured_at': ts, 'status': 'pending', 'extracted_json': {'amount': '89.90', 'merchant': 'Vida e Caffe', 'transaction_type': 'expense', 'category': 'Dining Out'}, 'event_kind': 'transaction', 'error_reason': null},
+        {'id': 'e1', 'source_type': 'notification', 'source_ref': 'za.co.capitec', 'raw_text': 'Purchase R89.90 at Vida e Caffe', 'captured_at': ts, 'status': 'pending', 'extracted_json': {'amount': '89.90', 'merchant': 'Vida e Caffe', 'transaction_type': 'expense', 'category': 'Dining Out', 'suggested_category': 'Dining Out', 'description': 'Vida e Caffe'}, 'event_kind': 'transaction', 'error_reason': null},
+        {'id': 'e2', 'source_type': 'email', 'source_ref': 'alerts@fnb.co.za', 'raw_text': 'FNB: R412.60 paid to Checkers Hyper from cheque a/c', 'captured_at': ts, 'status': 'pending', 'extracted_json': {'amount': '412.60', 'merchant': 'Checkers Hyper', 'transaction_type': 'expense', 'suggested_category': 'Groceries', 'description': 'Checkers Hyper'}, 'event_kind': 'transaction', 'error_reason': null},
       ],
-      'total': 1,
+      'total': 2,
     },
     '/investments/overview': {
       'total_value': '61840.00',
