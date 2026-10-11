@@ -6,6 +6,7 @@ import 'package:mocktail/mocktail.dart';
 import 'package:piggybank/features/portfolios/data/portfolios_api.dart';
 import 'package:piggybank/features/portfolios/providers/portfolios_provider.dart';
 import 'package:piggybank/features/portfolios/screens/invest_screen.dart';
+import 'package:piggybank/shared/widgets/app_skeleton.dart';
 
 import '../../../test_helpers/pump_app.dart';
 
@@ -26,6 +27,7 @@ void main() {
     await tester.pump();
 
     expect(find.byKey(const Key('invest-skeleton')), findsOneWidget);
+    expect(find.byType(AppSkeleton), findsWidgets);
     expect(find.byType(CircularProgressIndicator), findsNothing);
   });
 

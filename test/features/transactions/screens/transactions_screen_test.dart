@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:decimal/decimal.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -8,6 +10,7 @@ import 'package:piggybank/features/transactions/data/transactions_api.dart';
 import 'package:piggybank/features/transactions/models/transaction.dart';
 import 'package:piggybank/features/transactions/providers/transactions_provider.dart';
 import 'package:piggybank/features/transactions/screens/transactions_screen.dart';
+import 'package:piggybank/shared/widgets/app_skeleton.dart';
 import 'package:piggybank/shared/widgets/mascot_moment.dart';
 
 import '../../../test_helpers/mocktail_setup.dart';
@@ -253,6 +256,47 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.textContaining('Network error'), findsNothing);
+    expect(find.text('Woolworths'), findsOneWidget);
+  });
+
+  testWidgets('first load is a skeleton; Load more keeps the list and adds three skeleton rows (M11, M13)', (tester) async {
+    final first = Completer<TransactionsPage>();
+    final more = Completer<TransactionsPage>();
+    when(() => mockApi.list(
+          accountId: any(named: 'accountId'),
+          transactionType: any(named: 'transactionType'),
+          dateFrom: any(named: 'dateFrom'),
+          dateTo: any(named: 'dateTo'),
+          category: any(named: 'category'),
+          offset: any(named: 'offset'),
+        )).thenAnswer((invocation) => (invocation.namedArguments[#offset] as int? ?? 0) == 0 ? first.future : more.future);
+
+    await pumpApp(tester, const TransactionsScreen(), overrides: [transactionsApiProvider.overrideWithValue(mockApi)]);
+    await tester.pump();
+    expect(find.byType(AppSkeleton), findsWidgets);
+    expect(find.byType(CircularProgressIndicator), findsNothing);
+
+    first.complete(TransactionsPage(total: 4, items: [
+      _tx(id: '1', type: TransactionType.expense, category: 'Groceries', merchantName: 'Woolworths'),
+      _tx(id: '2', type: TransactionType.expense, category: 'Fuel', merchantName: 'Engen'),
+    ]));
+    await tester.pumpAndSettle();
+    expect(find.byType(AppSkeleton), findsNothing);
+
+    await tester.tap(find.textContaining('Load more'));
+    await tester.pump();
+    await tester.pump();
+    expect(find.text('Woolworths'), findsOneWidget, reason: 'the list stays while the next page loads');
+    expect(find.byKey(const Key('load-more-skeleton')), findsOneWidget);
+    expect(find.textContaining('Load more'), findsNothing);
+
+    more.complete(TransactionsPage(total: 4, items: [
+      _tx(id: '3', type: TransactionType.expense, category: 'Dining', merchantName: "Nando's"),
+      _tx(id: '4', type: TransactionType.expense, category: 'Shopping', merchantName: 'Takealot'),
+    ]));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('load-more-skeleton')), findsNothing);
+    expect(find.text('Takealot'), findsOneWidget);
     expect(find.text('Woolworths'), findsOneWidget);
   });
 

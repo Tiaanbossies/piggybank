@@ -5,6 +5,7 @@ import '../../../core/api/api_error.dart';
 import '../../../core/format/money.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/app_tokens.dart';
+import '../../../shared/widgets/app_skeleton.dart';
 import '../../../shared/widgets/group_card.dart';
 import '../../../shared/widgets/hero_metric_card.dart';
 import '../providers/expenses_provider.dart';
@@ -42,8 +43,8 @@ class ExpensesSummaryScreen extends ConsumerWidget {
         ],
       ),
       body: SafeArea(
-        child: summaryAsync.when(
-          loading: () => const Center(child: CircularProgressIndicator()),
+        child: SkeletonSwitcher(child: summaryAsync.when(
+          loading: () => const SkeletonPage(hero: true),
           error: (err, _) => Center(child: Text(err is ApiError ? err.message : 'Failed to load expenses')),
           data: (summary) {
             if (summary.byCategory.isEmpty) {
@@ -71,7 +72,7 @@ class ExpensesSummaryScreen extends ConsumerWidget {
               ],
             );
           },
-        ),
+        )),
       ),
     );
   }

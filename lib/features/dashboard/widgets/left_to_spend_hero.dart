@@ -7,6 +7,7 @@ import '../../../core/api/api_error.dart';
 import '../../../core/format/money.dart';
 import '../../../core/theme/app_motion.dart';
 import '../../../shared/motion/press_scale.dart';
+import '../../../shared/widgets/app_skeleton.dart';
 import '../../../shared/widgets/hero_metric_card.dart';
 import '../../../shared/widgets/mascot_moment.dart';
 import '../../../shared/widgets/state_views.dart';
@@ -41,11 +42,7 @@ class LeftToSpendHero extends ConsumerWidget {
     final month = _months[today.month - 1];
 
     final Widget child = state.when(
-      loading: () => const SizedBox(
-        key: ValueKey('loading'),
-        height: 120,
-        child: Center(child: CircularProgressIndicator()),
-      ),
+      loading: () => const SkeletonHero(key: ValueKey('loading'), progress: true),
       error: (err, _) => InlineError(
         key: const ValueKey('error'),
         message: err is ApiError ? err.message : "Couldn't load this month's budgets",

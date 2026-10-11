@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/api/api_error.dart';
 import '../../../core/format/money.dart';
 import '../../../core/theme/app_motion.dart';
+import '../../../shared/widgets/app_skeleton.dart';
 import '../../../shared/widgets/group_card.dart';
 import '../../../shared/widgets/hero_metric_card.dart';
 import '../../../shared/widgets/state_views.dart';
@@ -67,11 +68,7 @@ class NetWorthScreen extends ConsumerWidget {
                 switchInCurve: AppMotion.easeOut,
                 switchOutCurve: AppMotion.easeOut,
                 child: netWorthAsync.when(
-                  loading: () => const SizedBox(
-                    key: ValueKey('loading'),
-                    height: 96,
-                    child: Center(child: CircularProgressIndicator()),
-                  ),
+                  loading: () => const SkeletonHero(key: ValueKey('loading')),
                   error: (err, _) => InlineError(
                     key: const ValueKey('error'),
                     message: err is ApiError ? err.message : 'Failed to load net worth',

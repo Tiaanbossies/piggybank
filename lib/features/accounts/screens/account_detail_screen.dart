@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/format/money.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../shared/widgets/app_skeleton.dart';
 import '../../../shared/widgets/group_card.dart';
 import '../../transactions/models/transaction.dart';
 import '../../transactions/providers/transactions_provider.dart';
@@ -60,14 +61,14 @@ class AccountDetailScreen extends ConsumerWidget {
               const SizedBox(height: 24),
               Text('Recent transactions', style: Theme.of(context).textTheme.labelMedium),
               const SizedBox(height: 12),
-              transactionsAsync.when(
-                loading: () => const Center(child: Padding(padding: EdgeInsets.all(24), child: CircularProgressIndicator())),
+              SkeletonSwitcher(child: transactionsAsync.when(
+                loading: () => const SkeletonRows(count: 5),
                 error: (err, _) => const Text('Failed to load transactions'),
                 data: (page) {
                   if (page.items.isEmpty) return const Text('No transactions yet.');
                   return GroupCard(children: [for (final t in page.items) _AccountTransactionRow(transaction: t)]);
                 },
-              ),
+              )),
             ],
           ),
         ),

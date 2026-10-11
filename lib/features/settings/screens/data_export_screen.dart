@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/api/api_error.dart';
+import '../../../shared/widgets/app_skeleton.dart';
 import '../data/account_api.dart';
 
 /// Settings > Security > Export my data (POPIA access right). Fetches
@@ -69,7 +70,20 @@ class _DataExportScreenState extends ConsumerState<DataExportScreen> {
       body: SafeArea(
         child: Builder(
           builder: (context) {
-            if (_loading) return const Center(child: CircularProgressIndicator());
+            if (_loading) {
+              return const AppSkeleton(
+                child: Padding(
+                  padding: EdgeInsets.all(16),
+                  child: Align(
+                    alignment: Alignment.topLeft,
+                    child: Text(
+                      '{\n  "placeholder": "export",\n  "accounts": [ "placeholder" ],\n  "transactions": [ "placeholder" ]\n}',
+                      style: TextStyle(fontFamily: 'monospace', fontSize: 12),
+                    ),
+                  ),
+                ),
+              );
+            }
             if (_error != null) {
               return Center(
                 child: Padding(

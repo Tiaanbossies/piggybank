@@ -9,6 +9,7 @@ import '../../../core/api/api_error.dart';
 import '../../../core/format/dates.dart';
 import '../../../core/format/money.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../shared/widgets/app_skeleton.dart';
 import '../../../shared/widgets/paywall_dialog.dart';
 import '../../../shared/widgets/state_views.dart';
 import '../../assets/models/asset.dart';
@@ -59,8 +60,8 @@ class _PolicyScreenState extends ConsumerState<PolicyScreen> {
     return Scaffold(
       appBar: AppBar(title: Text(cost.name, overflow: TextOverflow.ellipsis)),
       body: SafeArea(
-        child: ref.watch(policyProvider(cost.id)).when(
-              loading: () => const Center(child: CircularProgressIndicator()),
+        child: SkeletonSwitcher(child: ref.watch(policyProvider(cost.id)).when(
+              loading: () => const SkeletonPage(rows: 4),
               error: (err, _) => Center(
                 child: InlineError(
                   message: err is ApiError ? err.message : "Couldn't load the policy details",
@@ -88,7 +89,7 @@ class _PolicyScreenState extends ConsumerState<PolicyScreen> {
                   ),
                 ],
               ),
-            ),
+            )),
       ),
     );
   }
@@ -243,8 +244,8 @@ class PolicyCheckCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final semantic = Theme.of(context).extension<AppSemanticColors>();
-    return ref.watch(policyCheckProvider(policyId)).when(
-          loading: () => const SizedBox(height: 120, child: Center(child: CircularProgressIndicator())),
+    return SkeletonSwitcher(child: ref.watch(policyCheckProvider(policyId)).when(
+          loading: () => const SkeletonBlock(height: 120),
           error: (err, _) => InlineError(
             message: err is ApiError ? err.message : "Couldn't run the policy check",
             onRetry: () => ref.invalidate(policyCheckProvider(policyId)),
@@ -289,7 +290,7 @@ class PolicyCheckCard extends ConsumerWidget {
               ),
             );
           },
-        );
+        ));
   }
 }
 

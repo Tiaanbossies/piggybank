@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/api/api_error.dart';
+import '../../../shared/widgets/app_skeleton.dart';
 import '../../../shared/widgets/group_card.dart';
 import '../../../shared/widgets/status_badge.dart';
 import '../../imports/providers/imports_provider.dart';
@@ -21,8 +22,8 @@ class ImportHistoryScreen extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(title: const Text('Import history')),
       body: SafeArea(
-        child: historyAsync.when(
-          loading: () => const Center(child: CircularProgressIndicator()),
+        child: SkeletonSwitcher(child: historyAsync.when(
+          loading: () => const SkeletonPage(),
           error: (err, _) => Center(
             child: Padding(
               padding: const EdgeInsets.all(24),
@@ -56,7 +57,7 @@ class ImportHistoryScreen extends ConsumerWidget {
               ],
             );
           },
-        ),
+        )),
       ),
     );
   }

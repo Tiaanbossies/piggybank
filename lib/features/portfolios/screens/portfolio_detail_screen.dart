@@ -7,6 +7,7 @@ import '../../../core/api/api_error.dart';
 import '../../../core/format/money.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/allocation_bar.dart';
+import '../../../shared/widgets/app_skeleton.dart';
 import '../../../shared/widgets/group_card.dart';
 import '../../../shared/widgets/hero_metric_card.dart';
 import '../../ra/screens/ra_ledger_screen.dart';
@@ -74,8 +75,8 @@ class PortfolioDetailScreen extends ConsumerWidget {
             ref.invalidate(portfolioHoldingsProvider(portfolio.id));
             ref.invalidate(portfolioValueProvider(portfolio.id));
           },
-          child: holdingsAsync.when(
-            loading: () => const Center(child: CircularProgressIndicator()),
+          child: SkeletonSwitcher(child: holdingsAsync.when(
+            loading: () => const SkeletonPage(hero: true),
             error: (err, _) => Center(child: Text(err is ApiError ? err.message : 'Failed to load holdings')),
             data: (holdings) {
               return ListView(
@@ -104,8 +105,8 @@ class PortfolioDetailScreen extends ConsumerWidget {
                     ],
                   ),
                   const SizedBox(height: 16),
-                  valueAsync.when(
-                    loading: () => const SizedBox(height: 96, child: Center(child: CircularProgressIndicator())),
+                  SkeletonSwitcher(child: valueAsync.when(
+                    loading: () => const SkeletonHero(),
                     error: (_, _) => const SizedBox.shrink(),
                     data: (value) {
                       final plUp = value.unrealizedPl >= Decimal.zero;
@@ -115,7 +116,7 @@ class PortfolioDetailScreen extends ConsumerWidget {
                         deltaText: '${plUp ? '+' : ''}${formatZAR(value.unrealizedPl)} unrealized',
                       );
                     },
-                  ),
+                  )),
                   const SizedBox(height: 24),
                   _AllocationSection(holdings: holdings),
                   const SizedBox(height: 24),
@@ -142,7 +143,7 @@ class PortfolioDetailScreen extends ConsumerWidget {
                 ],
               );
             },
-          ),
+          )),
         ),
       ),
       floatingActionButton: FloatingActionButton.extended(
