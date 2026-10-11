@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/format/money.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/theme/app_tokens.dart';
 import '../../../shared/widgets/app_skeleton.dart';
 import '../../../shared/widgets/group_card.dart';
 import '../../transactions/models/transaction.dart';
@@ -97,7 +98,6 @@ class _AccountTransactionRow extends StatelessWidget {
     final isExpense = transaction.transactionType == TransactionType.expense;
     final isIncome = transaction.transactionType == TransactionType.income;
     final signedAmount = isExpense ? -transaction.amount.toDouble() : transaction.amount.toDouble();
-    final semantic = Theme.of(context).extension<AppSemanticColors>();
     final date = transaction.transactionDate;
     final dateLabel = '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
 
@@ -110,7 +110,7 @@ class _AccountTransactionRow extends StatelessWidget {
         style: moneyTextStyle(
           context,
           fontSize: 15,
-          color: isIncome ? semantic?.success : (isExpense ? semantic?.danger : null),
+          color: isIncome ? context.tokens.positive : context.tokens.ink,
         ),
       ),
     );

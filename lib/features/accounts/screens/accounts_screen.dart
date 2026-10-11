@@ -8,6 +8,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/api/api_error.dart';
 import '../../../core/format/money.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/theme/app_tokens.dart';
 import '../../../shared/motion/container_transform.dart';
 import '../../../shared/widgets/app_skeleton.dart';
 import '../../../shared/widgets/group_card.dart';
@@ -174,6 +175,7 @@ class _AccountRow extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final semantic = Theme.of(context).extension<AppSemanticColors>();
     return ContainerTransform(
+      radius: AppRadius.card,
       openBuilder: (_) => AccountDetailScreen(account: account),
       closedBuilder: (context, open) => GestureDetector(
         onTap: open,
@@ -191,7 +193,7 @@ class _AccountRow extends ConsumerWidget {
             children: [
               Text(
                 formatZAR(account.balance),
-                style: moneyTextStyle(context, fontSize: 15, color: account.isActive ? semantic?.success : null),
+                style: moneyTextStyle(context, fontSize: 15, color: account.isActive ? context.tokens.ink : semantic?.textMuted),
               ),
               const SizedBox(width: 4),
               Icon(Icons.chevron_right, size: 20, color: semantic?.textMuted),

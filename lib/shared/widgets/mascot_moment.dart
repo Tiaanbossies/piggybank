@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/physics.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/theme/app_haptics.dart';
 import '../../core/theme/app_motion.dart';
 import '../../core/theme/shared_preferences_provider.dart';
 import '../motion/once_per_day.dart';
@@ -100,7 +101,11 @@ class _MascotMomentState extends ConsumerState<MascotMoment> with SingleTickerPr
     if (context.reducedMotion) return;
     switch (widget.motion) {
       case MascotMotion.pop:
+        // A pop marks good news (M20, M39), with one medium tap. Both are
+        // rate-limited by kind; under reduced motion neither plays, and the
+        // day isn't used up.
         if (_claim()) {
+          AppHaptics.medium();
           _controller = AnimationController.unbounded(vsync: this)
             ..animateWith(SpringSimulation(AppMotion.springPop, 0, 1, 0));
         }
