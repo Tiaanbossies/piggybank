@@ -1,3 +1,4 @@
+import 'package:clock/clock.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -57,7 +58,7 @@ class _TransactionSheetState extends ConsumerState<TransactionSheet> {
     _merchantController = TextEditingController(text: existing?.merchantName ?? '');
     _notesController = TextEditingController(text: existing?.notes ?? '');
     _type = existing?.transactionType ?? TransactionType.expense;
-    _date = existing?.transactionDate ?? DateTime.now();
+    _date = existing?.transactionDate ?? clock.now();
     _accountId = existing != null ? existing.accountId : ref.read(lastUsedAccountProvider);
   }
 
@@ -168,7 +169,7 @@ class _TransactionSheetState extends ConsumerState<TransactionSheet> {
       context: context,
       initialDate: _date,
       firstDate: DateTime(2000),
-      lastDate: DateTime.now().add(const Duration(days: 1)),
+      lastDate: clock.now().add(const Duration(days: 1)),
     );
     if (picked != null) setState(() => _date = picked);
   }

@@ -8,6 +8,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:clock/clock.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -33,6 +34,15 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// A mid-range Android phone (412 × 915 dp at 2.625×, like a Pixel 7).
 const phoneSize = Size(412, 915);
 const phonePixelRatio = 2.625;
+
+/// The moment every screenshot is taken. Sample data is dated relative to
+/// it and the app reads it through `clock.now()`, so the date headers and
+/// "today" figures don't change with the calendar.
+final shotTime = DateTime(2026, 10, 15, 10);
+
+/// [testWidgets] with the clock pinned to [shotTime], for golden tests.
+void testShot(String description, Future<void> Function(WidgetTester) body) =>
+    testWidgets(description, (tester) => withClock(Clock.fixed(shotTime), () => body(tester)));
 
 /// The five tab roots, in tab order (UX rework spec §1.1).
 const tabRoots = ['/', '/transactions', '/plan', '/invest', '/assistant'];
@@ -392,7 +402,7 @@ Future<void> _pump(WidgetTester tester, ThemeMode mode, Widget Function(ThemeDat
 
   await tester.pumpWidget(
     ProviderScope(
-      overrides: _overrides(prefs, DateTime.now()),
+      overrides: _overrides(prefs, clock.now()),
       child: app(AppTheme.light(), AppTheme.dark()),
     ),
   );

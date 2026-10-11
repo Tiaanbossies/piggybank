@@ -1,3 +1,4 @@
+import 'package:clock/clock.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/api/api_error.dart';
@@ -29,7 +30,7 @@ const int trendWindowMonths = 6;
 /// The trailing [trendWindowMonths] month keys (`YYYY-MM`), oldest first,
 /// ending with the current month.
 List<String> trailingMonthKeys({int count = trendWindowMonths, DateTime? now}) {
-  final today = now ?? DateTime.now();
+  final today = now ?? clock.now();
   return [
     for (var i = count - 1; i >= 0; i--) monthKey(DateTime(today.year, today.month - i, 1)),
   ];
