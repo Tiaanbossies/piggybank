@@ -9,6 +9,7 @@ import 'package:image_picker/image_picker.dart';
 import '../../../core/api/api_error.dart';
 import '../../../core/format/money.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../shared/widgets/app_skeleton.dart';
 import '../../../shared/widgets/group_card.dart';
 import '../../../shared/widgets/icon_chip.dart';
 import '../../../shared/widgets/status_badge.dart';
@@ -496,8 +497,8 @@ class _ImportsScreenState extends ConsumerState<ImportsScreen> {
               ],
             ),
             const SizedBox(height: 8),
-            historyAsync.when(
-              loading: () => const Center(child: CircularProgressIndicator()),
+            SkeletonSwitcher(child: historyAsync.when(
+              loading: () => const SkeletonRows(count: 3),
               error: (err, _) => Text(err is ApiError ? err.message : 'Failed to load import history'),
               data: (jobs) {
                 if (jobs.isEmpty) {
@@ -524,7 +525,7 @@ class _ImportsScreenState extends ConsumerState<ImportsScreen> {
                   ],
                 );
               },
-            ),
+            )),
           ],
         ),
       ),

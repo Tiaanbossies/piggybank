@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/api/api_error.dart';
 import '../../../core/format/money.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../shared/widgets/app_skeleton.dart';
 import '../../../shared/widgets/deferred_delete.dart';
 import '../../../shared/widgets/group_card.dart';
 import '../../../shared/widgets/growth_projection_card.dart';
@@ -34,8 +35,8 @@ class RaLedgerScreen extends ConsumerWidget {
             ref.invalidate(raSummaryProvider);
             ref.invalidate(raContributionsProvider);
           },
-          child: contributionsAsync.when(
-            loading: () => const Center(child: CircularProgressIndicator()),
+          child: SkeletonSwitcher(child: contributionsAsync.when(
+            loading: () => const SkeletonPage(hero: true),
             error: (err, _) => Center(child: Text(err is ApiError ? err.message : 'Failed to load contributions')),
             data: (all) {
               final hidden = ref.watch(pendingDeletesProvider);
@@ -72,7 +73,7 @@ class RaLedgerScreen extends ConsumerWidget {
                 itemBuilder: (context, index) => sections[index],
               );
             },
-          ),
+          )),
         ),
       ),
       floatingActionButton: FloatingActionButton.extended(
@@ -91,8 +92,8 @@ class _SummarySection extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final summaryAsync = ref.watch(raSummaryProvider);
 
-    return summaryAsync.when(
-      loading: () => const SizedBox(height: 96, child: Center(child: CircularProgressIndicator())),
+    return SkeletonSwitcher(child: summaryAsync.when(
+      loading: () => const SkeletonHero(),
       error: (err, _) => Text(err is ApiError ? err.message : 'Failed to load summary'),
       data: (summary) {
         return Column(
@@ -135,7 +136,7 @@ class _SummarySection extends ConsumerWidget {
           ],
         );
       },
-    );
+    ));
   }
 }
 

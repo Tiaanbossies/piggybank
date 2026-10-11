@@ -7,6 +7,7 @@ import '../../../core/format/money.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/motion/container_transform.dart';
 import '../../../shared/widgets/allocation_donut.dart';
+import '../../../shared/widgets/app_skeleton.dart';
 import '../../../shared/widgets/group_card.dart';
 import '../../../shared/widgets/hero_metric_card.dart';
 import '../../../shared/widgets/state_views.dart';
@@ -48,20 +49,8 @@ class InvestScreen extends ConsumerWidget {
             ref.invalidate(investmentOverviewProvider);
             ref.invalidate(portfoliosProvider);
           },
-          child: portfoliosAsync.when(
-            loading: () => ListView(
-              key: const Key('invest-skeleton'),
-              padding: const EdgeInsets.all(16),
-              children: const [
-                SkeletonBox(height: 120, radius: 24),
-                SizedBox(height: 16),
-                SkeletonBox(height: 96),
-                SizedBox(height: 24),
-                SkeletonBox(),
-                SizedBox(height: 8),
-                SkeletonBox(),
-              ],
-            ),
+          child: SkeletonSwitcher(child: portfoliosAsync.when(
+            loading: () => const SkeletonPage(key: Key('invest-skeleton'), hero: true, rows: 3),
             // Scrollable so pull-to-refresh still works on the error state.
             error: (err, _) => ListView(
               padding: const EdgeInsets.all(16),
@@ -99,7 +88,7 @@ class InvestScreen extends ConsumerWidget {
                 ],
               );
             },
-          ),
+          )),
         ),
       ),
     );
@@ -147,8 +136,8 @@ class _OverviewSection extends ConsumerWidget {
     final overviewAsync = ref.watch(investmentOverviewProvider);
     final semantic = Theme.of(context).extension<AppSemanticColors>();
 
-    return overviewAsync.when(
-      loading: () => const SkeletonBox(height: 120, radius: 24),
+    return SkeletonSwitcher(child: overviewAsync.when(
+      loading: () => const SkeletonHero(),
       error: (err, _) => InlineError(
         message: err is ApiError ? err.message : 'Failed to load overview',
         onRetry: () => ref.invalidate(investmentOverviewProvider),
@@ -232,7 +221,7 @@ class _OverviewSection extends ConsumerWidget {
           ],
         );
       },
-    );
+    ));
   }
 }
 

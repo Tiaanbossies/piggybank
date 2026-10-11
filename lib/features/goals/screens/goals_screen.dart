@@ -6,6 +6,7 @@ import '../../../core/format/money.dart';
 import '../../../core/theme/app_motion.dart';
 import '../../../shared/motion/press_scale.dart';
 import '../../../shared/motion/saved_highlight.dart';
+import '../../../shared/widgets/app_skeleton.dart';
 import '../../../shared/widgets/completed_goal_card.dart';
 import '../../../shared/widgets/deferred_delete.dart';
 import '../../../shared/widgets/progress_card.dart';
@@ -39,7 +40,7 @@ class GoalsBody extends ConsumerWidget {
         switchInCurve: AppMotion.easeOut,
         switchOutCurve: AppMotion.easeOut,
         child: goalsAsync.when(
-          loading: () => const Center(key: ValueKey('loading'), child: CircularProgressIndicator()),
+          loading: () => const SkeletonPage(key: ValueKey('loading'), progressCards: true),
           error: (err, _) => Center(
             key: const ValueKey('error'),
             child: InlineError(

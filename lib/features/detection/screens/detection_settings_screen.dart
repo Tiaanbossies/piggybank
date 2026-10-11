@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/api/api_error.dart';
+import '../../../shared/widgets/app_skeleton.dart';
 import '../../consent/consent_documents.dart';
 import '../../consent/data/consents_api.dart';
 import '../models/email_source.dart';
@@ -252,7 +253,7 @@ class _DetectionSettingsScreenState extends ConsumerState<DetectionSettingsScree
     return Scaffold(
       appBar: AppBar(title: const Text('Bank notifications & email')),
       body: SafeArea(
-        child: _loading ? const Center(child: CircularProgressIndicator()) : _buildBody(context),
+        child: SkeletonSwitcher(child: _loading ? const SkeletonPage(rows: 4) : _buildBody(context)),
       ),
     );
   }

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import '../../../shared/widgets/app_skeleton.dart';
 
 /// Settings > About — closes the "Support" gap flagged in the Stitch parity
 /// sweep (`plans/stitch-live-verification.md`, Bucket 2). Only the app name
@@ -34,7 +35,7 @@ class AboutScreen extends StatelessWidget {
                         style: Theme.of(context).textTheme.bodyMedium,
                       )
                     else
-                      const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2)),
+                      const AppSkeleton(child: Text('Version 0.0.0 (00)')),
                   ],
                 ),
               ),

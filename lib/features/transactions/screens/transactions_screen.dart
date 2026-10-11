@@ -6,6 +6,8 @@ import '../../../core/format/dates.dart';
 import '../../../core/format/money.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/motion/saved_highlight.dart';
+import '../../../shared/motion/stagger_in.dart';
+import '../../../shared/widgets/app_skeleton.dart';
 import '../../../shared/widgets/deferred_delete.dart';
 import '../../../shared/widgets/group_card.dart';
 import '../../../shared/widgets/state_views.dart';
@@ -41,6 +43,9 @@ class TransactionsScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final currentPage = ref.watch(transactionsProvider);
+    // "Load more" keeps the list on screen and grows three skeleton rows at
+    // its end (M13); a first load or a new filter shows the whole skeleton.
+    final loadingMore = currentPage.isLoading && currentPage.hasValue && ref.watch(transactionPaginationProvider) > 0;
     final selectedType = ref.watch(transactionFiltersProvider).transactionType;
     final reviewCount = ref.watch(pendingReviewCountProvider);
 
@@ -126,8 +131,9 @@ class TransactionsScreen extends ConsumerWidget {
                   ref.read(transactionPaginationProvider.notifier).reset();
                   return ref.refresh(transactionsProvider.future);
                 },
-                child: currentPage.when(
-                  loading: () => const Center(child: CircularProgressIndicator()),
+                child: SkeletonSwitcher(child: currentPage.when(
+                  skipLoadingOnReload: loadingMore,
+                  loading: () => const SkeletonPage(rows: 8),
                   // Was plain text inside a RefreshIndicator over a
                   // non-scrollable Center, so pull-to-refresh couldn't fire
                   // either — the shared treatment, with a way out.
@@ -190,7 +196,9 @@ class TransactionsScreen extends ConsumerWidget {
                       itemBuilder: (context, index) {
                         if (index < groupEntries.length) {
                           final entry = groupEntries[index];
-                          return Column(
+                          return StaggerIn(
+                            index: index,
+                            child: Column(
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
                               Padding(
@@ -204,6 +212,14 @@ class TransactionsScreen extends ConsumerWidget {
                                 ],
                               ),
                             ],
+                            ),
+                          );
+                        }
+                        if (loadingMore) {
+                          return const Padding(
+                            key: Key('load-more-skeleton'),
+                            padding: EdgeInsets.only(top: 16),
+                            child: SkeletonRows(count: 3),
                           );
                         }
                         // Trailing "Load more" row — only reached once, after the last group.
@@ -220,7 +236,7 @@ class TransactionsScreen extends ConsumerWidget {
                       },
                     );
                   },
-                ),
+                )),
               ),
             ),
           ],
