@@ -146,12 +146,12 @@ class _SellHoldingSheetState extends ConsumerState<_SellHoldingSheet> {
             const SizedBox(height: 24),
             ElevatedButton(
               onPressed: _submitting ? null : _submit,
-              style: ElevatedButton.styleFrom(backgroundColor: Theme.of(context).colorScheme.error),
+              // Selling isn't destructive, so the button isn't red (J4).
               child: _submitting
                   ? const SizedBox(
                       height: 20,
                       width: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                      child: CircularProgressIndicator(strokeWidth: 2),
                     )
                   : const Text('Sell'),
             ),

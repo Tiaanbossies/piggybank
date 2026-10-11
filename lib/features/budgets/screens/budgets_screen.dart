@@ -1,11 +1,14 @@
+import 'dart:async';
+
 import 'package:decimal/decimal.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/api/api_error.dart';
 import '../../../core/format/money.dart';
+import '../../../core/theme/app_haptics.dart';
 import '../../../core/theme/app_motion.dart';
-import '../../../shared/motion/press_scale.dart';
+import '../../../core/theme/app_tokens.dart';
 import '../../../shared/motion/saved_highlight.dart';
 import '../../../shared/widgets/app_skeleton.dart';
 import '../../../shared/widgets/deferred_delete.dart';
@@ -29,90 +32,144 @@ const _monthNames = [
   'July', 'August', 'September', 'October', 'November', 'December',
 ];
 
-/// Body content for the Budgets sub-view of the Budgets tab. Grouped-list
-/// per DESIGN.md § Budgets: one group per top-level category, sub-categories
-/// rendered as indented rows within their parent's group, over-budget rows
-/// in the danger colour.
+/// Body content for the Budgets segment of Plan: the "Total spent" summary
+/// card above one progress card per budget, sub-categories indented under
+/// their parent. Red appears only on a card that is over (J4, M40).
 class BudgetsBody extends ConsumerWidget {
   const BudgetsBody({super.key});
-
-  static const double _kFabClearance = 88;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final progressAsync = ref.watch(budgetProgressProvider);
+    const padding = EdgeInsets.fromLTRB(AppSpace.gutter, AppSpace.s8, AppSpace.gutter, AppSpace.s16 + AppSpace.fabInset);
 
-    return Column(
-      children: [
-        Expanded(
-          child: RefreshIndicator(
-            onRefresh: () => ref.refresh(budgetProgressProvider.future),
-            child: AnimatedSwitcher(
-              duration: context.reducedMotion ? Duration.zero : AppMotion.stateChange,
-              switchInCurve: AppMotion.easeOut,
-              switchOutCurve: AppMotion.easeOut,
-              child: progressAsync.when(
-                loading: () => const SkeletonPage(key: ValueKey('loading'), progressCards: true),
-                error: (err, _) => Center(
-                  key: const ValueKey('error'),
-                  child: InlineError(
-                    message: err is ApiError ? err.message : 'Failed to load budgets',
-                    onRetry: () => ref.invalidate(budgetProgressProvider),
-                  ),
-                ),
-                data: (all) {
-                  final hidden = ref.watch(pendingDeletesProvider);
-                  final budgets = all.where((b) => !hidden.contains(b.id)).toList();
-                  if (budgets.isEmpty) {
-                    return ListView(
-                      key: const ValueKey('empty'),
-                      padding: const EdgeInsets.fromLTRB(16, 16, 16, 16 + _kFabClearance),
-                      children: const [
-                        EmptyState(
-                          icon: Icons.account_balance_wallet_outlined,
-                          title: 'No budgets for this month.',
-                          hint: 'Tap "Add budget" below to set one up.',
-                        ),
-                      ],
-                    );
-                  }
-                  return ListView(
-                    key: const ValueKey('list'),
-                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 16 + _kFabClearance),
-                    children: [
-                      _TotalSpentSummary(budgets: budgets),
-                      const SizedBox(height: 4),
-                      for (final budget in budgets) ...[
-                        _BudgetProgressRow(progress: budget),
-                        for (final child in budget.children)
-                          if (!hidden.contains(child.id)) _BudgetProgressRow(progress: child, indented: true),
-                      ],
-                      // A second way into Trends (spec §2.3): budget vs actual
-                      // lives there, next to the budgets it explains.
-                      Align(
-                        alignment: Alignment.centerLeft,
-                        child: TextButton(
-                          key: const Key('budgets-see-trends'),
-                          onPressed: () =>
-                              Navigator.of(context).push(MaterialPageRoute(builder: (_) => const TrendsScreen())),
-                          child: const Text('See trends ›'),
-                        ),
-                      ),
-                    ],
-                  );
-                },
+    return RefreshIndicator(
+      onRefresh: () => ref.refresh(budgetProgressProvider.future),
+      // A month change slides the content the way the month moved (M26).
+      child: _MonthSlide(
+        month: ref.watch(selectedBudgetMonthProvider),
+        child: AnimatedSwitcher(
+          duration: context.reducedMotion ? Duration.zero : AppMotion.stateChange,
+          switchInCurve: AppMotion.easeOut,
+          switchOutCurve: AppMotion.easeOut,
+          child: progressAsync.when(
+            loading: () => const SkeletonPage(key: ValueKey('loading'), progressCards: true),
+            error: (err, _) => Center(
+              key: const ValueKey('error'),
+              child: InlineError(
+                message: err is ApiError ? err.message : 'Failed to load budgets',
+                onRetry: () => ref.invalidate(budgetProgressProvider),
               ),
             ),
+            data: (all) {
+              final hidden = ref.watch(pendingDeletesProvider);
+              final budgets = all.where((b) => !hidden.contains(b.id)).toList();
+              if (budgets.isEmpty) {
+                return ListView(
+                  key: const ValueKey('empty'),
+                  primary: true,
+                  padding: padding,
+                  children: const [
+                    EmptyState(
+                      icon: Icons.account_balance_wallet_outlined,
+                      title: 'No budgets for this month.',
+                      hint: 'Tap "Add budget" below to set one up.',
+                    ),
+                  ],
+                );
+              }
+              return ListView(
+                key: const ValueKey('list'),
+                primary: true,
+                padding: padding,
+                children: [
+                  _TotalSpentSummary(budgets: budgets),
+                  const SizedBox(height: AppSpace.s12),
+                  // A deleted budget stays in the list while it slides out
+                  // (M15), and grows back on Undo.
+                  for (final budget in all) ...[
+                    DeleteExit(id: budget.id, child: _BudgetProgressRow(progress: budget)),
+                    for (final child in budget.children)
+                      DeleteExit(id: child.id, child: _BudgetProgressRow(progress: child, indented: true)),
+                  ],
+                  // A second way into Trends (spec §2.3): budget vs actual
+                  // lives there, next to the budgets it explains.
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: TextButton(
+                      key: const Key('budgets-see-trends'),
+                      onPressed: () =>
+                          Navigator.of(context).push(MaterialPageRoute(builder: (_) => const TrendsScreen())),
+                      child: const Text('See trends ›'),
+                    ),
+                  ),
+                ],
+              );
+            },
           ),
         ),
-      ],
+      ),
+    );
+  }
+}
+
+/// Slides its content in from 24 dp on the side the month moved towards
+/// and fades it up (M26: 200 ms). Under reduced motion it's a 150 ms fade.
+/// Only the arriving month moves: the leaving one is already loading.
+class _MonthSlide extends StatefulWidget {
+  const _MonthSlide({required this.month, required this.child});
+  final DateTime month;
+  final Widget child;
+
+  static const distance = 24.0;
+
+  @override
+  State<_MonthSlide> createState() => _MonthSlideState();
+}
+
+class _MonthSlideState extends State<_MonthSlide> with SingleTickerProviderStateMixin {
+  late final AnimationController _arrive = AnimationController(vsync: this, duration: AppMotion.stateChange, value: 1);
+
+  /// 1 when the month went forward (content arrives from the right), -1
+  /// when it went back.
+  double _direction = 1;
+
+  @override
+  void didUpdateWidget(_MonthSlide oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.month == widget.month) return;
+    _direction = widget.month.isAfter(oldWidget.month) ? 1 : -1;
+    _arrive
+      ..duration = context.reducedMotion ? AppMotion.feedback : AppMotion.stateChange
+      ..forward(from: 0);
+  }
+
+  @override
+  void dispose() {
+    _arrive.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _arrive,
+      child: widget.child,
+      builder: (context, child) {
+        final v = AppMotion.easeOut.transform(_arrive.value);
+        final dx = context.reducedMotion ? 0.0 : _direction * _MonthSlide.distance * (1 - v);
+        return Opacity(
+          opacity: v,
+          child: Transform.translate(key: const Key('month-slide'), offset: Offset(dx, 0), child: child),
+        );
+      },
     );
   }
 }
 
 /// Previous / month / next, shown under the Plan app bar while the Budgets
 /// segment is open (spec §2.3), so it no longer competes with the segment
-/// control for the same row.
+/// control for the same row. Each step ticks once (M26).
 class BudgetMonthSwitcher extends ConsumerWidget implements PreferredSizeWidget {
   const BudgetMonthSwitcher({super.key});
 
@@ -122,23 +179,30 @@ class BudgetMonthSwitcher extends ConsumerWidget implements PreferredSizeWidget 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final month = ref.watch(selectedBudgetMonthProvider);
+    final notifier = ref.read(selectedBudgetMonthProvider.notifier);
     return SizedBox(
       height: 48,
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16),
+        padding: const EdgeInsets.symmetric(horizontal: AppSpace.s8),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             IconButton(
               icon: const Icon(Icons.chevron_left),
               tooltip: 'Previous month',
-              onPressed: () => ref.read(selectedBudgetMonthProvider.notifier).previous(),
+              onPressed: () {
+                unawaited(AppHaptics.selection());
+                notifier.previous();
+              },
             ),
             Text('${_monthNames[month.month - 1]} ${month.year}', style: Theme.of(context).textTheme.titleMedium),
             IconButton(
               icon: const Icon(Icons.chevron_right),
               tooltip: 'Next month',
-              onPressed: () => ref.read(selectedBudgetMonthProvider.notifier).next(),
+              onPressed: () {
+                unawaited(AppHaptics.selection());
+                notifier.next();
+              },
             ),
           ],
         ),
@@ -155,27 +219,28 @@ class _BudgetProgressRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final pct = progress.pctUsed / 100;
-    final card = InkWell(
-      onTap: () => showEditBudgetSheet(context, progress),
+    return SavedHighlight(
+      id: progress.id,
+      radius: AppRadius.card,
+      inset: EdgeInsets.only(left: indented ? AppSpace.s24 : 0, bottom: AppSpace.rowGap),
       child: ProgressCard(
+        key: Key('budget-${progress.id}'),
         title: progress.category ?? 'Total',
         pct: pct,
         overBudget: progress.overBudget,
         indented: indented,
         icon: progress.category == null ? null : categoryIcon(progress.category),
         footnote: progress.overBudget
-            ? '${formatZAR(progress.remaining.abs())} over budget'
+            ? overByLabel(progress.remaining.abs())
             : '${formatZAR(progress.spent)} / ${formatZAR(progress.budgetAmount)}',
+        onTap: () => showEditBudgetSheet(context, progress),
       ),
-    );
-    return SavedHighlight(
-      id: progress.id,
-      radius: 16,
-      inset: EdgeInsets.only(left: indented ? 24 : 0, bottom: 12),
-      child: PressScale(child: card),
     );
   }
 }
+
+/// The one line an over budget gets (M40): "Over by R 150,00".
+String overByLabel(Decimal amount) => 'Over by ${formatZAR(amount)}';
 
 /// "Total spent" summary card per the Stitch Budgets mockup, shown above the
 /// per-category list. If the user has an explicit overall budget (a
@@ -210,7 +275,7 @@ class _TotalSpentSummary extends StatelessWidget {
       overBudget: overBudget,
       icon: Icons.account_balance_wallet_outlined,
       footnote: overBudget
-          ? '${formatZAR(spent - budgetAmount)} over budget'
+          ? overByLabel(spent - budgetAmount)
           : '${formatZAR(spent)} / ${formatZAR(budgetAmount)}',
     );
   }

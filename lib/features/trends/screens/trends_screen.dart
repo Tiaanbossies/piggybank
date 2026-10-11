@@ -256,7 +256,6 @@ class _HighCostStatStrip extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final highCostAsync = ref.watch(highCostExpensesProvider);
-    final semantic = Theme.of(context).extension<AppSemanticColors>();
 
     return _asyncSection(
       context,
@@ -295,7 +294,8 @@ class _HighCostStatStrip extends ConsumerWidget {
                       child: _Stat(
                         label: 'Spent there',
                         value: formatZAR(top.totalAmount),
-                        valueStyle: moneyTextStyle(context, fontSize: 18, color: semantic?.danger),
+                        // Spending is ink, not red (J4).
+                        valueStyle: moneyTextStyle(context, fontSize: 18),
                       ),
                     ),
                   ],

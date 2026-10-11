@@ -1,15 +1,19 @@
-import 'package:decimal/decimal.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/api/api_error.dart';
 import '../../../core/format/money.dart';
+import '../../../core/theme/app_motion.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/theme/app_tokens.dart';
+import '../../../shared/motion/chart_reveal.dart';
 import '../../../shared/widgets/app_skeleton.dart';
+import '../../../shared/widgets/chart_style.dart';
 import '../../../shared/widgets/confirm_dialog.dart';
 import '../../../shared/widgets/deferred_delete.dart';
 import '../../../shared/widgets/group_card.dart';
+import '../asset_class_style.dart';
 import '../models/dividend.dart';
 import '../models/holding.dart';
 import '../providers/portfolios_provider.dart';
@@ -77,8 +81,8 @@ class _HoldingDetailSheet extends ConsumerWidget {
               Expanded(
                 child: _Stat(
                   label: 'Unrealized P&L',
-                  value: formatZAR(holding.unrealizedPl),
-                  color: holding.unrealizedPl >= Decimal.zero ? semantic?.success : semantic?.danger,
+                  value: signedPl(holding.unrealizedPl),
+                  color: plColor(context.tokens, holding.unrealizedPl),
                 ),
               ),
               if (holding.realizedPl != null)
@@ -178,7 +182,8 @@ class _PriceHistoryChart extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final historyAsync = ref.watch(tickerHistoryProvider((ticker: ticker, period: '3mo')));
-    final accent = Theme.of(context).colorScheme.primary;
+    final accent = context.tokens.chartSeries.first;
+    final haptics = DatatipHaptics();
 
     return SkeletonSwitcher(child: historyAsync.when(
       loading: () => const SkeletonBlock(),
@@ -188,14 +193,18 @@ class _PriceHistoryChart extends ConsumerWidget {
         final spots = [
           for (var i = 0; i < history.data.length; i++) FlSpot(i.toDouble(), history.data[i].close.toDouble()),
         ];
+        // Draws in left to right; touch shows the close with a tick (M24).
         return SizedBox(
           height: 140,
-          child: LineChart(
+          child: ChartReveal(
+            revealKey: ticker,
+            child: LineChart(
+            duration: context.reducedMotion ? Duration.zero : AppMotion.stateChange,
             LineChartData(
               gridData: const FlGridData(show: false),
               titlesData: const FlTitlesData(show: false),
               borderData: FlBorderData(show: false),
-              lineTouchData: const LineTouchData(enabled: false),
+              lineTouchData: chartTouch(context, haptics, label: formatZAR),
               lineBarsData: [
                 LineChartBarData(
                   spots: spots,
@@ -207,6 +216,7 @@ class _PriceHistoryChart extends ConsumerWidget {
                 ),
               ],
             ),
+          ),
           ),
         );
       },

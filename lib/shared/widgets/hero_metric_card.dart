@@ -95,13 +95,25 @@ class HeroMetricCard extends StatelessWidget {
 /// its new value over 400 ms ease-out, instantly under reduced motion.
 /// [onReached] fires once the fill lands on 100 % (a goal's pulse hook).
 class PillBar extends StatefulWidget {
-  const PillBar({required this.value, required this.color, required this.track, this.onReached, super.key});
+  const PillBar({
+    required this.value,
+    required this.color,
+    required this.track,
+    this.onReached,
+    this.semanticsLabel,
+    this.semanticsValue,
+    super.key,
+  });
 
   /// 0–1+; clamped for drawing.
   final double value;
   final Color color;
   final Color track;
   final VoidCallback? onReached;
+
+  /// What the bar measures, read to a screen reader ("Progress to Rent").
+  final String? semanticsLabel;
+  final String? semanticsValue;
 
   static const height = 8.0;
 
@@ -138,6 +150,8 @@ class _PillBarState extends State<PillBar> {
           color: widget.color,
           backgroundColor: widget.track,
           borderRadius: AppRadius.pillAll,
+          semanticsLabel: widget.semanticsLabel,
+          semanticsValue: widget.semanticsValue,
         ),
       ),
     );

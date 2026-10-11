@@ -62,6 +62,7 @@ class MascotMoment extends ConsumerStatefulWidget {
     this.motion = MascotMotion.none,
     this.kind,
     this.daily = true,
+    this.onPop,
     super.key,
   });
 
@@ -79,6 +80,10 @@ class MascotMoment extends ConsumerStatefulWidget {
   /// a day (or once ever, with [daily] false).
   final String? kind;
   final bool daily;
+
+  /// Runs once when a [MascotMotion.pop] actually plays (claimed, and not
+  /// under reduced motion), so the card around Penny can join in.
+  final VoidCallback? onPop;
 
   @override
   ConsumerState<MascotMoment> createState() => _MascotMomentState();
@@ -106,6 +111,7 @@ class _MascotMomentState extends ConsumerState<MascotMoment> with SingleTickerPr
         // day isn't used up.
         if (_claim()) {
           AppHaptics.medium();
+          widget.onPop?.call();
           _controller = AnimationController.unbounded(vsync: this)
             ..animateWith(SpringSimulation(AppMotion.springPop, 0, 1, 0));
         }

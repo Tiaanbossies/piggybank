@@ -166,7 +166,10 @@ class _CollapseOutState extends State<CollapseOut> with TickerProviderStateMixin
           ignoring: widget.gone,
           child: ExcludeSemantics(
             excluding: widget.gone,
+            // Clips only while collapsing, so a resting card keeps its
+            // shadow.
             child: ClipRect(
+              clipBehavior: _size.value < 1 ? Clip.hardEdge : Clip.none,
               child: Align(
                 alignment: Alignment.topCenter,
                 heightFactor: AppMotion.easeInOut.transform(_size.value),
