@@ -48,26 +48,21 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       // it covers the bottom bar and pops back to whichever tab opened it.
       GoRoute(
         path: '/settings',
-        // Shared axis Z (spec §3.1): Settings comes forward, above the tabs,
-        // rather than sliding in like a sibling screen.
-        pageBuilder: (context, state) => CustomTransitionPage<void>(
-          key: state.pageKey,
-          child: const SettingsScreen(),
-          transitionDuration: AppMotion.pageTransition,
-          reverseTransitionDuration: AppMotion.pageTransition,
-          transitionsBuilder: (context, animation, secondaryAnimation, child) => context.reducedMotion
-              ? child
-              : SharedAxisTransition(
-                  animation: animation,
-                  secondaryAnimation: secondaryAnimation,
-                  transitionType: SharedAxisTransitionType.scaled,
-                  child: child,
-                ),
-        ),
+        // Shared axis Z (spec §3.1, M3): Settings comes forward, above the
+        // tabs, rather than sliding in like a sibling screen.
+        pageBuilder: (context, state) =>
+            sharedAxisPage(context, state.pageKey, SharedAxisTransitionType.scaled, const SettingsScreen()),
         routes: [GoRoute(path: 'data-export', builder: (context, state) => const DataExportScreen())],
       ),
       StatefulShellRoute.indexedStack(
-        builder: (context, state, navigationShell) => AppShell(navigationShell: navigationShell),
+        // Shared axis Y (M34, M35): signing in, unlocking or finishing the
+        // tour rises into the shell rather than sliding in sideways.
+        pageBuilder: (context, state, navigationShell) => sharedAxisPage(
+          context,
+          state.pageKey,
+          SharedAxisTransitionType.vertical,
+          AppShell(navigationShell: navigationShell),
+        ),
         branches: [
           StatefulShellBranch(routes: [GoRoute(path: '/', builder: (context, state) => const DashboardScreen())]),
           StatefulShellBranch(
@@ -82,6 +77,32 @@ final appRouterProvider = Provider<GoRouter>((ref) {
     ],
   );
 });
+
+/// A route page with a shared-axis transition of [type] over 250 ms, or a
+/// 150 ms fade under reduced motion (M3, M34, M35).
+CustomTransitionPage<void> sharedAxisPage(
+  BuildContext context,
+  LocalKey key,
+  SharedAxisTransitionType type,
+  Widget child,
+) {
+  final reduced = MediaQuery.maybeDisableAnimationsOf(context) ?? false;
+  final duration = reduced ? AppMotion.feedback : AppMotion.pageTransition;
+  return CustomTransitionPage<void>(
+    key: key,
+    child: child,
+    transitionDuration: duration,
+    reverseTransitionDuration: duration,
+    transitionsBuilder: (context, animation, secondaryAnimation, child) => reduced
+        ? FadeTransition(opacity: animation, child: child)
+        : SharedAxisTransition(
+            animation: animation,
+            secondaryAnimation: secondaryAnimation,
+            transitionType: type,
+            child: child,
+          ),
+  );
+}
 
 /// Bridges [AuthController]'s Riverpod state changes into a [Listenable]
 /// go_router can watch for `refreshListenable`.

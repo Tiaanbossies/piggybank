@@ -5,9 +5,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/api/api_error.dart';
+import '../../../core/theme/app_haptics.dart';
 import '../../../core/theme/app_motion.dart';
 import '../../../core/theme/app_theme.dart';
-import '../../../shared/widgets/icon_chip.dart';
+import '../../../core/theme/app_tokens.dart';
+import '../../../shared/motion/press_scale.dart';
+import '../../../shared/widgets/bubble_border.dart';
 import '../../../shared/widgets/mascot_moment.dart';
 import '../../../shared/widgets/paywall_dialog.dart';
 import '../../../shared/widgets/tab_app_bar.dart';
@@ -50,11 +53,15 @@ class _ChatbotScreenState extends ConsumerState<ChatbotScreen> {
   final _scrollController = ScrollController();
   String? _error;
   String? _retryText;
-  late final int _animatedFloor = ref.read(chatbotControllerProvider).messages.length;
+  // Bubbles already there when the tab opens don't animate; every one
+  // after does. Read up front: read lazily, it would count the first
+  // message too, and that one would never rise in (M30).
+  late final int _animatedFloor;
 
   @override
   void initState() {
     super.initState();
+    _animatedFloor = ref.read(chatbotControllerProvider).messages.length;
     // A draft set before this tab was first built. Taken after the frame,
     // because clearing a provider mid-build isn't allowed.
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -94,6 +101,8 @@ class _ChatbotScreenState extends ConsumerState<ChatbotScreen> {
   Future<void> _send([String? overrideText]) async {
     final text = overrideText ?? _inputController.text;
     if (text.trim().isEmpty) return;
+    // The send lands (M30): one light tap as the bubble rises.
+    unawaited(AppHaptics.light());
     setState(() {
       _error = null;
       _retryText = null;
@@ -117,11 +126,18 @@ class _ChatbotScreenState extends ConsumerState<ChatbotScreen> {
     }
   }
 
+  /// A suggested question (M32): the chip's press scale has already
+  /// started on touch-down; a selection tick, then it sends like any other.
+  void _ask(String question) {
+    unawaited(AppHaptics.selection());
+    _send(question);
+  }
+
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(chatbotControllerProvider);
     final suggestions = ref.watch(suggestedQuestionsProvider);
-    final semantic = Theme.of(context).extension<AppSemanticColors>();
+    final empty = state.messages.isEmpty && !state.sending;
     // A draft set while this tab is already alive in the shell.
     ref.listen<String?>(chatDraftProvider, (_, next) {
       if (next == null) return;
@@ -133,65 +149,51 @@ class _ChatbotScreenState extends ConsumerState<ChatbotScreen> {
       appBar: const TabAppBar(
         title: 'Penny',
         subtitle: 'Ask me anything about your money',
-        titleLeading: IconChip(icon: Icons.savings, size: 32),
+        titleLeading: PennyImage(MascotMoment.welcoming, size: 40),
       ),
       body: SafeArea(
         child: Column(
           children: [
             Expanded(
-              child: state.messages.isEmpty && !state.sending
-                  ? Center(
-                      child: Padding(
-                        padding: const EdgeInsets.all(24),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const IconChip(icon: Icons.savings, size: 56),
-                            const SizedBox(height: 16),
-                            Text(
-                              "Hi, I'm Penny",
-                              textAlign: TextAlign.center,
-                              style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              'I can help you track spending, check your budgets, or analyse your investments.',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(color: semantic?.textMuted),
-                            ),
-                            const SizedBox(height: 20),
-                            for (final q in suggestions)
-                              Padding(
-                                padding: const EdgeInsets.only(bottom: 8),
-                                child: SizedBox(
-                                  width: double.infinity,
-                                  child: OutlinedButton(
-                                    onPressed: state.sending ? null : () => _send(q),
-                                    style: OutlinedButton.styleFrom(shape: const StadiumBorder()),
-                                    child: Text(q),
-                                  ),
-                                ),
-                              ),
-                          ],
-                        ),
+              child: AnimatedSwitcher(
+                duration: context.reducedMotion ? Duration.zero : AppMotion.stateChange,
+                switchInCurve: AppMotion.easeOut,
+                switchOutCurve: AppMotion.easeOut,
+                // The chips step aside as the first message goes (M30): the
+                // welcome sinks and fades while the thread takes its place.
+                transitionBuilder: (child, animation) => FadeTransition(
+                  opacity: animation,
+                  child: child.key == const ValueKey('chat-welcome')
+                      ? SlideTransition(
+                          position: Tween(begin: const Offset(0, 0.03), end: Offset.zero).animate(animation),
+                          child: child,
+                        )
+                      : child,
+                ),
+                child: empty
+                    ? _Welcome(
+                        key: const ValueKey('chat-welcome'),
+                        suggestions: suggestions,
+                        onAsk: state.sending ? null : _ask,
+                      )
+                    : ListView(
+                        key: const ValueKey('chat-thread'),
+                        controller: _scrollController,
+                        padding: const EdgeInsets.all(AppSpace.gutter),
+                        children: [
+                          for (var i = 0; i < state.messages.length; i++)
+                            _ChatBubble(key: ValueKey(i), message: state.messages[i], animate: i >= _animatedFloor),
+                          if (state.sending) const _ThinkingSlot(),
+                          if (_error != null)
+                            _ErrorBubble(message: _error!, onRetry: _retryText == null ? null : () => _send(_retryText)),
+                        ],
                       ),
-                    )
-                  : ListView(
-                      controller: _scrollController,
-                      padding: const EdgeInsets.all(16),
-                      children: [
-                        for (var i = 0; i < state.messages.length; i++)
-                          _ChatBubble(key: ValueKey(i), message: state.messages[i], animate: i >= _animatedFloor),
-                        if (state.sending) const _TypingBubble(),
-                        if (_error != null)
-                          _ErrorBubble(message: _error!, onRetry: _retryText == null ? null : () => _send(_retryText)),
-                      ],
-                    ),
+              ),
             ),
             SafeArea(
               top: false,
               child: Padding(
-                padding: const EdgeInsets.all(12),
+                padding: const EdgeInsets.fromLTRB(AppSpace.gutter, AppSpace.s8, AppSpace.gutter, AppSpace.s12),
                 child: Row(
                   children: [
                     Expanded(
@@ -202,10 +204,8 @@ class _ChatbotScreenState extends ConsumerState<ChatbotScreen> {
                         maxLines: 4,
                         textInputAction: TextInputAction.send,
                         onSubmitted: (_) => _send(),
-                        decoration: const InputDecoration(
-                          hintText: 'Ask a question…',
-                          border: OutlineInputBorder(),
-                        ),
+                        // The theme's pill input (spec §3).
+                        decoration: const InputDecoration(hintText: 'Ask a question…'),
                       ),
                     ),
                     const SizedBox(width: 8),
@@ -216,6 +216,62 @@ class _ChatbotScreenState extends ConsumerState<ChatbotScreen> {
                   ],
                 ),
               ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Before the first message: welcoming Penny, a hello, and up to three
+/// data-aware questions as outlined pills (spec §4.1 Penny, M32).
+class _Welcome extends StatelessWidget {
+  const _Welcome({required this.suggestions, required this.onAsk, super.key});
+
+  final List<String> suggestions;
+  final ValueChanged<String>? onAsk;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.tokens;
+    final text = Theme.of(context).textTheme;
+    return Center(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(AppSpace.s24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const MascotMoment(asset: MascotMoment.welcoming, size: 120, motion: MascotMotion.fadeIn),
+            const SizedBox(height: AppSpace.s16),
+            Text("Hi, I'm Penny", textAlign: TextAlign.center, style: text.titleLarge),
+            const SizedBox(height: AppSpace.s8),
+            Text(
+              'I can help you track spending, check your budgets, or analyse your investments.',
+              textAlign: TextAlign.center,
+              style: text.bodyMedium?.copyWith(color: t.muted),
+            ),
+            const SizedBox(height: AppSpace.s20),
+            Wrap(
+              alignment: WrapAlignment.center,
+              spacing: AppSpace.s8,
+              runSpacing: AppSpace.s8,
+              children: [
+                for (final q in suggestions)
+                  PressScale(
+                    child: OutlinedButton(
+                      key: ValueKey('suggestion-$q'),
+                      onPressed: onAsk == null ? null : () => onAsk!(q),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: t.ink,
+                        side: BorderSide(color: t.outline),
+                        minimumSize: const Size(48, 40),
+                        padding: const EdgeInsets.symmetric(horizontal: AppSpace.s16, vertical: AppSpace.s8),
+                      ),
+                      child: Text(q, textAlign: TextAlign.center),
+                    ),
+                  ),
+              ],
             ),
           ],
         ),
@@ -247,22 +303,19 @@ class _ChatBubbleState extends State<_ChatBubble> with SingleTickerProviderState
   late final AnimationController _controller = AnimationController(
     vsync: this,
     duration: AppMotion.stateChange,
-    value: widget.animate ? 0 : 1,
+    value: 1,
   );
   late final Animation<double> _curved = CurvedAnimation(parent: _controller, curve: AppMotion.easeOut);
+  bool _started = false;
 
   @override
-  void initState() {
-    super.initState();
-    if (!widget.animate) return;
-    // MediaQuery isn't reliably available yet in initState, so this checks
-    // the platform accessibility flag directly rather than via BuildContext
-    // (same underlying signal MediaQuery.disableAnimations reads from).
-    if (WidgetsBinding.instance.platformDispatcher.accessibilityFeatures.disableAnimations) {
-      _controller.value = 1;
-    } else {
-      _controller.forward();
-    }
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_started) return;
+    _started = true;
+    // A new bubble rises 8 dp and fades in over 200 ms (M30, M31); under
+    // reduced motion it's simply there.
+    if (widget.animate && !context.reducedMotion) _controller.forward(from: 0);
   }
 
   @override
@@ -273,31 +326,25 @@ class _ChatBubbleState extends State<_ChatBubble> with SingleTickerProviderState
 
   @override
   Widget build(BuildContext context) {
+    final t = context.tokens;
     final isUser = widget.message.role == ChatRole.user;
-    final colorScheme = Theme.of(context).colorScheme;
-    final semantic = Theme.of(context).extension<AppSemanticColors>();
     final match = isUser ? null : _statCardPattern.firstMatch(widget.message.content);
 
+    // Replies on surface, the user's in primary, each with a tail toward
+    // its speaker (spec §3 Speech bubble).
     final bubble = Align(
       alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
       child: Container(
-        margin: const EdgeInsets.symmetric(vertical: 4),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-        constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.75),
-        decoration: BoxDecoration(
-          color: isUser ? colorScheme.primary : semantic?.accentChipBg,
-          borderRadius: BorderRadius.only(
-            topLeft: const Radius.circular(18),
-            topRight: const Radius.circular(18),
-            bottomLeft: Radius.circular(isUser ? 18 : 4),
-            bottomRight: Radius.circular(isUser ? 4 : 18),
-          ),
+        margin: const EdgeInsets.symmetric(vertical: AppSpace.s4),
+        padding: const EdgeInsets.symmetric(horizontal: AppSpace.s16, vertical: AppSpace.s12),
+        constraints: BoxConstraints(minWidth: 64, maxWidth: MediaQuery.of(context).size.width * 0.78),
+        decoration: ShapeDecoration(
+          color: isUser ? t.primary : t.surface,
+          shape: BubbleBorder(tail: isUser ? BubbleTail.bottomEnd : BubbleTail.bottomStart),
+          shadows: isUser ? null : AppShadows.level1(Theme.of(context).brightness),
         ),
         child: match == null
-            ? Text(
-                widget.message.content,
-                style: TextStyle(color: isUser ? colorScheme.onPrimary : colorScheme.onSurface),
-              )
+            ? Text(widget.message.content, style: TextStyle(color: isUser ? t.onPrimary : t.ink))
             : _StatCardReply(fullText: widget.message.content, match: match),
       ),
     );
@@ -321,7 +368,7 @@ class _StatCardReply extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final semantic = Theme.of(context).extension<AppSemanticColors>();
+    final t = context.tokens;
     final dir = (match.namedGroup('dir') ?? '').toLowerCase();
     final isDown = dir == 'lower' || dir == 'down' || dir == 'less';
     final label = (match.namedGroup('label') ?? '').trim();
@@ -329,14 +376,11 @@ class _StatCardReply extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        Text(fullText, style: TextStyle(color: Theme.of(context).colorScheme.onSurface)),
-        const SizedBox(height: 10),
+        Text(fullText, style: TextStyle(color: t.ink)),
+        const SizedBox(height: AppSpace.s12),
         Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-          decoration: BoxDecoration(
-            color: Theme.of(context).colorScheme.surface,
-            borderRadius: BorderRadius.circular(14),
-          ),
+          padding: const EdgeInsets.symmetric(horizontal: AppSpace.s12, vertical: AppSpace.s12),
+          decoration: BoxDecoration(color: t.sunk, borderRadius: AppRadius.tileAll),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
@@ -344,7 +388,7 @@ class _StatCardReply extends StatelessWidget {
               if (label.isNotEmpty)
                 Text(
                   label.toUpperCase(),
-                  style: TextStyle(fontSize: 11, color: semantic?.textMuted, fontWeight: FontWeight.w700),
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(color: t.muted),
                 ),
               const SizedBox(height: 2),
               Row(
@@ -354,11 +398,11 @@ class _StatCardReply extends StatelessWidget {
                     'R ${match.namedGroup('amount')}',
                     style: moneyTextStyle(context, fontSize: 20),
                   ),
-                  const SizedBox(width: 8),
-                  Icon(isDown ? Icons.trending_down : Icons.trending_up, size: 16, color: semantic?.textMuted),
+                  const SizedBox(width: AppSpace.s8),
+                  Icon(isDown ? Icons.trending_down : Icons.trending_up, size: 16, color: t.muted),
                   Text(
                     ' ${match.namedGroup('pct')}%',
-                    style: TextStyle(color: semantic?.textMuted, fontWeight: FontWeight.w700, fontSize: 12),
+                    style: TextStyle(color: t.muted, fontWeight: FontWeight.w700, fontSize: 12),
                   ),
                 ],
               ),
@@ -377,36 +421,35 @@ class _ErrorBubble extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final semantic = Theme.of(context).extension<AppSemanticColors>();
+    final t = context.tokens;
     return Align(
       alignment: Alignment.centerLeft,
       child: Container(
-        margin: const EdgeInsets.symmetric(vertical: 4),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-        constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.75),
-        decoration: BoxDecoration(
-          color: semantic?.dangerChipBg,
-          borderRadius: const BorderRadius.only(
-            topLeft: Radius.circular(18),
-            topRight: Radius.circular(18),
-            bottomRight: Radius.circular(18),
-            bottomLeft: Radius.circular(4),
-          ),
+        margin: const EdgeInsets.symmetric(vertical: AppSpace.s4),
+        padding: const EdgeInsets.symmetric(horizontal: AppSpace.s16, vertical: AppSpace.s12),
+        constraints: BoxConstraints(minWidth: 64, maxWidth: MediaQuery.of(context).size.width * 0.78),
+        decoration: ShapeDecoration(
+          color: t.dangerContainer,
+          shape: const BubbleBorder(tail: BubbleTail.bottomStart),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text("Sorry, I'm having trouble with that. $message", style: TextStyle(color: semantic?.danger)),
+            Text("Sorry, I'm having trouble with that. $message", style: TextStyle(color: t.onDangerContainer)),
             if (onRetry != null) ...[
-              const SizedBox(height: 4),
+              const SizedBox(height: AppSpace.s4),
               InkWell(
                 onTap: onRetry,
                 child: Padding(
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   child: Text(
                     'Retry',
-                    style: TextStyle(color: semantic?.danger, fontWeight: FontWeight.w700, decoration: TextDecoration.underline),
+                    style: TextStyle(
+                      color: t.onDangerContainer,
+                      fontWeight: FontWeight.w700,
+                      decoration: TextDecoration.underline,
+                    ),
                   ),
                 ),
               ),
@@ -418,31 +461,70 @@ class _ErrorBubble extends StatelessWidget {
   }
 }
 
-class _TypingBubble extends StatelessWidget {
-  const _TypingBubble();
+/// Penny's reply slot while she thinks (M31): the 40 dp thinking pose with
+/// a 2 dp bob (static under reduced motion) that goes when the reply lands.
+/// After [patience], "Still working on it…" fades in beside her.
+class _ThinkingSlot extends StatefulWidget {
+  const _ThinkingSlot();
+
+  static const patience = Duration(seconds: 10);
+
+  @override
+  State<_ThinkingSlot> createState() => _ThinkingSlotState();
+}
+
+class _ThinkingSlotState extends State<_ThinkingSlot> {
+  bool _slow = false;
+  late final Timer _timer;
+
+  @override
+  void initState() {
+    super.initState();
+    _timer = Timer(_ThinkingSlot.patience, () {
+      if (mounted) setState(() => _slow = true);
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer.cancel();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    final semantic = Theme.of(context).extension<AppSemanticColors>();
+    final t = context.tokens;
     return Align(
       alignment: Alignment.centerLeft,
-      child: Container(
-        margin: const EdgeInsets.symmetric(vertical: 4),
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-        decoration: BoxDecoration(
-          color: semantic?.accentChipBg,
-          borderRadius: const BorderRadius.only(
-            topLeft: Radius.circular(18),
-            topRight: Radius.circular(18),
-            bottomRight: Radius.circular(18),
-            bottomLeft: Radius.circular(4),
-          ),
-        ),
-        // Penny thinking (spec §3.3): a gentle bob that stops when the
-        // reply lands, because the bubble goes with it.
-        child: Semantics(
-          label: 'Penny is thinking',
-          child: const MascotMoment(asset: MascotMoment.thinking, size: 28, motion: MascotMotion.bob),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: AppSpace.s4),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Semantics(
+              label: 'Penny is thinking',
+              child: const MascotMoment(
+                key: Key('penny-thinking'),
+                asset: MascotMoment.thinking,
+                size: 40,
+                motion: MascotMotion.bob,
+              ),
+            ),
+            const SizedBox(width: AppSpace.s12),
+            Flexible(
+              child: AnimatedSwitcher(
+                duration: context.reducedMotion ? Duration.zero : AppMotion.stateChange,
+                switchInCurve: AppMotion.easeOut,
+                child: _slow
+                    ? Text(
+                        'Still working on it…',
+                        key: const Key('still-working'),
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(color: t.muted),
+                      )
+                    : const SizedBox.shrink(),
+              ),
+            ),
+          ],
         ),
       ),
     );

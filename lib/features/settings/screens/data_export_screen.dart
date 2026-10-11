@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/api/api_error.dart';
 import '../../../shared/widgets/app_skeleton.dart';
+import '../../../shared/widgets/tick_icon_button.dart';
 import '../data/account_api.dart';
 
 /// Settings > Security > Export my data (POPIA access right). Fetches
@@ -64,7 +65,7 @@ class _DataExportScreenState extends ConsumerState<DataExportScreen> {
       appBar: AppBar(
         title: const Text('Export my data'),
         actions: [
-          if (_json != null) IconButton(icon: const Icon(Icons.copy_outlined), tooltip: 'Copy to clipboard', onPressed: _copy),
+          if (_json != null) TickIconButton(icon: Icons.copy_outlined, tooltip: 'Copy to clipboard', onPressed: _copy),
         ],
       ),
       body: SafeArea(

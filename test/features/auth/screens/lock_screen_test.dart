@@ -1,7 +1,6 @@
-import 'dart:typed_data';
-
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:local_auth/local_auth.dart';
@@ -13,6 +12,7 @@ import 'package:piggybank/core/auth/auth_state.dart';
 import 'package:piggybank/core/auth/onboarding_store.dart';
 import 'package:piggybank/core/auth/secure_storage.dart';
 import 'package:piggybank/core/auth/user.dart';
+import 'package:piggybank/core/theme/app_tokens.dart';
 import 'package:piggybank/core/theme/shared_preferences_provider.dart';
 import 'package:piggybank/features/auth/screens/lock_screen.dart';
 import 'package:piggybank/features/settings/data/security_api.dart';
@@ -235,6 +235,68 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Log out'), findsOneWidget);
+    });
+  });
+
+  group('Lock look (M33, M34)', () {
+    const pinUser = User(id: 'u1', email: 'a@b.com', fullName: null, role: 'user', isActive: true, hasPin: true);
+
+    Color boxColour(WidgetTester tester) =>
+        (tester.widget<Container>(find.byKey(const Key('pin-box-0'))).decoration! as BoxDecoration).border!.top.color;
+
+    List<Object?> recordHaptics(WidgetTester tester) {
+      final haptics = <Object?>[];
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(SystemChannels.platform, (call) async {
+        if (call.method == 'HapticFeedback.vibrate') haptics.add(call.arguments);
+        return null;
+      });
+      addTearDown(() => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(SystemChannels.platform, null));
+      return haptics;
+    }
+
+    testWidgets('a wrong PIN turns the dots danger for 600 ms, with no haptic', (tester) async {
+      final haptics = recordHaptics(tester);
+      authController.state = const AuthState(
+        status: AuthStatus.authenticated,
+        accessToken: 'token',
+        locked: true,
+        user: pinUser,
+      );
+      await prefs.setBool('biometric_enabled', false);
+      await tester.pumpWidget(buildScreen(adapter: _FakeAdapter([() => _empty(401)])));
+      await tester.pumpAndSettle();
+      expect(boxColour(tester), AppTokens.light.outline);
+
+      await tester.enterText(find.byType(TextField), '0000');
+      await tester.tap(find.text('Unlock'));
+      for (var i = 0; i < 20 && find.text('Incorrect PIN').evaluate().isEmpty; i++) {
+        await tester.pump(const Duration(milliseconds: 10));
+      }
+      expect(boxColour(tester), AppTokens.light.danger);
+      await tester.pump(const Duration(milliseconds: 650));
+      await tester.pumpAndSettle();
+      expect(boxColour(tester), AppTokens.light.outline);
+      expect(find.text('Incorrect PIN'), findsOneWidget);
+      expect(haptics, isEmpty);
+    });
+
+    testWidgets('unlocking with the right PIN gives one light tap', (tester) async {
+      final haptics = recordHaptics(tester);
+      authController.state = const AuthState(
+        status: AuthStatus.authenticated,
+        accessToken: 'token',
+        locked: true,
+        user: pinUser,
+      );
+      await prefs.setBool('biometric_enabled', false);
+      await tester.pumpWidget(buildScreen(adapter: _FakeAdapter([() => _empty(204)])));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(find.byType(TextField), '1234');
+      await tester.tap(find.text('Unlock'));
+      await tester.pumpAndSettle();
+      expect(authController.state.locked, false);
+      expect(haptics, ['HapticFeedbackType.lightImpact']);
     });
   });
 }

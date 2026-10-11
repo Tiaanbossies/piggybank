@@ -1,13 +1,17 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/auth/auth_controller.dart';
 import '../../../core/auth/biometric_preference.dart';
+import '../../../core/theme/app_haptics.dart';
 import '../../../core/theme/app_motion.dart';
-import '../../../core/theme/app_theme.dart';
+import '../../../core/theme/app_tokens.dart';
 import '../../../shared/widgets/icon_chip.dart';
-import '../../../shared/widgets/mascot_moment.dart';
+import '../../../shared/widgets/submit_button.dart';
 import '../../settings/data/security_api.dart';
+import '../widgets/auth_layout.dart';
 
 /// Shown when [AuthState.locked] is true — biometric/PIN app-lock, per the
 /// locked v1-scope decision for a finance app.
@@ -62,7 +66,9 @@ class _LockScreenState extends ConsumerState<LockScreen> {
 
   Future<void> _attemptBiometric() async {
     setState(() => _prompting = true);
-    await ref.read(authControllerProvider.notifier).unlockWithBiometrics();
+    final ok = await ref.read(authControllerProvider.notifier).unlockWithBiometrics();
+    // Unlocked: the router rises into the shell (M34).
+    if (ok) unawaited(AppHaptics.light());
     // On failure/cancel/no-hardware, stay on the biometric retry button —
     // its "Use PIN instead" link (shown whenever hasPin) is the deliberate,
     // user-driven way to switch, not an automatic one.
@@ -79,6 +85,7 @@ class _LockScreenState extends ConsumerState<LockScreen> {
           pin,
           verifyPin: ref.read(securityApiProvider).verifyPin,
         );
+    if (ok) unawaited(AppHaptics.light());
     if (!mounted) return;
     setState(() {
       _pinSubmitting = false;
@@ -88,78 +95,70 @@ class _LockScreenState extends ConsumerState<LockScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final t = context.tokens;
+    final biometricPreferred = ref.read(biometricPreferenceProvider);
+    final logOut = TextButton(
+      onPressed: () => ref.read(authControllerProvider.notifier).logout(),
+      child: const Text('Log out'),
+    );
     return Scaffold(
-      body: SafeArea(
-        child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 32),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // Welcoming, smaller — this is a returning-user screen, not a
-                // first impression (visual spec §2: lock is welcoming).
-                const PennyImage(MascotMoment.welcoming, size: 80),
-                const SizedBox(height: 16),
-                Text(
-                  'Piggybank is locked',
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
-                ),
-                const SizedBox(height: 32),
-                if (_showPinEntry) ...[
+      body: AuthLayout(
+        subtitle: 'Piggybank is locked',
+        card: _showPinEntry
+            ? Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
                   _PinBoxes(controller: _pinController, hasError: _pinError != null),
                   if (_pinError != null) ...[
-                    const SizedBox(height: 12),
-                    Text(_pinError!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
-                  ],
-                  const SizedBox(height: 24),
-                  if (_pinSubmitting)
-                    const CircularProgressIndicator()
-                  else
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(onPressed: _submitPin, child: const Text('Unlock')),
-                    ),
-                  if (ref.read(biometricPreferenceProvider)) ...[
-                    const SizedBox(height: 16),
-                    TextButton(
-                      onPressed: () => setState(() => _showPinEntry = false),
-                      child: const Text('Use biometrics instead'),
+                    const SizedBox(height: AppSpace.s12),
+                    Text(
+                      _pinError!,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: Theme.of(context).colorScheme.error),
                     ),
                   ],
-                  const SizedBox(height: 16),
-                  TextButton(
-                    onPressed: () => ref.read(authControllerProvider.notifier).logout(),
-                    child: const Text('Log out'),
-                  ),
-                ] else if (_prompting)
-                  const CircularProgressIndicator()
-                else ...[
-                  GestureDetector(
-                    onTap: _attemptBiometric,
-                    child: const IconChip(icon: Icons.fingerprint, size: 72),
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    'Tap to unlock with biometrics',
-                    style: TextStyle(color: Theme.of(context).extension<AppSemanticColors>()?.textMuted, fontSize: 13),
-                  ),
-                  if (_hasPin) ...[
-                    const SizedBox(height: 16),
-                    TextButton(
-                      onPressed: () => setState(() => _showPinEntry = true),
-                      child: const Text('Use PIN instead'),
-                    ),
-                  ],
-                  const SizedBox(height: 16),
-                  TextButton(
-                    onPressed: () => ref.read(authControllerProvider.notifier).logout(),
-                    child: const Text('Log out'),
+                  const SizedBox(height: AppSpace.s20),
+                  SubmitButton(
+                    key: const Key('unlock-submit'),
+                    label: 'Unlock',
+                    busy: _pinSubmitting,
+                    onPressed: _submitPin,
                   ),
                 ],
-              ],
+              )
+            : Column(
+                children: [
+                  if (_prompting)
+                    const SizedBox.square(dimension: 72, child: Center(child: CircularProgressIndicator()))
+                  else
+                    Semantics(
+                      button: true,
+                      label: 'Unlock with biometrics',
+                      child: GestureDetector(
+                        onTap: _attemptBiometric,
+                        child: const IconChip(icon: Icons.fingerprint, size: 72),
+                      ),
+                    ),
+                  const SizedBox(height: AppSpace.s12),
+                  Text(
+                    'Tap to unlock with biometrics',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(color: t.muted),
+                  ),
+                ],
+              ),
+        footer: [
+          if (_showPinEntry && biometricPreferred)
+            TextButton(
+              onPressed: () => setState(() => _showPinEntry = false),
+              child: const Text('Use biometrics instead'),
             ),
-          ),
-        ),
+          if (!_showPinEntry && !_prompting && _hasPin)
+            TextButton(
+              onPressed: () => setState(() => _showPinEntry = true),
+              child: const Text('Use PIN instead'),
+            ),
+          logOut,
+        ],
       ),
     );
   }
@@ -182,6 +181,11 @@ class _PinBoxes extends StatefulWidget {
 class _PinBoxesState extends State<_PinBoxes> with SingleTickerProviderStateMixin {
   late final AnimationController _shakeController;
   late final Animation<double> _shakeOffset;
+  Timer? _flashTimer;
+  bool _flash = false;
+
+  /// How long the dots stay danger after a wrong PIN (M33).
+  static const flashFor = Duration(milliseconds: 600);
 
   @override
   void initState() {
@@ -200,14 +204,21 @@ class _PinBoxesState extends State<_PinBoxes> with SingleTickerProviderStateMixi
   @override
   void didUpdateWidget(_PinBoxes oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (widget.hasError && !oldWidget.hasError && !MediaQuery.of(context).disableAnimations) {
-      _shakeController.forward(from: 0);
+    if (widget.hasError && !oldWidget.hasError) {
+      // Errors are visual only: no haptic (spec §1.8).
+      if (!context.reducedMotion) _shakeController.forward(from: 0);
+      _flashTimer?.cancel();
+      _flash = true;
+      _flashTimer = Timer(flashFor, () {
+        if (mounted) setState(() => _flash = false);
+      });
     }
   }
 
   @override
   void dispose() {
     widget.controller.removeListener(_onChanged);
+    _flashTimer?.cancel();
     _shakeController.dispose();
     super.dispose();
   }
@@ -216,10 +227,9 @@ class _PinBoxesState extends State<_PinBoxes> with SingleTickerProviderStateMixi
 
   @override
   Widget build(BuildContext context) {
-    final semantic = Theme.of(context).extension<AppSemanticColors>();
-    final border = Theme.of(context).colorScheme.outline;
-    final danger = semantic?.danger ?? Theme.of(context).colorScheme.error;
+    final t = context.tokens;
     final value = widget.controller.text;
+    final colour = _flash ? t.danger : t.outline;
     return AnimatedBuilder(
       animation: _shakeOffset,
       builder: (context, child) => Transform.translate(offset: Offset(_shakeOffset.value, 0), child: child),
@@ -234,16 +244,18 @@ class _PinBoxesState extends State<_PinBoxes> with SingleTickerProviderStateMixi
                 for (var i = 0; i < 6; i++) ...[
                   if (i != 0) const SizedBox(width: 8),
                   Container(
+                    key: Key('pin-box-$i'),
                     width: 40,
                     height: 56,
                     alignment: Alignment.center,
                     decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: widget.hasError ? danger : border, width: widget.hasError ? 1.5 : 1),
+                      color: t.sunk,
+                      borderRadius: AppRadius.tileAll,
+                      border: Border.all(color: colour, width: _flash ? 1.5 : 1),
                     ),
                     child: Text(
                       i < value.length ? '•' : '',
-                      style: Theme.of(context).textTheme.titleLarge,
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(color: _flash ? t.danger : t.ink),
                     ),
                   ),
                 ],
