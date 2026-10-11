@@ -5,6 +5,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/api/api_error.dart';
 import '../../../core/format/money.dart';
 import '../../../core/theme/app_motion.dart';
+import '../../../core/theme/app_tokens.dart';
+import '../../../shared/motion/count_up_text.dart';
 import '../../../shared/widgets/app_skeleton.dart';
 import '../../../shared/widgets/group_card.dart';
 import '../../../shared/widgets/hero_metric_card.dart';
@@ -50,6 +52,7 @@ class NetWorthScreen extends ConsumerWidget {
     final netWorthAsync = ref.watch(netWorthProvider);
     final summary = netWorthAsync.valueOrNull;
 
+    final t = context.tokens;
     void open(Widget screen) => Navigator.of(context).push(MaterialPageRoute(builder: (_) => screen));
 
     return Scaffold(
@@ -61,7 +64,7 @@ class NetWorthScreen extends ConsumerWidget {
             return ref.refresh(netWorthProvider.future);
           },
           child: ListView(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(AppSpace.gutter),
             children: [
               AnimatedSwitcher(
                 duration: context.reducedMotion ? Duration.zero : AppMotion.stateChange,
@@ -83,37 +86,43 @@ class NetWorthScreen extends ConsumerWidget {
                   ),
                 ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: AppSpace.sectionGap),
+              // What makes up the figure. Liabilities are a fact, not a
+              // warning: their total is ink, never red (visual spec §4.1).
               GroupCard(
                 children: [
                   GroupRow(
                     key: const Key('net-worth-accounts'),
                     leadingIcon: Icons.account_balance_wallet_outlined,
                     title: 'Accounts',
-                    trailing: const Icon(Icons.chevron_right),
+                    trailing: Icon(Icons.chevron_right, color: t.muted),
                     onTap: () => open(const AccountsScreen()),
                   ),
                   GroupRow(
                     key: const Key('net-worth-assets'),
                     leadingIcon: Icons.savings_outlined,
                     title: 'Assets',
-                    subtitle: summary == null ? null : 'Total ${formatZAR(summary.totalAssets)}',
-                    trailing: const Icon(Icons.chevron_right),
+                    trailing: _Total(summary?.totalAssets),
                     onTap: () => open(const AssetsScreen()),
                   ),
                   GroupRow(
                     key: const Key('net-worth-liabilities'),
                     leadingIcon: Icons.request_quote_outlined,
                     title: 'Liabilities',
-                    subtitle: summary == null ? null : 'Total ${formatZAR(summary.liabilitiesTotal)}',
-                    trailing: const Icon(Icons.chevron_right),
+                    trailing: _Total(summary?.liabilitiesTotal),
                     onTap: () => open(const LiabilitiesScreen()),
                   ),
+                ],
+              ),
+              const SizedBox(height: AppSpace.sectionGap - AppSpace.rowGap),
+              GroupCard(
+                children: [
                   GroupRow(
                     key: const Key('net-worth-calculators'),
                     leadingIcon: Icons.calculate_outlined,
+                    muted: true,
                     title: 'Loan calculators',
-                    trailing: const Icon(Icons.chevron_right),
+                    trailing: Icon(Icons.chevron_right, color: t.muted),
                     onTap: () => open(const CalculatorsScreen()),
                   ),
                 ],
@@ -122,6 +131,32 @@ class NetWorthScreen extends ConsumerWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// A hub row's total, tabular in ink, then the chevron. Nothing while the
+/// summary loads: the hero above carries the loading state.
+class _Total extends StatelessWidget {
+  const _Total(this.amount);
+
+  final Decimal? amount;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.tokens;
+    final value = amount;
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (value != null)
+          CrossfadeDigits(
+            text: formatZAR(value),
+            amount: value.toDouble(),
+            style: Theme.of(context).textTheme.titleSmall?.copyWith(color: t.ink),
+          ),
+        Icon(Icons.chevron_right, color: t.muted),
+      ],
     );
   }
 }

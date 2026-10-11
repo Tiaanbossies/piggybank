@@ -7,12 +7,16 @@ import '../../core/theme/app_tokens.dart';
 /// review and update banners): primaryContainer, a leading icon, the
 /// message and a chevron. It arrives by sliding down 8 dp and fading in
 /// (M41: 200 ms ease-out); under reduced motion it's just there.
+///
+/// With [onDismiss] the chevron gives way to a close button, for a notice
+/// the user may wave off (the update banner).
 class AppBanner extends StatefulWidget {
-  const AppBanner({required this.message, required this.onTap, this.icon, super.key});
+  const AppBanner({required this.message, required this.onTap, this.icon, this.onDismiss, super.key});
 
   final String message;
   final VoidCallback onTap;
   final IconData? icon;
+  final VoidCallback? onDismiss;
 
   /// How far the banner slides in from.
   static const slide = 8.0;
@@ -68,7 +72,16 @@ class _AppBannerState extends State<AppBanner> with SingleTickerProviderStateMix
                     style: Theme.of(context).textTheme.labelLarge?.copyWith(color: t.onPrimaryContainer),
                   ),
                 ),
-                Icon(Icons.chevron_right, color: t.onPrimaryContainer),
+                if (widget.onDismiss case final dismiss?)
+                  IconButton(
+                    icon: const Icon(Icons.close, size: 18),
+                    color: t.onPrimaryContainer,
+                    tooltip: 'Dismiss',
+                    visualDensity: VisualDensity.compact,
+                    onPressed: dismiss,
+                  )
+                else
+                  Icon(Icons.chevron_right, color: t.onPrimaryContainer),
               ],
             ),
           ),

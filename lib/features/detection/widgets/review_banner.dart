@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../shared/widgets/icon_chip.dart';
+import '../../../core/theme/app_tokens.dart';
+import '../../../shared/widgets/app_banner.dart';
 import '../models/detected_event.dart';
 import '../providers/detection_provider.dart';
 import '../screens/pending_review_screen.dart';
@@ -35,35 +36,12 @@ class ReviewBanner extends ConsumerWidget {
     if (count == 0) return const SizedBox.shrink();
 
     return Padding(
-      padding: const EdgeInsets.only(bottom: 16),
-      child: Card(
-        clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          onTap: () => openPendingReview(context),
-          child: Padding(
-            padding: const EdgeInsets.all(12),
-            child: Row(
-              children: [
-                const IconChip(icon: Icons.fact_check_outlined, size: 40),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        count == 1 ? '1 new transaction to review' : '$count new transactions to review',
-                        style: Theme.of(context).textTheme.titleSmall,
-                      ),
-                      const SizedBox(height: 2),
-                      Text('Tap to confirm or discard', style: Theme.of(context).textTheme.bodySmall),
-                    ],
-                  ),
-                ),
-                const Icon(Icons.chevron_right),
-              ],
-            ),
-          ),
-        ),
+      padding: const EdgeInsets.only(bottom: AppSpace.rowGap),
+      child: AppBanner(
+        key: const Key('review-banner'),
+        icon: Icons.fact_check_outlined,
+        message: count == 1 ? '1 new transaction to review' : '$count new transactions to review',
+        onTap: () => openPendingReview(context),
       ),
     );
   }

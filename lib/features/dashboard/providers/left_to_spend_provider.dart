@@ -9,10 +9,20 @@ sealed class LeftToSpend {
   const LeftToSpend();
 }
 
-/// Top-level budgets have [amount] left between them.
+/// Top-level budgets have [amount] left between them, out of [budgeted].
 class UnderBudget extends LeftToSpend {
-  const UnderBudget(this.amount);
+  const UnderBudget(this.amount, {this.budgeted});
   final Decimal amount;
+
+  /// The month's top-level budgets added up; null when not known.
+  final Decimal? budgeted;
+
+  /// The share of the month's budget already spent, 0–1, for the hero bar.
+  double? get spentShare {
+    final total = budgeted;
+    if (total == null || total <= Decimal.zero) return null;
+    return ((total - amount).toDouble() / total.toDouble()).clamp(0.0, 1.0);
+  }
 }
 
 /// Top-level budgets are [amount] over between them.
@@ -40,7 +50,8 @@ final leftToSpendProvider = Provider.autoDispose<AsyncValue<LeftToSpend>>((ref) 
       return NoBudgets(ref.watch(cashflowProvider).valueOrNull?.expenseTotal);
     }
     final remaining = topLevel.fold(Decimal.zero, (sum, b) => sum + b.remaining);
-    return remaining < Decimal.zero ? OverBudget(-remaining) : UnderBudget(remaining);
+    final budgeted = topLevel.fold(Decimal.zero, (sum, b) => sum + b.budgetAmount);
+    return remaining < Decimal.zero ? OverBudget(-remaining) : UnderBudget(remaining, budgeted: budgeted);
   });
 });
 
