@@ -3,7 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/api/api_error.dart';
 import '../../../core/format/money.dart';
-import '../../../core/theme/app_haptics.dart';
+import '../../../core/theme/app_tokens.dart';
+import '../../../shared/motion/spring_swipe.dart';
+import '../../../shared/widgets/app_card.dart';
 import '../../../shared/widgets/app_skeleton.dart';
 import '../../../shared/widgets/mascot_moment.dart';
 import '../../../shared/widgets/swipe_background.dart';
@@ -43,18 +45,22 @@ class _PendingReviewScreenState extends ConsumerState<PendingReviewScreen> {
   /// card back while that refetch is still loading.
   final Set<String> _settling = {};
 
+  /// Hides [events], shows one Undo snackbar for them all, and sends
+  /// [commit] for each once it closes without Undo. A failure brings that
+  /// event back with the error; the rest still go through.
   Future<void> _settle(
-    DetectedEvent event, {
+    List<DetectedEvent> events, {
     required String message,
-    required Future<void> Function(DetectionApi api) commit,
+    required Future<void> Function(DetectionApi api, DetectedEvent event) commit,
   }) async {
     // Captured up front: the snackbar outlives this screen if the user backs
     // out during the Undo window, and the commit must still happen then.
     final api = ref.read(detectionApiProvider);
     final container = ProviderScope.containerOf(context);
     final messenger = ScaffoldMessenger.of(context);
+    final ids = {for (final e in events) e.id};
 
-    setState(() => _settling.add(event.id));
+    setState(() => _settling.addAll(ids));
     // Closing the previous snackbar commits its action now rather than
     // queueing this one behind it, so a run of quick confirms stays quick.
     messenger.hideCurrentSnackBar();
@@ -71,30 +77,26 @@ class _PendingReviewScreenState extends ConsumerState<PendingReviewScreen> {
         .closed;
 
     if (reason == SnackBarClosedReason.action) {
-      if (mounted) setState(() => _settling.remove(event.id));
+      if (mounted) setState(() => _settling.removeAll(ids));
       return;
     }
 
-    try {
-      await commit(api);
-    } on ApiError catch (e) {
-      if (mounted) setState(() => _settling.remove(event.id));
-      messenger.showSnackBar(SnackBar(content: Text(e.message)));
-      return;
+    String? failure;
+    var sent = 0;
+    for (final event in events) {
+      try {
+        await commit(api, event);
+        sent++;
+      } on ApiError catch (e) {
+        failure = e.message;
+        if (mounted) setState(() => _settling.remove(event.id));
+      }
     }
-    container.invalidate(pendingEventsProvider);
+    if (failure != null) messenger.showSnackBar(SnackBar(content: Text(failure)));
+    if (sent > 0) container.invalidate(pendingEventsProvider);
   }
 
-  void _confirm(DetectedEvent event, _ConfirmResult result) {
-    final description = event.extractedJson?['description'] as String?;
-    _settle(
-      event,
-      message: [
-        'Confirmed',
-        if (description != null && description.isNotEmpty) description,
-        if (result.category != null) result.category!,
-      ].join(' · '),
-      commit: (api) => api.confirmEvent(
+  Future<void> _sendConfirm(DetectionApi api, DetectedEvent event, _ConfirmResult result) => api.confirmEvent(
         event.id,
         accountId: result.accountId,
         category: result.category,
@@ -103,12 +105,34 @@ class _PendingReviewScreenState extends ConsumerState<PendingReviewScreen> {
         quantity: result.quantity,
         pricePerUnit: result.pricePerUnit,
         tradeType: result.tradeType,
-      ),
+      );
+
+  void _confirm(DetectedEvent event, _ConfirmResult result) {
+    final description = event.extractedJson?['description'] as String?;
+    _settle(
+      [event],
+      message: [
+        'Confirmed',
+        if (description != null && description.isNotEmpty) description,
+        if (result.category != null) result.category!,
+      ].join(' · '),
+      commit: (api, e) => _sendConfirm(api, e, result),
+    );
+  }
+
+  /// "Confirm all n" (visual spec §4.1): every card a single tap would
+  /// confirm, each with its own suggestion, behind one Undo.
+  void _confirmAll(List<(DetectedEvent, _ConfirmResult)> ready) {
+    final results = {for (final (e, r) in ready) e.id: r};
+    _settle(
+      [for (final (e, _) in ready) e],
+      message: 'Confirmed ${ready.length}',
+      commit: (api, e) => _sendConfirm(api, e, results[e.id]!),
     );
   }
 
   void _discard(DetectedEvent event) {
-    _settle(event, message: 'Discarded', commit: (api) => api.discardEvent(event.id));
+    _settle([event], message: 'Ignored', commit: (api, e) => api.discardEvent(e.id));
   }
 
   @override
@@ -136,7 +160,9 @@ class _PendingReviewScreenState extends ConsumerState<PendingReviewScreen> {
                 return ListView(
                   children: [
                     if (cleared) ...[
-                      const SizedBox(height: 32),
+                      const SizedBox(height: AppSpace.s32),
+                      // M20: celebrating Penny pops, with one medium tap, at
+                      // most once a day; after that she just stands there.
                       const Center(
                         child: MascotMoment(
                           asset: MascotMoment.celebrating,
@@ -150,29 +176,48 @@ class _PendingReviewScreenState extends ConsumerState<PendingReviewScreen> {
                         'All caught up',
                         key: const Key('review-all-caught-up'),
                         textAlign: TextAlign.center,
-                        style: Theme.of(context).textTheme.titleMedium,
+                        style: Theme.of(context).textTheme.titleLarge,
                       ),
                     ],
-                    const Padding(
-                      padding: EdgeInsets.all(32),
+                    Padding(
+                      padding: const EdgeInsets.all(AppSpace.s32),
                       child: Text(
                         'Nothing waiting for review. New suggestions from your allowlisted apps and '
                         'connected Gmail account will show up here.',
                         textAlign: TextAlign.center,
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: context.tokens.muted),
                       ),
                     ),
                   ],
                 );
               }
+              final accounts = ref.watch(accountsProvider).valueOrNull;
+              final ready = [
+                for (final e in events)
+                  if (_EventCard.oneTapResult(e, accounts) case final r?) (e, r),
+              ];
               return ListView.builder(
-                padding: const EdgeInsets.all(16),
-                itemCount: events.length,
-                itemBuilder: (context, i) => _EventCard(
-                  key: ValueKey(events[i].id),
-                  event: events[i],
-                  onConfirm: (result) => _confirm(events[i], result),
-                  onDiscard: () => _discard(events[i]),
-                ),
+                padding: const EdgeInsets.fromLTRB(AppSpace.gutter, AppSpace.s16, AppSpace.gutter, AppSpace.s32),
+                itemCount: events.length + (ready.length > 1 ? 1 : 0),
+                itemBuilder: (context, i) {
+                  if (i == events.length) {
+                    return Padding(
+                      padding: const EdgeInsets.only(top: AppSpace.s8),
+                      child: OutlinedButton.icon(
+                        key: const Key('review-confirm-all'),
+                        icon: const Icon(Icons.done_all),
+                        label: Text('Confirm all ${ready.length}'),
+                        onPressed: () => _confirmAll(ready),
+                      ),
+                    );
+                  }
+                  return _EventCard(
+                    key: ValueKey(events[i].id),
+                    event: events[i],
+                    onConfirm: (result) => _confirm(events[i], result),
+                    onDiscard: () => _discard(events[i]),
+                  );
+                },
               );
             },
           )),
@@ -192,7 +237,8 @@ class _EventCard extends ConsumerWidget {
   /// Null when there is nothing to send without asking — any non-transaction
   /// (those need a holding picked), or a transaction with no suggested
   /// category (the backend rejects a confirm without one).
-  _ConfirmResult? _oneTapResult(List<Account>? accounts) {
+  static _ConfirmResult? oneTapResult(DetectedEvent event, List<Account>? accounts) {
+    if (event.status == DetectionStatus.skippedInvalid) return null;
     if (event.eventKind != 'transaction') return null;
     final extracted = event.extractedJson;
     final category = (extracted?['suggested_category'] as String?)?.trim();
@@ -222,102 +268,104 @@ class _EventCard extends ConsumerWidget {
     final extracted = event.extractedJson;
     final isSkippedInvalid = event.status == DetectionStatus.skippedInvalid;
     final accounts = ref.watch(accountsProvider).valueOrNull;
-    final oneTap = isSkippedInvalid ? null : _oneTapResult(accounts);
+    final oneTap = oneTapResult(event, accounts);
     final accountName = oneTap?.accountId == null
         ? null
         : accounts!.firstWhere((a) => a.id == oneTap!.accountId).name;
-    final colors = Theme.of(context).colorScheme;
+    final t = context.tokens;
+    final text = Theme.of(context).textTheme;
 
-    return Dismissible(
-      key: ValueKey('dismiss-${event.id}'),
-      // Swipe right only where a tap would confirm without asking anything.
-      direction: oneTap != null ? DismissDirection.horizontal : DismissDirection.endToStart,
-      background: SwipeBackground(
-        color: colors.primaryContainer,
-        foreground: colors.onPrimaryContainer,
-        icon: Icons.check,
-        label: 'Confirm',
-        alignment: Alignment.centerLeft,
-      ),
-      secondaryBackground: SwipeBackground(
-        // Neutral, not red: discarding isn't a mistake (spec §3.2), and red
-        // stays reserved for over budget.
-        color: colors.surfaceContainerHighest,
-        foreground: colors.onSurfaceVariant,
-        icon: Icons.delete_outline,
-        label: 'Discard',
-        alignment: Alignment.centerRight,
-      ),
-      onDismissed: (direction) {
-        AppHaptics.light();
-        direction == DismissDirection.startToEnd ? onConfirm(oneTap!) : onDiscard();
-      },
-      child: Card(
-        margin: const EdgeInsets.only(bottom: 12),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppSpace.rowGap),
+      child: SpringSwipe(
+        key: ValueKey('dismiss-${event.id}'),
+        // Swipe right only where a tap would confirm without asking anything.
+        direction: oneTap != null ? DismissDirection.horizontal : DismissDirection.endToStart,
+        background: SwipeBackground(
+          color: t.primaryContainer,
+          foreground: t.onPrimaryContainer,
+          icon: Icons.check,
+          label: 'Confirm',
+          alignment: Alignment.centerLeft,
+        ),
+        secondaryBackground: SwipeBackground(
+          // Neutral, not red: ignoring isn't a mistake (spec §3.2), and red
+          // stays reserved for over budget.
+          color: t.sunk,
+          foreground: t.muted,
+          icon: Icons.visibility_off_outlined,
+          label: 'Ignore',
+          alignment: Alignment.centerRight,
+        ),
+        onSwiped: (direction) => direction == DismissDirection.startToEnd ? onConfirm(oneTap!) : onDiscard(),
+        child: AppCard(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
                 children: [
-                  Icon(event.sourceType == DetectionSourceType.email ? Icons.email_outlined : Icons.notifications_outlined),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(event.sourceRef, style: Theme.of(context).textTheme.titleSmall, overflow: TextOverflow.ellipsis),
+                  Icon(
+                    event.sourceType == DetectionSourceType.email ? Icons.email_outlined : Icons.notifications_outlined,
+                    size: 20,
+                    color: t.muted,
                   ),
+                  const SizedBox(width: AppSpace.s8),
+                  Expanded(
+                    child: Text(event.sourceRef, style: text.titleSmall, overflow: TextOverflow.ellipsis),
+                  ),
+                  if (extracted?['amount'] != null)
+                    Text(
+                      formatZAR(extracted!['amount']),
+                      style: text.titleSmall?.copyWith(fontFeatures: const [FontFeature.tabularFigures()]),
+                    ),
                 ],
               ),
-              const SizedBox(height: 8),
-              Text(event.rawText, maxLines: 3, overflow: TextOverflow.ellipsis),
-              const SizedBox(height: 8),
+              const SizedBox(height: AppSpace.s8),
+              Text(
+                event.rawText,
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis,
+                style: text.bodyMedium?.copyWith(color: t.muted),
+              ),
+              const SizedBox(height: AppSpace.s8),
               if (isSkippedInvalid)
                 Text(
                   event.errorReason ?? 'Could not extract a financial event from this item.',
-                  style: TextStyle(color: colors.error),
+                  style: text.bodySmall?.copyWith(color: t.muted),
                 )
               else if (extracted != null)
                 Wrap(
-                  spacing: 16,
-                  runSpacing: 4,
+                  spacing: AppSpace.s16,
+                  runSpacing: AppSpace.s4,
                   children: [
                     _Field('Kind', event.eventKind ?? '—'),
-                    _Field('Amount', formatZAR(extracted['amount'])),
                     if (extracted['date'] != null) _Field('Date', extracted['date'].toString()),
                     if (extracted['ticker'] != null) _Field('Ticker', extracted['ticker'].toString()),
                     if (extracted['description'] != null) _Field('Description', extracted['description'].toString()),
                   ],
                 ),
               if (oneTap != null) ...[
-                const SizedBox(height: 8),
-                // What a tap on Confirm will file it as — shown in full, since
-                // there is no sheet in between to check it on any more.
-                Row(
-                  children: [
-                    Icon(Icons.sell_outlined, size: 16, color: colors.primary),
-                    const SizedBox(width: 6),
-                    Expanded(
-                      child: Text(
-                        [
-                          [oneTap.category!, if (oneTap.subcategory != null) oneTap.subcategory!].join(' › '),
-                          ?accountName,
-                        ].join(' · '),
-                        style: TextStyle(color: colors.primary, fontWeight: FontWeight.w600),
-                      ),
-                    ),
-                  ],
+                const SizedBox(height: AppSpace.s12),
+                // What a tap on Confirm will file it as, as a category pill:
+                // shown in full, since there is no sheet in between to check
+                // it on any more.
+                _CategoryPill(
+                  [
+                    [oneTap.category!, if (oneTap.subcategory != null) oneTap.subcategory!].join(' › '),
+                    ?accountName,
+                  ].join(' · '),
                 ),
               ],
-              const SizedBox(height: 12),
+              const SizedBox(height: AppSpace.s12),
               Row(
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
-                  TextButton(onPressed: onDiscard, child: const Text('Discard')),
+                  TextButton(onPressed: onDiscard, child: const Text('Ignore')),
                   if (oneTap != null) ...[
-                    const SizedBox(width: 8),
+                    const SizedBox(width: AppSpace.s4),
                     TextButton(onPressed: () => _openSheet(context), child: const Text('Edit')),
                   ],
-                  const SizedBox(width: 8),
+                  const SizedBox(width: AppSpace.s8),
                   if (!isSkippedInvalid)
                     ElevatedButton(
                       onPressed: oneTap != null ? () => onConfirm(oneTap) : () => _openSheet(context),
@@ -333,6 +381,35 @@ class _EventCard extends ConsumerWidget {
   }
 }
 
+/// The category a one-tap confirm will use, as a primaryContainer pill.
+class _CategoryPill extends StatelessWidget {
+  const _CategoryPill(this.label);
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.tokens;
+    return Container(
+      key: const Key('review-category-pill'),
+      padding: const EdgeInsets.symmetric(horizontal: AppSpace.s12, vertical: 6),
+      decoration: BoxDecoration(color: t.primaryContainer, borderRadius: AppRadius.pillAll),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.sell_outlined, size: 16, color: t.onPrimaryContainer),
+          const SizedBox(width: 6),
+          Flexible(
+            child: Text(
+              label,
+              style: Theme.of(context).textTheme.labelLarge?.copyWith(color: t.onPrimaryContainer),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _Field extends StatelessWidget {
   const _Field(this.label, this.value);
   final String label;
@@ -343,7 +420,7 @@ class _Field extends StatelessWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Text('$label: ', style: const TextStyle(fontWeight: FontWeight.w600)),
+        Text('$label: ', style: TextStyle(fontWeight: FontWeight.w600, color: context.tokens.muted)),
         Text(value),
       ],
     );
@@ -482,7 +559,7 @@ class _ConfirmSheetState extends ConsumerState<_ConfirmSheet> {
             if (kind == 'trade') ..._tradeFields(),
             if (_error != null) ...[
               const SizedBox(height: 12),
-              Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
+              Text(_error!, style: TextStyle(color: context.tokens.danger)),
             ],
             const SizedBox(height: 24),
             ElevatedButton(onPressed: _submit, child: const Text('Confirm')),

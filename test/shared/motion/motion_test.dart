@@ -125,10 +125,16 @@ void main() {
       expect(find.byKey(const Key('saved-highlight')), findsNothing);
     });
 
-    testWidgets('reduced motion: no tint', (tester) async {
+    testWidgets('reduced motion: the tint shows, then goes without a fade', (tester) async {
       await _pump(tester, harness(), reduced: true);
       await tester.tap(find.text('Save A'));
       await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+      final tint = find.byKey(const Key('saved-highlight'));
+      expect((tester.widget<DecoratedBox>(tint).decoration as BoxDecoration).color?.a, 1);
+      await tester.pump(highlightDuration - const Duration(milliseconds: 150));
+      expect((tester.widget<DecoratedBox>(tint).decoration as BoxDecoration).color?.a, 1, reason: 'no fade');
+      await tester.pumpAndSettle();
       expect(find.byKey(const Key('saved-highlight')), findsNothing);
     });
   });

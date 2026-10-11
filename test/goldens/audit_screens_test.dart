@@ -11,6 +11,7 @@ import 'package:piggybank/core/router/placeholder_screens.dart';
 import 'package:piggybank/features/accounts/screens/accounts_screen.dart';
 import 'package:piggybank/features/auth/screens/lock_screen.dart';
 import 'package:piggybank/features/auth/screens/login_screen.dart';
+import 'package:piggybank/features/detection/screens/pending_review_screen.dart';
 import 'package:piggybank/features/networth/screens/net_worth_screen.dart';
 import 'package:piggybank/features/onboarding/screens/onboarding_screen.dart';
 
@@ -34,6 +35,7 @@ void main() {
     'login': const LoginScreen(),
     'lock': const LockScreen(),
     'onboarding': const OnboardingScreen(),
+    'review': const PendingReviewScreen(),
   };
 
   for (final mode in [ThemeMode.light, ThemeMode.dark]) {

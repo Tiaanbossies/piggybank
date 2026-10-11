@@ -34,8 +34,8 @@ import '../../plan/screens/plan_screen.dart';
 import '../../savings/providers/savings_provider.dart';
 import '../../summaries/providers/summaries_provider.dart';
 import '../../transactions/category_icons.dart';
-import '../../transactions/models/transaction.dart';
 import '../../transactions/providers/transactions_provider.dart';
+import '../../transactions/widgets/signed_amount.dart';
 import '../../transactions/widgets/transaction_sheet.dart';
 import '../../updates/models/latest_release.dart';
 import '../../updates/providers/updates_provider.dart';
@@ -411,7 +411,6 @@ class _RecentTransactionsPreview extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final recentAsync = ref.watch(recentTransactionsProvider);
-    final t = context.tokens;
     final text = Theme.of(context).textTheme;
 
     return Column(
@@ -472,7 +471,7 @@ class _RecentTransactionsPreview extends ConsumerWidget {
                           tx.transactionDate,
                           withYear: tx.transactionDate.year != clock.now().year,
                         )}',
-                        trailing: _Amount(transaction: tx, style: text.titleSmall, positive: t.positive, ink: t.ink),
+                        trailing: SignedAmount.of(tx),
                       ),
                     ),
                 ],
@@ -482,28 +481,5 @@ class _RecentTransactionsPreview extends ConsumerWidget {
         ),
       ],
     );
-  }
-}
-
-/// A recent row's amount (visual spec §3): tabular `titleSmall`. Spending
-/// is a minus sign in ink, not red, since red means over budget; income is
-/// "+" in the positive green; a transfer carries no sign.
-class _Amount extends StatelessWidget {
-  const _Amount({required this.transaction, required this.style, required this.positive, required this.ink});
-
-  final Transaction transaction;
-  final TextStyle? style;
-  final Color positive;
-  final Color ink;
-
-  @override
-  Widget build(BuildContext context) {
-    final amount = formatZAR(transaction.amount.abs());
-    final (text, color) = switch (transaction.transactionType.name) {
-      'expense' => ('\u2212$amount', ink),
-      'income' => ('+$amount', positive),
-      _ => (amount, ink),
-    };
-    return Text(text, style: style?.copyWith(color: color, fontFeatures: const [FontFeature.tabularFigures()]));
   }
 }

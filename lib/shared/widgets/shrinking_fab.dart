@@ -50,7 +50,9 @@ class _ShrinkingFabState extends State<ShrinkingFab> {
   }
 
   void _onScroll() {
-    if (!widget.controller.hasClients) return;
+    // A screen's primary controller can briefly hold two lists while one
+    // crossfades into the other; only a single list has a direction.
+    if (widget.controller.positions.length != 1) return;
     final position = widget.controller.position;
     final extended = switch (position.userScrollDirection) {
       ScrollDirection.reverse => position.pixels <= 0,
