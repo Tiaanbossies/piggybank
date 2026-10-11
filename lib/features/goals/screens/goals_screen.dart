@@ -7,6 +7,7 @@ import '../../../core/format/money.dart';
 import '../../../core/theme/app_motion.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../shared/motion/saved_highlight.dart';
+import '../../../shared/widgets/app_controls.dart';
 import '../../../shared/widgets/app_skeleton.dart';
 import '../../../shared/widgets/completed_goal_card.dart';
 import '../../../shared/widgets/deferred_delete.dart';
@@ -39,7 +40,7 @@ class GoalsBody extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final goalsAsync = ref.watch(goalsProvider);
 
-    return RefreshIndicator(
+    return AppRefresh(
       onRefresh: () => ref.refresh(goalsProvider.future),
       child: AnimatedSwitcher(
         duration: context.reducedMotion ? Duration.zero : AppMotion.stateChange,

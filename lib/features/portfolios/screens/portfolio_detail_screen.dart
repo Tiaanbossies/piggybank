@@ -10,6 +10,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../shared/motion/chart_reveal.dart';
 import '../../../shared/widgets/allocation_bar.dart';
+import '../../../shared/widgets/app_controls.dart';
 import '../../../shared/widgets/app_skeleton.dart';
 import '../../../shared/widgets/group_card.dart';
 import '../../../shared/widgets/hero_metric_card.dart';
@@ -73,7 +74,7 @@ class PortfolioDetailScreen extends ConsumerWidget {
         ],
       ),
       body: SafeArea(
-        child: RefreshIndicator(
+        child: AppRefresh(
           onRefresh: () async {
             ref.invalidate(portfolioHoldingsProvider(portfolio.id));
             ref.invalidate(portfolioValueProvider(portfolio.id));
@@ -116,7 +117,7 @@ class PortfolioDetailScreen extends ConsumerWidget {
                       return HeroMetricCard(
                         label: 'Portfolio value',
                         value: formatZAR(value.totalValue),
-                        deltaText: '${plUp ? '+' : ''}${formatZAR(value.unrealizedPl)} unrealized',
+                        deltaText: '${plUp ? '+' : ''}${formatZAR(value.unrealizedPl)} if sold today',
                       );
                     },
                   )),

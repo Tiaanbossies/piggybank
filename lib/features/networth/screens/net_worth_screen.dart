@@ -7,6 +7,7 @@ import '../../../core/format/money.dart';
 import '../../../core/theme/app_motion.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../shared/motion/count_up_text.dart';
+import '../../../shared/widgets/app_controls.dart';
 import '../../../shared/widgets/app_skeleton.dart';
 import '../../../shared/widgets/group_card.dart';
 import '../../../shared/widgets/hero_metric_card.dart';
@@ -58,7 +59,7 @@ class NetWorthScreen extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(title: const Text('Net worth')),
       body: SafeArea(
-        child: RefreshIndicator(
+        child: AppRefresh(
           onRefresh: () async {
             ref.invalidate(netWorthHistoryProvider);
             return ref.refresh(netWorthProvider.future);

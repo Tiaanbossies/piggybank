@@ -53,6 +53,39 @@ abstract final class AppMotion {
   static const exitFactor = 0.65;
 
   static Duration exit(Duration entry) => entry * exitFactor;
+
+  // Named values from the spec's motion table (§5), so no widget hand-types
+  // a duration.
+
+  /// M5: a row's highlight coming in on press (it leaves over [feedback]).
+  static const pressIn = Duration(milliseconds: 100);
+
+  /// M1: the fade-through's incoming half.
+  static const fadeThroughIn = Duration(milliseconds: 160);
+
+  /// M15: a deleted row's slide-and-fade before the gap closes.
+  static const rowExit = Duration(milliseconds: 180);
+
+  /// M8: the saved row's tint fading back.
+  static const highlightFade = Duration(milliseconds: 600);
+
+  /// M33: how long a wrong PIN holds the dots in danger.
+  static const dangerFlash = Duration(milliseconds: 600);
+
+  /// M31: one full period of thinking Penny's bob.
+  static const bobPeriod = Duration(milliseconds: 1200);
+
+  /// M31: how long Penny thinks before "Still working on it…" appears.
+  static const pennyPatience = Duration(seconds: 10);
+
+  /// M37: how long the inline tick holds after a copy, share or export.
+  static const tickHold = Duration(milliseconds: 1500);
+
+  /// M11: one sweep of the skeleton shimmer.
+  static const shimmerPeriod = Duration(milliseconds: 1500);
+
+  /// M14: the retry ring outlasts a fast failure by at least this long.
+  static const retryMin = Duration(milliseconds: 400);
 }
 
 /// Checks the OS-level reduced-motion request. Only the lock-screen PIN

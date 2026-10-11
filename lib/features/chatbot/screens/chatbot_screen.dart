@@ -467,7 +467,7 @@ class _ErrorBubble extends StatelessWidget {
 class _ThinkingSlot extends StatefulWidget {
   const _ThinkingSlot();
 
-  static const patience = Duration(seconds: 10);
+  static const patience = AppMotion.pennyPatience;
 
   @override
   State<_ThinkingSlot> createState() => _ThinkingSlotState();

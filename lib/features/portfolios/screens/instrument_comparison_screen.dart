@@ -8,6 +8,7 @@ import '../../../core/theme/app_motion.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../shared/motion/chart_reveal.dart';
+import '../../../shared/widgets/app_controls.dart';
 import '../../../shared/widgets/app_skeleton.dart';
 import '../../../shared/widgets/chart_style.dart';
 import '../../../shared/widgets/ticker_autocomplete_field.dart';
@@ -167,7 +168,7 @@ class _InstrumentComparisonScreenState extends ConsumerState<InstrumentCompariso
                     ),
                     const SizedBox(width: 12),
                     const Text('%'),
-                    Switch(
+                    AppSwitch(
                       value: comparison.percentMode,
                       onChanged: controller.setPercentMode,
                     ),

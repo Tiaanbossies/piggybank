@@ -27,8 +27,7 @@ const _fresh = Duration(seconds: 3);
 /// the fade is what you actually see ("the sheet closes, then the row
 /// highlights"). One controller, no timers.
 const _hold = AppMotion.pageTransition;
-const _fadeMs = 600;
-final highlightDuration = _hold + const Duration(milliseconds: _fadeMs);
+final highlightDuration = _hold + AppMotion.highlightFade;
 
 /// Tints its row `primaryContainer`, behind its content, and fades the tint
 /// out when [id] is the row just saved (visual spec M8). Under reduced

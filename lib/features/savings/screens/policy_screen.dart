@@ -8,6 +8,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../core/api/api_error.dart';
 import '../../../core/format/dates.dart';
 import '../../../core/format/money.dart';
+import '../../../core/theme/app_motion.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/app_skeleton.dart';
 import '../../../shared/widgets/paywall_dialog.dart';
@@ -50,7 +51,7 @@ class _PolicyScreenState extends ConsumerState<PolicyScreen> {
   /// user is at the Save button at the bottom.
   void _showCheck() {
     if (_scroll.hasClients) {
-      _scroll.animateTo(0, duration: const Duration(milliseconds: 300), curve: Curves.easeOut);
+      _scroll.animateTo(0, duration: AppMotion.pageTransition, curve: AppMotion.easeOut);
     }
   }
 

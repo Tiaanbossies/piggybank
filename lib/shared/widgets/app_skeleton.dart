@@ -25,7 +25,7 @@ class AppSkeleton extends StatelessWidget {
   final bool enabled;
 
   /// One sweep of the shimmer.
-  static const shimmerPeriod = Duration(milliseconds: 1500);
+  static const shimmerPeriod = AppMotion.shimmerPeriod;
 
   @override
   Widget build(BuildContext context) {

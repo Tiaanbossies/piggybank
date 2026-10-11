@@ -80,7 +80,7 @@ class _HoldingDetailSheet extends ConsumerWidget {
               ),
               Expanded(
                 child: _Stat(
-                  label: 'Unrealized P&L',
+                  label: 'Gain if sold today',
                   value: signedPl(holding.unrealizedPl),
                   color: plColor(context.tokens, holding.unrealizedPl),
                 ),

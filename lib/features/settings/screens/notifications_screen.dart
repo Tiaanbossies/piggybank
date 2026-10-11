@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/api/api_error.dart';
 import '../../../core/auth/auth_controller.dart';
+import '../../../shared/widgets/app_controls.dart';
 import '../../../shared/widgets/group_card.dart';
 import '../data/notification_prefs_api.dart';
 
@@ -86,7 +87,7 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
                           GroupRow(
                             title: row.title,
                             subtitle: row.subtitle,
-                            trailing: Switch(
+                            trailing: AppSwitch(
                               value: _valueFor(row.key),
                               onChanged: _busy ? null : (v) => _toggle(row.key, v),
                             ),

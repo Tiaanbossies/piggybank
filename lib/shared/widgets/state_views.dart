@@ -78,7 +78,7 @@ class InlineError extends StatefulWidget {
 
   /// The ring outlasts a fast failure by at least this long, so it reads
   /// as "tried again" rather than a flicker.
-  static const minRetry = Duration(milliseconds: 400);
+  static const minRetry = AppMotion.retryMin;
 
   /// Back to "Retry" after this even if nothing rebuilds the error.
   static const maxRetry = Duration(seconds: 10);

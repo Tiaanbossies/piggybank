@@ -10,6 +10,7 @@ import '../../../core/theme/app_tokens.dart';
 import '../../../shared/motion/saved_highlight.dart';
 import '../../../shared/motion/spring_swipe.dart';
 import '../../../shared/widgets/app_card.dart';
+import '../../../shared/widgets/app_controls.dart';
 import '../../../shared/widgets/app_skeleton.dart';
 import '../../../shared/widgets/deferred_delete.dart';
 import '../../../shared/widgets/group_card.dart';
@@ -33,7 +34,7 @@ class SavingsPlanBody extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return RefreshIndicator(
+    return AppRefresh(
       onRefresh: () async {
         refreshSavings(ref);
         await Future.wait([

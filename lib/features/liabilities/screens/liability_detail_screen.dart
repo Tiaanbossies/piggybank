@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/api/api_error.dart';
 import '../../../core/format/money.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../shared/widgets/app_controls.dart';
 import '../../../shared/widgets/app_skeleton.dart';
 import '../../../shared/widgets/confirm_dialog.dart';
 import '../../../shared/widgets/group_card.dart';
@@ -46,7 +47,7 @@ class LiabilityDetailScreen extends ConsumerWidget {
         ],
       ),
       body: SafeArea(
-        child: RefreshIndicator(
+        child: AppRefresh(
           onRefresh: () async {
             ref.invalidate(liabilityProgressProvider(liability.id));
             ref.invalidate(liabilityPaymentsProvider(liability.id));

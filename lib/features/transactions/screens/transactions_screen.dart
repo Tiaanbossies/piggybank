@@ -8,6 +8,7 @@ import '../../../core/format/money.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../shared/motion/saved_highlight.dart';
 import '../../../shared/motion/stagger_in.dart';
+import '../../../shared/widgets/app_controls.dart';
 import '../../../shared/widgets/app_filter_chip.dart';
 import '../../../shared/widgets/app_skeleton.dart';
 import '../../../shared/widgets/deferred_delete.dart';
@@ -128,7 +129,7 @@ class TransactionsScreen extends ConsumerWidget {
               ),
             ),
             Expanded(
-              child: RefreshIndicator(
+              child: AppRefresh(
                 onRefresh: () {
                   ref.read(transactionPaginationProvider.notifier).reset();
                   return ref.refresh(transactionsProvider.future);

@@ -103,7 +103,7 @@ class CollapseOut extends StatefulWidget {
   static const slideDistance = 24.0;
 
   /// The slide-and-fade before the gap closes.
-  static const exit = Duration(milliseconds: 180);
+  static const exit = AppMotion.rowExit;
 
   @override
   State<CollapseOut> createState() => _CollapseOutState();

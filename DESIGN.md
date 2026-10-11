@@ -4,7 +4,7 @@ Phase 0 deliverable for the Flutter migration (see the approved migration plan a
 `C:\Users\tiaan\.claude\plans\run-the-full-prompt-eager-nebula.md`). Originally a
 **written spec, not generated mockups** — that changed on 2026-08-16 (see below).
 
-> ## Revision — 2026-10: visual rework, "Ledger Pocket" (spec `docs/visual-rework/04-visual-spec.md`, pending approval)
+> ## Revision — 2026-10: visual rework, "Ledger Pocket" (spec `docs/visual-rework/04-visual-spec.md`, approved 2026-10-10, built 2026-10-11)
 >
 > Tiaan picked the direction on 2026-10-10: B · Pocket's warmth and shape, A · Ledger's
 > colours, a **light** hero panel, and Penny as a **transparent cutout** that is never at
@@ -225,7 +225,14 @@ OS reduced-motion setting**. Reusable pieces live in `lib/shared/motion/`.
   - Springs for press, settle and pop. Pop is mascot-only, with overshoot capped at 6 %.
   - A 30 ms stagger on first list load, after skeletons (`skeletonizer`).
   - A haptic vocabulary: `selectionClick` for selection; `lightImpact` for save, confirm and threshold; `mediumImpact` for delete and goal reached; none on errors.
-  - Every one of M1–M42 has defined feedback.
+  - Every one of M1–M42 has defined feedback. Four rows keep Flutter's built-in motion
+    under the theme's styling: the sheet slide (M7), the field error (M10), the dialog
+    (M17, a fade without the 0.96 scale) and the snackbar (M38). See
+    `docs/visual-rework/05-build-audit.md`.
+  - Penny's chat: speech bubbles with a tail toward the speaker; thinking Penny bobs in
+    the reply slot, and "Still working on it…" appears after 10 s.
+  - Onboarding: welcoming Penny at 180 dp on every page; the active page dot is a 24 dp
+    pill that stretches across on `springSettle`.
 
 ## Screen-by-screen direction
 
@@ -235,14 +242,14 @@ OS reduced-motion setting**. Reusable pieces live in `lib/shared/motion/`.
 > "circle-clipped mascot", the spec wins.
 
 ### 1. Login / Register
-Confirmed directly by mockups. Piggy-bank mascot illustration (placeholder icon in code
-until a real asset exists) centred top-third, "Piggybank" wordmark + tagline beneath it,
-generous whitespace. Below: email + password fields (soft outlined fields, rounded), one
-primary pill CTA in accent green ("Log in" / "Create account"), a plain-text link to
-toggle between them, a small reassurance line at the bottom ("Your data is secure and
-private..."). No ledger-line texture — dropped, not in the mockups. Biometric/PIN unlock
-reuses this same calm layout on subsequent app opens, fingerprint/face icon replacing the
-password field.
+As built (2026-10): one shared `AuthLayout` for log in, register, forgot, reset and lock.
+Welcoming Penny as a 140 dp cutout fades in once (thinking Penny on forgot and reset),
+then the "Piggybank" wordmark in primary, a one-line subtitle, and the form in a card:
+sunk pill fields and one primary pill button whose label turns into a progress ring
+without changing size (M9). A plain-text link toggles between log in and register.
+Biometric/PIN unlock reuses the same layout; a wrong PIN shakes and turns the PIN boxes
+danger for 600 ms, with no haptic (M33). Success gives one light tap and the shell rises
+in on shared axis Y (M34, M35).
 
 ### 2. Bottom-nav shell
 5-tab `NavigationBar` as specified above. Tab-root screens get `TabAppBar` (avatar ·
@@ -314,8 +321,9 @@ trend, then rows for Accounts, Assets (total), Liabilities (total) and Loan calc
 the destinations that used to be Home's quick-link tiles.
 
 ### 8. Invest tab-root (confirmed by mockup — built; verified live 2026-08-28)
-Hero metric card for **Total value**, delta chip + unrealized P&L / YTD dividends stat
-strip beneath it. Below: an **allocation donut** with a legend (colour swatch + asset
+Hero metric card for **Total value** with "+R … if sold today" beneath the figure, then
+a stat strip: **Gain if sold today** / **Year's dividends** / **Portfolios** (plain words
+replaced "Unrealized P&L" and "YTD dividends" in the 2026-10 close-out). Below: an **allocation donut** with a legend (colour swatch + asset
 class + percentage) — the mockup uses a donut here, not the stacked bar the superseded
 spec called for; kept the stacked-bar recommendation below for the pushed Portfolio
 Detail screen specifically, since that's a different, denser layout the mockup doesn't

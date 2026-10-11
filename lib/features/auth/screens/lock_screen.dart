@@ -185,7 +185,7 @@ class _PinBoxesState extends State<_PinBoxes> with SingleTickerProviderStateMixi
   bool _flash = false;
 
   /// How long the dots stay danger after a wrong PIN (M33).
-  static const flashFor = Duration(milliseconds: 600);
+  static const flashFor = AppMotion.dangerFlash;
 
   @override
   void initState() {

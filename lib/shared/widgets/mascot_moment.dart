@@ -116,7 +116,7 @@ class _MascotMomentState extends ConsumerState<MascotMoment> with SingleTickerPr
             ..animateWith(SpringSimulation(AppMotion.springPop, 0, 1, 0));
         }
       case MascotMotion.bob:
-        _controller = AnimationController(vsync: this, duration: const Duration(milliseconds: 1200))..repeat();
+        _controller = AnimationController(vsync: this, duration: AppMotion.bobPeriod)..repeat();
       case MascotMotion.fadeIn:
         _controller = AnimationController(vsync: this, duration: AppMotion.stateChange)..forward();
       case MascotMotion.none:
