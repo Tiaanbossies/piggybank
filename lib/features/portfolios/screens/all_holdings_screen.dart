@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/api/api_error.dart';
 import '../../../core/format/money.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../shared/widgets/app_skeleton.dart';
 import '../../../shared/widgets/group_card.dart';
 import '../asset_class_style.dart';
 import '../providers/portfolios_provider.dart';
@@ -28,8 +29,8 @@ class AllHoldingsScreen extends ConsumerWidget {
       body: SafeArea(
         child: RefreshIndicator(
           onRefresh: () async => ref.invalidate(allHoldingsProvider),
-          child: holdingsAsync.when(
-            loading: () => const Center(child: CircularProgressIndicator()),
+          child: SkeletonSwitcher(child: holdingsAsync.when(
+            loading: () => const SkeletonPage(),
             error: (err, _) => Center(child: Text(err is ApiError ? err.message : 'Failed to load holdings')),
             data: (entries) {
               if (entries.isEmpty) {
@@ -70,7 +71,7 @@ class AllHoldingsScreen extends ConsumerWidget {
                 ],
               );
             },
-          ),
+          )),
         ),
       ),
     );

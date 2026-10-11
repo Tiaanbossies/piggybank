@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/api/api_error.dart';
 import '../../../core/format/money.dart';
 import '../../../core/theme/app_haptics.dart';
+import '../../../shared/widgets/app_skeleton.dart';
 import '../../../shared/widgets/mascot_moment.dart';
 import '../../../shared/widgets/swipe_background.dart';
 import '../../accounts/models/account.dart';
@@ -122,8 +123,8 @@ class _PendingReviewScreenState extends ConsumerState<PendingReviewScreen> {
       body: SafeArea(
         child: RefreshIndicator(
           onRefresh: () async => ref.invalidate(pendingEventsProvider),
-          child: pendingAsync.when(
-            loading: () => const Center(child: CircularProgressIndicator()),
+          child: SkeletonSwitcher(child: pendingAsync.when(
+            loading: () => const SkeletonPage(rows: 4),
             error: (err, _) =>
                 Center(child: Text(err is ApiError ? err.message : 'Failed to load detected items')),
             data: (allEvents) {
@@ -174,7 +175,7 @@ class _PendingReviewScreenState extends ConsumerState<PendingReviewScreen> {
                 ),
               );
             },
-          ),
+          )),
         ),
       ),
     );

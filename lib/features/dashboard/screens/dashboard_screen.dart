@@ -11,6 +11,7 @@ import '../../../core/format/money.dart';
 import '../../../core/theme/app_motion.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/motion/container_transform.dart';
+import '../../../shared/widgets/app_skeleton.dart';
 import '../../../shared/widgets/group_card.dart';
 import '../../../shared/widgets/icon_chip.dart';
 import '../../../shared/widgets/mascot_moment.dart';
@@ -322,13 +323,7 @@ class _NeedsAttention extends ConsumerWidget {
 
     final Widget child;
     if (goalsAsync.isLoading || budgetsAsync.isLoading) {
-      child = const Card(
-        key: ValueKey('loading'),
-        child: Padding(
-          padding: EdgeInsets.all(16),
-          child: SizedBox(height: 56, child: Center(child: CircularProgressIndicator(strokeWidth: 2))),
-        ),
-      );
+      child = const SkeletonProgressCards(key: ValueKey('loading'), count: 1);
     } else if (goalsAsync.hasError && budgetsAsync.hasError) {
       child = Card(
         key: const ValueKey('error'),
@@ -442,7 +437,7 @@ class _RecentTransactionsPreview extends ConsumerWidget {
           switchInCurve: AppMotion.easeOut,
           switchOutCurve: AppMotion.easeOut,
           child: recentAsync.when(
-            loading: () => const Center(key: ValueKey('loading'), child: CircularProgressIndicator()),
+            loading: () => const SkeletonRows(key: ValueKey('loading'), count: 5),
             error: (err, _) => Center(
               key: const ValueKey('error'),
               child: InlineError(

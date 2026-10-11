@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/api/api_error.dart';
 import '../../../core/format/money.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../shared/widgets/app_skeleton.dart';
 import '../../../shared/widgets/confirm_dialog.dart';
 import '../../../shared/widgets/group_card.dart';
 import '../../../shared/widgets/icon_chip.dart';
@@ -50,8 +51,8 @@ class LiabilityDetailScreen extends ConsumerWidget {
             ref.invalidate(liabilityProgressProvider(liability.id));
             ref.invalidate(liabilityPaymentsProvider(liability.id));
           },
-          child: paymentsAsync.when(
-            loading: () => const Center(child: CircularProgressIndicator()),
+          child: SkeletonSwitcher(child: paymentsAsync.when(
+            loading: () => const SkeletonPage(hero: true),
             error: (err, _) => Center(child: Text(err is ApiError ? err.message : 'Failed to load payments')),
             data: (payments) {
               return ListView(
@@ -72,7 +73,7 @@ class LiabilityDetailScreen extends ConsumerWidget {
                 ],
               );
             },
-          ),
+          )),
         ),
       ),
       floatingActionButton: FloatingActionButton.extended(
@@ -133,8 +134,8 @@ class _ProgressSection extends ConsumerWidget {
     }
 
     final progressAsync = ref.watch(liabilityProgressProvider(liability.id));
-    return progressAsync.when(
-      loading: () => const SizedBox(height: 96, child: Center(child: CircularProgressIndicator())),
+    return SkeletonSwitcher(child: progressAsync.when(
+      loading: () => const SkeletonBlock(height: 96),
       error: (err, _) => Text(err is ApiError ? err.message : 'Failed to load progress'),
       data: (progress) {
         final pct = progress.percentPaid.toDouble() / 100;
@@ -170,7 +171,7 @@ class _ProgressSection extends ConsumerWidget {
           ],
         );
       },
-    );
+    ));
   }
 }
 

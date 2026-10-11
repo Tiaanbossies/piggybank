@@ -8,6 +8,7 @@ import '../../../core/format/dates.dart';
 import '../../../core/format/money.dart';
 import '../../../core/theme/app_haptics.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../shared/widgets/app_skeleton.dart';
 import '../../../shared/widgets/deferred_delete.dart';
 import '../../../shared/widgets/icon_chip.dart';
 import '../../../shared/widgets/state_views.dart';
@@ -83,8 +84,8 @@ class _TargetSection extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return ref.watch(savingsOverviewProvider).when(
-          loading: () => const SizedBox(height: 160, child: Center(child: CircularProgressIndicator())),
+    return SkeletonSwitcher(child: ref.watch(savingsOverviewProvider).when(
+          loading: () => const SkeletonBlock(height: 160),
           error: (err, _) => InlineError(
             message: err is ApiError ? err.message : "Couldn't load your savings plan",
             onRetry: () => ref.invalidate(savingsOverviewProvider),
@@ -105,7 +106,7 @@ class _TargetSection extends ConsumerWidget {
               ),
             ),
           ),
-        );
+        ));
   }
 }
 
@@ -386,11 +387,8 @@ class _CostsSectionState extends ConsumerState<_CostsSection> {
           ],
         ),
         const SizedBox(height: 8),
-        ref.watch(recurringCostsProvider).when(
-              loading: () => const Padding(
-                padding: EdgeInsets.all(24),
-                child: Center(child: CircularProgressIndicator()),
-              ),
+        SkeletonSwitcher(child: ref.watch(recurringCostsProvider).when(
+              loading: () => const SkeletonRows(count: 3),
               error: (err, _) => InlineError(
                 message: err is ApiError ? err.message : "Couldn't load your recurring costs",
                 onRetry: () => ref.invalidate(recurringCostsProvider),
@@ -427,7 +425,7 @@ class _CostsSectionState extends ConsumerState<_CostsSection> {
                   ],
                 );
               },
-            ),
+            )),
       ],
     );
   }

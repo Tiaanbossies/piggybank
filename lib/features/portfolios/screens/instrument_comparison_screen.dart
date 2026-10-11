@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/calc/chart_utils.dart';
 import '../../../core/calc/risk_metrics.dart' as risk;
 import '../../../core/theme/app_theme.dart';
+import '../../../shared/widgets/app_skeleton.dart';
 import '../../../shared/widgets/ticker_autocomplete_field.dart';
 import '../models/comparison_entry.dart';
 import '../models/ticker_search_result.dart';
@@ -246,7 +247,7 @@ class _ComparisonLineChart extends StatelessWidget {
   Widget build(BuildContext context) {
     final ready = entries.where((e) => e.data.isNotEmpty).toList();
     if (ready.isEmpty) {
-      return const Center(child: CircularProgressIndicator());
+      return const SkeletonBlock(height: 220);
     }
     final series = [
       for (final e in ready)

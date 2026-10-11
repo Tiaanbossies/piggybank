@@ -9,6 +9,7 @@ import '../../../core/api/api_error.dart';
 import '../../../core/format/money.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/motion/container_transform.dart';
+import '../../../shared/widgets/app_skeleton.dart';
 import '../../../shared/widgets/group_card.dart';
 import '../../../shared/widgets/hero_metric_card.dart';
 import '../../../shared/widgets/paywall_dialog.dart';
@@ -51,8 +52,8 @@ class _AccountsScreenState extends ConsumerState<AccountsScreen> {
       body: SafeArea(
         child: RefreshIndicator(
           onRefresh: () => ref.refresh(accountsProvider.future),
-          child: accountsAsync.when(
-            loading: () => const Center(child: CircularProgressIndicator()),
+          child: SkeletonSwitcher(child: accountsAsync.when(
+            loading: () => const SkeletonPage(hero: true),
             error: (err, _) => Center(child: Text(err is ApiError ? err.message : 'Failed to load accounts')),
             data: (accounts) {
               final active = accounts.where((a) => a.isActive).toList();
@@ -126,7 +127,7 @@ class _AccountsScreenState extends ConsumerState<AccountsScreen> {
                 },
               );
             },
-          ),
+          )),
         ),
       ),
       floatingActionButton: FloatingActionButton.extended(
