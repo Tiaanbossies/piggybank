@@ -17,6 +17,7 @@ it.
 | Light and dark goldens for every screen in spec §4.2 | 15 screens × 2 |
 | AA contrast | `test/core/theme/contrast_test.dart`, every token pair in both themes |
 | Critique, tab roots | **35/40** (baseline 27) |
+| Release APK, arm64 | 24.1 MB, against 28.7 MB on `master` (−4.6 MB; the four `mascot_*.jpg` sources left the bundle in Step 2) |
 | On-device pass | **Pending Tiaan** |
 
 ---
