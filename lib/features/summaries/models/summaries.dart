@@ -1,3 +1,4 @@
+import 'package:clock/clock.dart';
 import 'package:decimal/decimal.dart';
 
 /// The `YYYY-MM` string the summaries endpoints expect for their `month`
@@ -7,7 +8,7 @@ String monthKey(DateTime date) => '${date.year.toString().padLeft(4, '0')}-${dat
 /// [monthKey] for today — the client-side stand-in for the "current month"
 /// default that `/budget-usage`, `/recurring-expenses` and
 /// `/high-cost-expenses` deliberately don't provide server-side.
-String currentMonthKey() => monthKey(DateTime.now());
+String currentMonthKey() => monthKey(clock.now());
 
 /// Mirrors `backend/app/summaries/schemas.py`'s `NetWorthSummary`.
 class NetWorthSummary {

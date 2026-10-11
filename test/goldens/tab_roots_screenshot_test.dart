@@ -14,7 +14,7 @@ void main() {
   const names = ['home', 'transactions', 'plan', 'invest', 'penny'];
   for (final mode in [ThemeMode.light, ThemeMode.dark]) {
     for (var i = 0; i < tabRoots.length; i++) {
-      testWidgets('${names[i]} (${mode.name})', (tester) async {
+      testShot('${names[i]} (${mode.name})', (tester) async {
         await pumpShell(tester, tabRoots[i], mode: mode);
         await expectLater(find.byType(MaterialApp), matchesGoldenFile('tab_roots/${names[i]}_${mode.name}.png'));
         endShot();

@@ -1,3 +1,4 @@
+import 'package:clock/clock.dart';
 import 'package:decimal/decimal.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -710,7 +711,7 @@ class _TargetSheetState extends ConsumerState<TargetSheet> {
   }
 
   Future<void> _pickDate() async {
-    final now = DateTime.now();
+    final now = clock.now();
     final picked = await showDatePicker(
       context: context,
       initialDate: _targetDate ?? now,

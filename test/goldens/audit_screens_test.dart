@@ -38,7 +38,7 @@ void main() {
 
   for (final mode in [ThemeMode.light, ThemeMode.dark]) {
     for (final MapEntry(key: name, value: (location, label)) in viaTap.entries) {
-      testWidgets('$name (${mode.name})', (tester) async {
+      testShot('$name (${mode.name})', (tester) async {
         await pumpShell(tester, location, mode: mode);
         await tester.tap(find.text(label).first);
         await settle(tester);
@@ -47,7 +47,7 @@ void main() {
       });
     }
     for (final MapEntry(key: name, value: screen) in standalone.entries) {
-      testWidgets('$name (${mode.name})', (tester) async {
+      testShot('$name (${mode.name})', (tester) async {
         await pumpScreen(tester, screen, mode: mode);
         await expectLater(find.byType(MaterialApp), matchesGoldenFile('audit/${name}_${mode.name}.png'));
         endShot();

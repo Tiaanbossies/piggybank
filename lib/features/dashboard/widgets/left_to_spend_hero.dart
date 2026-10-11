@@ -1,3 +1,4 @@
+import 'package:clock/clock.dart';
 import 'package:decimal/decimal.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -37,7 +38,7 @@ class LeftToSpendHero extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final today = now ?? DateTime.now();
+    final today = now ?? clock.now();
     final state = ref.watch(leftToSpendProvider);
     final month = _months[today.month - 1];
 

@@ -46,6 +46,8 @@ dependencies:
   url_launcher: ^6.3.2
   package_info_plus: ^8.1.2
   animations: ^3.0.0
+  # "Now" for date-relative UI, so tests can pin it with withClock.
+  clock: ^1.1.2
   skeletonizer: ^3.0.0
 
 dev_dependencies:

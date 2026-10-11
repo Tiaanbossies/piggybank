@@ -1,3 +1,4 @@
+import 'package:clock/clock.dart';
 import 'package:decimal/decimal.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -469,7 +470,7 @@ class _RecentTransactionsPreview extends ConsumerWidget {
                       // here instead of on the full Transactions list.
                       subtitle: '${t.category} · ${dayLabel(
                         t.transactionDate,
-                        withYear: t.transactionDate.year != DateTime.now().year,
+                        withYear: t.transactionDate.year != clock.now().year,
                       )}',
                       trailing: Text(
                         formatZAR(t.transactionType.name == 'expense' ? -t.amount.toDouble() : t.amount.toDouble()),
