@@ -1,23 +1,19 @@
 /// API base URL config.
 ///
-/// Default targets the piggybank-backend over its Tailscale MagicDNS domain
-/// (`tiaanbossies-h81m-ds2.tail886b94.ts.net:8000`) rather than the raw
-/// tailnet IP — the production host is locked down to Tailscale-only access
-/// (see `plans/piggybank-full-suite-qa-v2.md` Step 0), and
-/// `piggybank.fynboscreative.co.za` does not resolve to anything that serves
-/// this app, so it cannot be the default. `:8000` is correct with the domain
-/// too: `docker-compose.yml` maps `${BACKEND_BIND:-0.0.0.0}:${BACKEND_PORT:-8000}:8000`
-/// and `.env.docker` binds to the same tailnet IP the domain resolves to, so
-/// this hits the identical socket either way — Caddy (`:80`) is not in this
-/// request path at all, only `/downloads/*` goes through it.
+/// The default is the host's public HTTPS address, published by Tailscale Funnel
+/// (`docs/runbook.md` in piggybank-backend, "Public HTTPS via Tailscale Funnel").
+/// Funnel serves the same MagicDNS name the tailnet already uses, on the standard
+/// HTTPS port, so testers without Tailscale can reach the API. Do not ship a build
+/// with this default until Funnel is on, or every request fails.
+///
 /// Override at build/run time with `--dart-define=API_BASE_URL=http://10.0.2.2:8000/api`
 /// to point at a local Docker Desktop backend from the Android emulator instead.
 abstract final class ApiConfig {
-  static const _productionDomainDefault = 'http://tiaanbossies-h81m-ds2.tail886b94.ts.net:8000/api';
+  static const _productionDomainDefault = 'https://tiaanbossies-h81m-ds2.tail886b94.ts.net/api';
 
   static const baseUrl = String.fromEnvironment('API_BASE_URL', defaultValue: _productionDomainDefault);
 
-  /// Raw-tailnet-IP fallback for the production MagicDNS default, used by
+  /// Raw-tailnet-IP fallback for the production default, used by
   /// [ApiClient] only when a request to [baseUrl] fails at the connection
   /// level (no HTTP response at all — DNS failure, connect timeout, etc.),
   /// never for a real HTTP error response. Confirmed empirically, not
