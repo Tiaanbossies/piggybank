@@ -35,6 +35,8 @@ class _SecurityScreenState extends ConsumerState<SecurityScreen> {
       return;
     }
     await ref.read(biometricPreferenceProvider.notifier).setEnabled(enabled);
+    // No fingerprint, no kept fingerprint session (QA A5).
+    if (!enabled) await ref.read(authControllerProvider.notifier).forgetBiometricLogin();
   }
 
   Future<void> _attemptRemovePin() async {

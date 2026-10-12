@@ -70,6 +70,8 @@ void main() {
     mockLocalAuth = MockLocalAuthentication();
     mockOnboardingStore = MockOnboardingStore();
     when(() => mockSecureStorage.readRefreshToken()).thenAnswer((_) async => null);
+    when(() => mockSecureStorage.readBiometricRefreshToken()).thenAnswer((_) async => null);
+    when(() => mockSecureStorage.clearBiometricRefreshToken()).thenAnswer((_) async {});
     when(() => mockOnboardingStore.isPending(any())).thenReturn(false);
 
     authController = AuthController(
