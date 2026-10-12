@@ -17,6 +17,7 @@ import '../../../shared/widgets/state_views.dart';
 import '../../budgets/providers/budgets_provider.dart';
 import '../../budgets/screens/budgets_screen.dart';
 import '../../plan/screens/plan_screen.dart';
+import '../../summaries/providers/summaries_provider.dart';
 import '../../transactions/providers/transactions_provider.dart';
 import '../providers/left_to_spend_provider.dart';
 
@@ -44,7 +45,7 @@ class LeftToSpendHero extends ConsumerWidget {
     final state = ref.watch(leftToSpendProvider);
     // The pay-cycle month (QA pass 1): with salary day 25, the 26th of
     // September already reads "October", counting down to the 24th.
-    final period = periodContaining(today, ref.watch(salaryDayProvider));
+    final period = now == null ? ref.watch(currentPayPeriodProvider) : periodContaining(today, ref.watch(salaryDayProvider));
     final month = _months[period.label.month - 1];
 
     final Widget child = state.when(

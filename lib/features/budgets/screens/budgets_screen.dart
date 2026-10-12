@@ -6,7 +6,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/api/api_error.dart';
 import '../../../core/format/money.dart';
-import '../../../core/format/pay_period.dart';
 import '../../../core/theme/app_haptics.dart';
 import '../../../core/theme/app_motion.dart';
 import '../../../core/theme/app_tokens.dart';
@@ -19,6 +18,7 @@ import '../../../shared/widgets/state_views.dart';
 import '../../categories/models/user_category.dart';
 import '../../categories/providers/categories_provider.dart';
 import '../../categories/widgets/category_field.dart';
+import '../../summaries/providers/summaries_provider.dart';
 import '../../transactions/category_icons.dart';
 import '../../trends/screens/trends_screen.dart';
 import '../models/budget.dart';
@@ -203,7 +203,7 @@ class BudgetMonthSwitcher extends ConsumerWidget implements PreferredSizeWidget 
             // With a salary day, the dates it covers sit under the name:
             // "October 2026 · 25 Sep – 24 Oct" (QA pass 1).
             Builder(builder: (context) {
-              final range = periodForLabel(month, ref.watch(salaryDayProvider)).rangeLabel;
+              final range = ref.watch(payPeriodForLabelProvider(month)).rangeLabel;
               return Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [

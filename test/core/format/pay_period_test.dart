@@ -1,6 +1,10 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mocktail/mocktail.dart';
 import 'package:piggybank/core/format/pay_period.dart';
 import 'package:piggybank/features/budgets/providers/budgets_provider.dart';
+import 'package:piggybank/features/summaries/data/summaries_api.dart';
+import 'package:piggybank/features/summaries/providers/summaries_provider.dart';
 
 /// Mirrors backend tests/test_pay_period.py: the two copies of the rule
 /// must agree.
@@ -52,5 +56,38 @@ void main() {
     expect(notifier.state, DateTime(2026, 10));
     notifier.next();
     expect(notifier.state, DateTime(2026, 11));
+  });
+
+  group('server pay periods', _serverTests);
+}
+
+class _MockSummariesApi extends Mock implements SummariesApi {}
+
+void _serverTests() {
+  test("the server's moved dates win once they arrive (Pro payday)", () async {
+    final api = _MockSummariesApi();
+    when(() => api.payPeriod(month: DateTime(2026, 10)))
+        .thenAnswer((_) async => PayPeriod(label: DateTime(2026, 10), start: DateTime(2026, 9, 23), end: DateTime(2026, 10, 24)));
+    final container = ProviderContainer(overrides: [
+      summariesApiProvider.overrideWithValue(api),
+      salaryDayProvider.overrideWithValue(25),
+    ]);
+    addTearDown(container.dispose);
+
+    final sub = container.listen(payPeriodForLabelProvider(DateTime(2026, 10)), (_, _) {});
+    expect(sub.read().start, DateTime(2026, 9, 25), reason: 'local rule until the server answers');
+    await Future<void>.delayed(Duration.zero);
+    expect(sub.read().start, DateTime(2026, 9, 23));
+  });
+
+  test('no salary day never asks the server', () {
+    final api = _MockSummariesApi();
+    final container = ProviderContainer(overrides: [
+      summariesApiProvider.overrideWithValue(api),
+      salaryDayProvider.overrideWithValue(null),
+    ]);
+    addTearDown(container.dispose);
+    expect(container.read(payPeriodForLabelProvider(DateTime(2026, 10))).start, DateTime(2026, 10));
+    verifyZeroInteractions(api);
   });
 }
