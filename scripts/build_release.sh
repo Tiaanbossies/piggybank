@@ -13,11 +13,17 @@ cd "$(dirname "$0")/.."
 VERSION=$(grep '^version:' pubspec.yaml | awk '{print $2}')
 SYMBOLS_DIR="build/symbols/${VERSION}"
 
-echo "Building release AAB + APK for version ${VERSION}, symbols -> ${SYMBOLS_DIR}"
+# Shown in Settings -> About ("built 12 Oct 2026"); see lib/core/app/app_build.dart.
+BUILD_DATE=$(date -u +%F)
+
+echo "Building release AAB + APK for version ${VERSION} (${BUILD_DATE}), symbols -> ${SYMBOLS_DIR}"
 mkdir -p "$SYMBOLS_DIR"
 
-flutter build appbundle --release --obfuscate --split-debug-info="$SYMBOLS_DIR"
-flutter build apk --release --obfuscate --split-debug-info="$SYMBOLS_DIR"
+flutter build appbundle --release --obfuscate --split-debug-info="$SYMBOLS_DIR" --dart-define=BUILD_DATE="$BUILD_DATE"
+# Universal APK, not --split-per-abi: a split APK's versionCode carries 1000 x the
+# ABI number (arm64 build 9 reports 2009). The app copes (AppBuild.buildNumber),
+# but publish_release.sh ships this universal file.
+flutter build apk --release --obfuscate --split-debug-info="$SYMBOLS_DIR" --dart-define=BUILD_DATE="$BUILD_DATE"
 
 echo
 echo "Done. Back up ${SYMBOLS_DIR} outside the repo (e.g. alongside the release keystore in"

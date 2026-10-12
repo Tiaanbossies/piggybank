@@ -15,9 +15,11 @@ import '../../../shared/widgets/hero_metric_card.dart';
 import '../../../shared/widgets/state_views.dart';
 import '../../../shared/widgets/tab_app_bar.dart';
 import '../asset_class_style.dart';
+import '../models/investment_overview.dart';
 import '../models/portfolio.dart';
 import '../providers/portfolios_provider.dart';
 import 'all_holdings_screen.dart';
+import 'holding_detail_sheet.dart';
 import 'instrument_comparison_screen.dart';
 import 'portfolio_detail_screen.dart';
 import 'portfolio_sheet.dart';
@@ -209,6 +211,8 @@ class _OverviewSection extends ConsumerWidget {
                 children: [
                   for (final holding in overview.topHoldings.take(3))
                     GroupRow(
+                      key: ValueKey('top-holding-${holding.holdingId}'),
+                      onTap: () => _openTopHolding(context, ref, holding),
                       title: holding.ticker,
                       subtitle: holding.name,
                       trailing: Column(
@@ -272,5 +276,23 @@ class _PortfolioRow extends StatelessWidget {
         onTap: open,
       ),
     );
+  }
+}
+
+/// A top-holdings row opens the same detail sheet as All holdings (QA G).
+/// The overview only carries a summary, so the full holding is read from
+/// its portfolio first.
+Future<void> _openTopHolding(BuildContext context, WidgetRef ref, TopHolding top) async {
+  try {
+    final holdings = await ref.read(portfolioHoldingsProvider(top.portfolioId).future);
+    final holding = holdings.where((h) => h.id == top.holdingId).firstOrNull;
+    if (!context.mounted) return;
+    if (holding == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Couldn't find that holding. Pull to refresh.")));
+      return;
+    }
+    await showHoldingDetailSheet(context, holding: holding);
+  } on ApiError catch (e) {
+    if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
   }
 }

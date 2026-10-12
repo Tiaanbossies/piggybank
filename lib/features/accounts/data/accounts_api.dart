@@ -48,16 +48,20 @@ class AccountsApi {
     }
   }
 
-  /// Update account details (name, institution).
+  /// Update account details (name, institution), or restore a deactivated
+  /// account with `isActive: true` (QA D2a). A restore past the free tier's
+  /// account limit comes back as a 402.
   Future<Account> update(
     String accountId, {
     String? name,
     String? institutionName,
+    bool? isActive,
   }) async {
     try {
       final response = await _client.dio.patch('/accounts/$accountId', data: {
         if (name case String n) 'name': n,
         if (institutionName case String i) 'institution_name': i,
+        if (isActive case bool a) 'is_active': a,
       });
       return Account.fromJson(response.data as Map<String, dynamic>);
     } on DioException catch (e) {

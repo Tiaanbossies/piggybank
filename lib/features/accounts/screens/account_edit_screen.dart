@@ -8,6 +8,7 @@ import '../../../shared/widgets/group_card.dart';
 import '../models/account.dart';
 import '../providers/accounts_mutation_provider.dart';
 import '../providers/accounts_provider.dart';
+import 'accounts_context_menu.dart';
 
 /// Edit/detail screen for an account. Allows renaming, updating institution,
 /// and deactivating/restoring (when backend supports restore).
@@ -162,16 +163,27 @@ class _AccountEditScreenState extends ConsumerState<AccountEditScreen> {
                     style: TextStyle(color: Theme.of(context).colorScheme.error),
                   ),
                 )
-              else
+              else ...[
                 Padding(
                   padding: const EdgeInsets.symmetric(vertical: 8),
                   child: Text(
-                    'This account is inactive.',
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: Theme.of(context).colorScheme.error,
-                        ),
+                    'This account is inactive. Restoring it brings it back with all its transactions.',
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context).textTheme.bodySmall,
                   ),
                 ),
+                OutlinedButton.icon(
+                  key: const Key('account-restore'),
+                  onPressed: _submitting
+                      ? null
+                      : () async {
+                          final restored = await restoreAccount(context, ref, widget.account);
+                          if (restored && context.mounted) Navigator.pop(context);
+                        },
+                  icon: const Icon(Icons.unarchive_outlined),
+                  label: const Text('Restore account'),
+                ),
+              ],
             ],
           ),
         ),

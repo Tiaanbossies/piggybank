@@ -19,3 +19,6 @@ String dayLabel(DateTime date, {DateTime? now, bool withYear = true}) {
   final short = '${day.day} ${_monthAbbreviations[day.month - 1]}';
   return withYear ? '$short ${day.year}' : short;
 }
+
+/// "12 Oct 2026": a date written out in full, never "Today".
+String fullDate(DateTime date) => '${date.day} ${_monthAbbreviations[date.month - 1]} ${date.year}';

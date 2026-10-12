@@ -26,6 +26,7 @@ import '../../../shared/widgets/state_views.dart';
 import '../../../shared/widgets/tab_app_bar.dart';
 import '../../budgets/models/budget.dart';
 import '../../budgets/providers/budgets_provider.dart';
+import '../../calculators/screens/calculators_screen.dart';
 import '../../detection/providers/detection_provider.dart';
 import '../../detection/widgets/review_banner.dart';
 import '../../goals/models/goal.dart';
@@ -249,7 +250,8 @@ class _SavingsCard extends ConsumerWidget {
 
 /// Net worth, demoted from the hero to a card (decision D1): it barely moves
 /// day to day, so it no longer takes the top slot. It opens the Net worth
-/// screen, which now holds Accounts, Assets, Liabilities and Calculators.
+/// screen, which holds Accounts, Assets, Liabilities and Calculators; the
+/// calculators also get their own row here.
 class _NetWorthCard extends ConsumerWidget {
   const _NetWorthCard();
 
@@ -287,6 +289,17 @@ class _NetWorthCard extends ConsumerWidget {
               ],
             ),
             onTap: open,
+          ),
+        ),
+        // One tap from Home, not two via Net worth: the calculators were
+        // hard to find there (QA D9).
+        GroupRow(
+          key: const Key('home-calculators'),
+          leadingIcon: Icons.calculate_outlined,
+          title: 'Loan calculators',
+          trailing: Icon(Icons.chevron_right, color: t.muted),
+          onTap: () => Navigator.of(context).push(
+            MaterialPageRoute(builder: (_) => const CalculatorsScreen()),
           ),
         ),
       ],
@@ -481,6 +494,9 @@ class _RecentTransactionsPreview extends ConsumerWidget {
                           withYear: tx.transactionDate.year != clock.now().year,
                         )}',
                         trailing: SignedAmount.of(tx),
+                        // Same sheet a Transactions row opens: the details,
+                        // editable, with Delete (QA Home 1).
+                        onTap: () => showTransactionSheet(context, existing: tx),
                       ),
                     ),
                 ],

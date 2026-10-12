@@ -15,3 +15,12 @@ final deactivateAccountProvider =
     rethrow; // Let the caller handle the error
   }
 });
+
+/// Restores a deactivated account, with its transactions and history
+/// untouched (deactivation only ever set a flag).
+/// Usage: `ref.read(reactivateAccountProvider(accountId).future)`
+final reactivateAccountProvider =
+    FutureProvider.autoDispose.family<void, String>((ref, accountId) async {
+  await ref.read(accountsApiProvider).update(accountId, isActive: true);
+  ref.invalidate(accountsProvider);
+});

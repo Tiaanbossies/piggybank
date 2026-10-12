@@ -12,6 +12,7 @@ import '../../../shared/widgets/group_card.dart';
 import '../../../shared/widgets/hero_metric_card.dart';
 import '../../../shared/widgets/icon_chip.dart';
 import '../../../shared/widgets/percent_pill.dart';
+import '../../calculators/screens/calculators_screen.dart';
 import '../models/liability.dart';
 import '../providers/liabilities_provider.dart';
 import 'liability_detail_screen.dart';
@@ -51,7 +52,19 @@ class LiabilitiesScreen extends ConsumerWidget {
     final liabilitiesAsync = ref.watch(liabilitiesProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Liabilities')),
+      appBar: AppBar(
+        title: const Text('Liabilities'),
+        actions: [
+          // Where the loans are is where the loan maths belongs (QA D9).
+          IconButton(
+            icon: const Icon(Icons.calculate_outlined),
+            tooltip: 'Loan calculators',
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const CalculatorsScreen()),
+            ),
+          ),
+        ],
+      ),
       body: SafeArea(
         child: AppRefresh(
           onRefresh: () => ref.refresh(liabilitiesProvider.future),
