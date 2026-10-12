@@ -6,6 +6,7 @@ import '../../../core/api/api_error.dart';
 import '../../../core/auth/auth_controller.dart';
 import '../../../core/auth/biometric_preference.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../shared/widgets/app_controls.dart';
 import '../../../shared/widgets/group_card.dart';
 import '../data/account_api.dart';
 import '../data/security_api.dart';
@@ -152,7 +153,7 @@ class _SecurityScreenState extends ConsumerState<SecurityScreen> {
                   leadingIcon: Icons.fingerprint,
                   title: 'Biometric unlock',
                   subtitle: 'Use Face ID or Fingerprint',
-                  trailing: Switch(
+                  trailing: AppSwitch(
                     value: biometricEnabled,
                     onChanged: _busy ? null : _toggleBiometric,
                   ),

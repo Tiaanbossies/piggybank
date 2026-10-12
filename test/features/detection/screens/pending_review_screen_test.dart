@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
@@ -9,6 +10,7 @@ import 'package:piggybank/features/detection/data/detection_api.dart';
 import 'package:piggybank/features/detection/models/detected_event.dart';
 import 'package:piggybank/features/detection/providers/detection_provider.dart';
 import 'package:piggybank/features/detection/screens/pending_review_screen.dart';
+import 'package:piggybank/shared/motion/spring_swipe.dart';
 
 import '../../../test_helpers/pump_app.dart';
 
@@ -109,7 +111,7 @@ void main() {
     expect(find.widgetWithText(ElevatedButton, 'Confirm'), findsOneWidget);
   });
 
-  testWidgets('skipped_invalid rows show the error reason and only offer Discard', (tester) async {
+  testWidgets('skipped_invalid rows show the error reason and only offer Ignore', (tester) async {
     when(() => mockApi.listPending()).thenAnswer((_) async => [_skippedInvalid()]);
 
     await pumpApp(tester, const PendingReviewScreen(), overrides: overrides());
@@ -117,17 +119,17 @@ void main() {
 
     expect(find.text('model response unparseable'), findsOneWidget);
     expect(find.widgetWithText(ElevatedButton, 'Confirm'), findsNothing);
-    expect(find.widgetWithText(TextButton, 'Discard'), findsOneWidget);
+    expect(find.widgetWithText(TextButton, 'Ignore'), findsOneWidget);
   });
 
-  testWidgets('Discard calls discardEvent and removes the row from the list', (tester) async {
+  testWidgets('Ignore calls discardEvent and removes the row from the list', (tester) async {
     when(() => mockApi.listPending()).thenAnswer((_) async => [_pendingTransaction()]);
     when(() => mockApi.discardEvent('evt-1')).thenAnswer((_) async => _pendingTransaction());
 
     await pumpApp(tester, const PendingReviewScreen(), overrides: overrides());
     await tester.pumpAndSettle();
 
-    await tester.tap(find.widgetWithText(TextButton, 'Discard'));
+    await tester.tap(find.widgetWithText(TextButton, 'Ignore'));
     await tester.pumpAndSettle();
 
     // Hidden at once, but only sent once the Undo window closes.
@@ -334,8 +336,140 @@ void main() {
       await pumpApp(tester, const PendingReviewScreen(), overrides: overrides());
       await tester.pumpAndSettle();
 
-      final dismissible = tester.widget<Dismissible>(find.byKey(const ValueKey('dismiss-evt-1')));
+      final dismissible = tester.widget<SpringSwipe>(find.byKey(const ValueKey('dismiss-evt-1')));
       expect(dismissible.direction, DismissDirection.endToStart);
+    });
+  });
+
+  group('Review motion (visual rework Step 6)', () {
+    late List<Object?> haptics;
+
+    void captureHaptics(WidgetTester tester) {
+      haptics = [];
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(SystemChannels.platform, (call) async {
+        if (call.method == 'HapticFeedback.vibrate') haptics.add(call.arguments);
+        return null;
+      });
+      addTearDown(() => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(SystemChannels.platform, null));
+    }
+
+    void stubConfirmAny() {
+      when(() => mockApi.confirmEvent(
+            any(),
+            accountId: any(named: 'accountId'),
+            category: any(named: 'category'),
+            subcategory: any(named: 'subcategory'),
+            holdingId: any(named: 'holdingId'),
+            quantity: any(named: 'quantity'),
+            pricePerUnit: any(named: 'pricePerUnit'),
+            tradeType: any(named: 'tradeType'),
+          )).thenAnswer((_) async => _suggestedTransaction());
+    }
+
+    double cardOffset(WidgetTester tester, String id) => tester
+        .widget<Transform>(find.descendant(
+          of: find.byKey(ValueKey('dismiss-$id')),
+          matching: find.byKey(const Key('spring-swipe-card')),
+        ))
+        .transform
+        .getTranslation()
+        .x;
+
+    testWidgets('a short swipe springs back with no tap; a full one taps once at the threshold (M18)', (tester) async {
+      captureHaptics(tester);
+      when(() => mockApi.listPending()).thenAnswer((_) async => [_suggestedTransaction()]);
+      stubConfirmAny();
+      await pumpApp(tester, const PendingReviewScreen(), overrides: overrides());
+      await tester.pumpAndSettle();
+
+      await tester.drag(find.byKey(const ValueKey('dismiss-evt-3')), const Offset(120, 0));
+      await tester.pump();
+      expect(cardOffset(tester, 'evt-3'), greaterThan(0));
+      await tester.pumpAndSettle();
+      expect(cardOffset(tester, 'evt-3'), closeTo(0, 0.5));
+      expect(haptics, isEmpty);
+
+      await tester.drag(find.byKey(const ValueKey('dismiss-evt-3')), const Offset(600, 0));
+      await tester.pumpAndSettle();
+      expect(haptics.where((h) => h == 'HapticFeedbackType.lightImpact'), hasLength(1));
+      expect(find.byKey(const ValueKey('dismiss-evt-3')), findsNothing);
+    });
+
+    testWidgets('Confirm all n confirms every one-tap card behind one Undo', (tester) async {
+      when(() => mockApi.listPending())
+          .thenAnswer((_) async => [_suggestedTransaction(), _suggestedTransaction(id: 'evt-4')]);
+      stubConfirmAny();
+      await pumpApp(tester, const PendingReviewScreen(), overrides: overrides());
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Confirm all 2'));
+      await tester.pumpAndSettle();
+      expect(find.text('Confirmed 2'), findsOneWidget);
+      expect(find.byKey(const Key('review-all-caught-up')), findsOneWidget);
+
+      await tester.pump(_undoWindow);
+      await tester.pumpAndSettle();
+      for (final id in ['evt-3', 'evt-4']) {
+        verify(() => mockApi.confirmEvent(
+              id,
+              accountId: any(named: 'accountId'),
+              category: 'Groceries',
+              subcategory: any(named: 'subcategory'),
+              holdingId: any(named: 'holdingId'),
+              quantity: any(named: 'quantity'),
+              pricePerUnit: any(named: 'pricePerUnit'),
+              tradeType: any(named: 'tradeType'),
+            )).called(1);
+      }
+    });
+
+    testWidgets('Undo on Confirm all brings every card back and sends nothing', (tester) async {
+      when(() => mockApi.listPending())
+          .thenAnswer((_) async => [_suggestedTransaction(), _suggestedTransaction(id: 'evt-4')]);
+      stubConfirmAny();
+      await pumpApp(tester, const PendingReviewScreen(), overrides: overrides());
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Confirm all 2'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Undo'));
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const ValueKey('dismiss-evt-3')), findsOneWidget);
+      expect(find.byKey(const ValueKey('dismiss-evt-4')), findsOneWidget);
+      verifyNever(() => mockApi.confirmEvent(
+            any(),
+            accountId: any(named: 'accountId'),
+            category: any(named: 'category'),
+            subcategory: any(named: 'subcategory'),
+            holdingId: any(named: 'holdingId'),
+            quantity: any(named: 'quantity'),
+            pricePerUnit: any(named: 'pricePerUnit'),
+            tradeType: any(named: 'tradeType'),
+          ));
+    });
+
+    testWidgets('one card has no Confirm all', (tester) async {
+      when(() => mockApi.listPending()).thenAnswer((_) async => [_suggestedTransaction()]);
+      await pumpApp(tester, const PendingReviewScreen(), overrides: overrides());
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('review-confirm-all')), findsNothing);
+      expect(find.byKey(const Key('review-category-pill')), findsOneWidget);
+    });
+
+    testWidgets('clearing the queue pops celebrating Penny with one medium tap (M20)', (tester) async {
+      captureHaptics(tester);
+      when(() => mockApi.listPending()).thenAnswer((_) async => [_pendingTransaction()]);
+      when(() => mockApi.discardEvent('evt-1')).thenAnswer((_) async => _pendingTransaction());
+      await pumpApp(tester, const PendingReviewScreen(), overrides: overrides());
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.widgetWithText(TextButton, 'Ignore'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 16));
+      expect(find.byKey(const Key('mascot-pop')), findsOneWidget);
+      await tester.pumpAndSettle();
+      expect(haptics.where((h) => h == 'HapticFeedbackType.mediumImpact'), hasLength(1));
     });
   });
 }

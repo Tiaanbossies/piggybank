@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:local_auth/local_auth.dart';
@@ -10,6 +11,8 @@ import 'package:piggybank/core/auth/onboarding_store.dart';
 import 'package:piggybank/core/auth/secure_storage.dart';
 import 'package:piggybank/core/auth/user.dart';
 import 'package:piggybank/features/onboarding/screens/onboarding_screen.dart';
+import 'package:piggybank/features/onboarding/widgets/penny_avatar.dart';
+import 'package:piggybank/shared/widgets/mascot_moment.dart';
 
 class MockAuthApi extends Mock implements AuthApi {}
 
@@ -73,14 +76,12 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
   }
 
-  /// The active page-dot is rendered 20px wide, inactive dots 8px — count
-  /// of active dots, read off each AnimatedContainer's target `width`.
-  int activeDotCount(WidgetTester tester) {
-    return tester
-        .widgetList<AnimatedContainer>(find.byType(AnimatedContainer))
-        .where((c) => c.constraints?.maxWidth == 20)
-        .length;
-  }
+  // Each dot carries 4 dp of margin either side.
+  double dotWidth(WidgetTester tester, int i) => tester.getSize(find.byKey(Key('page-dot-$i'))).width - 8;
+
+  /// The active dot is an elongated pill (24 dp); the rest are 8 dp dots.
+  int activeDotCount(WidgetTester tester) =>
+      [for (var i = 0; i < _pageTitles.length; i++) dotWidth(tester, i)].where((w) => w > 16).length;
 
   testWidgets('all 7 pages are reachable via Next, in the documented order', (tester) async {
     await tester.pumpWidget(buildScreen());
@@ -140,6 +141,54 @@ void main() {
     expect(activeDotCount(tester), 1, reason: 'exactly one active dot on page 0');
 
     await tapNext(tester);
+    await tester.pumpAndSettle();
     expect(activeDotCount(tester), 1, reason: 'exactly one active dot on page 1');
+    expect(dotWidth(tester, 1), greaterThan(dotWidth(tester, 0)));
+  });
+
+  group('Onboarding look (spec §4.1, M36)', () {
+    testWidgets('no "Step n of 6" text; welcoming Penny at 180 dp on every page', (tester) async {
+      await tester.pumpWidget(buildScreen());
+      await tester.pumpAndSettle();
+      for (var i = 0; i < _pageTitles.length; i++) {
+        expect(find.textContaining('Step'), findsNothing, reason: 'page $i');
+        final penny = find.byType(PennyAvatar);
+        expect(tester.widget<PennyAvatar>(penny).assetPath, MascotMoment.welcoming, reason: 'page $i');
+        expect(tester.getSize(penny), const Size.square(OnboardingScreen.pennySize), reason: 'page $i');
+        // Her entrance plays on the first page only.
+        expect(tester.widget<PennyAvatar>(penny).entrance, i == 0, reason: 'page $i');
+        if (i < _pageTitles.length - 1) {
+          await tapNext(tester);
+          await tester.pumpAndSettle();
+        }
+      }
+    });
+
+    testWidgets('the active dot stretches over on a spring as Next slides the page, with one tick', (tester) async {
+      final haptics = <Object?>[];
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(SystemChannels.platform, (call) async {
+        if (call.method == 'HapticFeedback.vibrate') haptics.add(call.arguments);
+        return null;
+      });
+      addTearDown(() => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(SystemChannels.platform, null));
+      await tester.pumpWidget(buildScreen());
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.widgetWithText(ElevatedButton, 'Next'));
+      expect(haptics, ['HapticFeedbackType.selectionClick']);
+      // Mid-way the pill is between the two dots.
+      for (var i = 0; i < 12 && dotWidth(tester, 1) < 9; i++) {
+        await tester.pump(const Duration(milliseconds: 16));
+      }
+      await tester.pump(const Duration(milliseconds: 16));
+      expect(dotWidth(tester, 1), inExclusiveRange(8, 24));
+      expect(dotWidth(tester, 0), inExclusiveRange(8, 24));
+      await tester.pumpAndSettle();
+      expect(dotWidth(tester, 1), closeTo(24, 0.01));
+
+      await tester.tap(find.text('Skip'));
+      await tester.pump();
+      expect(haptics, hasLength(2));
+    });
   });
 }

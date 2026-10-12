@@ -1,13 +1,20 @@
+import 'package:clock/clock.dart';
 import 'package:decimal/decimal.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/api/api_error.dart';
 import '../../../core/format/dates.dart';
 import '../../../core/format/money.dart';
-import '../../../core/theme/app_theme.dart';
+import '../../../core/theme/app_tokens.dart';
+import '../../../shared/motion/saved_highlight.dart';
+import '../../../shared/motion/spring_swipe.dart';
+import '../../../shared/widgets/app_card.dart';
+import '../../../shared/widgets/app_controls.dart';
+import '../../../shared/widgets/app_skeleton.dart';
 import '../../../shared/widgets/deferred_delete.dart';
+import '../../../shared/widgets/group_card.dart';
+import '../../../shared/widgets/hero_metric_card.dart';
 import '../../../shared/widgets/icon_chip.dart';
 import '../../../shared/widgets/state_views.dart';
 import '../../../shared/widgets/swipe_background.dart';
@@ -27,7 +34,7 @@ class SavingsPlanBody extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return RefreshIndicator(
+    return AppRefresh(
       onRefresh: () async {
         refreshSavings(ref);
         await Future.wait([
@@ -36,14 +43,16 @@ class SavingsPlanBody extends ConsumerWidget {
         ]).catchError((_) => <Object>[]);
       },
       child: ListView(
-        // The bottom inset clears the Add cost button, as on Home.
-        padding: const EdgeInsets.fromLTRB(16, 0, 16, 96),
+        primary: true,
+        // The bottom inset clears the Add cost button.
+        padding: const EdgeInsets.fromLTRB(AppSpace.gutter, AppSpace.s8, AppSpace.gutter, AppSpace.s16 + AppSpace.fabInset),
         children: const [
           _TargetSection(),
-          SizedBox(height: 12),
-          _WhereToCut(),
-          SizedBox(height: 12),
+          SizedBox(height: AppSpace.sectionGap),
           _CostsSection(),
+          SizedBox(height: AppSpace.s8),
+          // The way into Penny comes last (spec §4.1).
+          _WhereToCut(),
         ],
       ),
     );
@@ -82,29 +91,29 @@ class _TargetSection extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return ref.watch(savingsOverviewProvider).when(
-          loading: () => const SizedBox(height: 160, child: Center(child: CircularProgressIndicator())),
+    return SkeletonSwitcher(child: ref.watch(savingsOverviewProvider).when(
+          loading: () => const SkeletonBlock(height: 160),
           error: (err, _) => InlineError(
             message: err is ApiError ? err.message : "Couldn't load your savings plan",
             onRetry: () => ref.invalidate(savingsOverviewProvider),
           ),
-          data: (overview) => Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  if (overview.target case final SavingsTarget target)
-                    _TargetHeader(overview: overview, target: target)
-                  else
-                    const _NoTargetHeader(),
-                  const SizedBox(height: 16),
-                  _Breakdown(overview: overview),
-                ],
+          data: (overview) => Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // The target uses the hero palette (spec §4.1).
+              AppCard(
+                key: const Key('savings-target'),
+                color: context.tokens.hero,
+                child: switch (overview.target) {
+                  final SavingsTarget target => _TargetHeader(overview: overview, target: target),
+                  null => const _NoTargetHeader(),
+                },
               ),
-            ),
+              const SizedBox(height: AppSpace.rowGap),
+              AppCard(child: _Breakdown(overview: overview)),
+            ],
           ),
-        );
+        ));
   }
 }
 
@@ -113,23 +122,19 @@ class _NoTargetHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = context.tokens;
+    final text = Theme.of(context).textTheme;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          children: [
-            const IconChip(icon: Icons.savings_outlined, size: 40),
-            const SizedBox(width: 12),
-            Expanded(child: Text('Set a monthly target', style: Theme.of(context).textTheme.titleMedium)),
-          ],
-        ),
-        const SizedBox(height: 8),
+        Text('Set a monthly target', style: text.titleMedium?.copyWith(color: t.heroInk)),
+        const SizedBox(height: AppSpace.s8),
         Text(
           'Tell Piggybank what you need left over each month, rent for example, '
           'and it shows how far you are from it.',
-          style: Theme.of(context).textTheme.bodySmall,
+          style: text.bodySmall?.copyWith(color: t.heroSecondary),
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: AppSpace.s12),
         FilledButton(onPressed: () => showTargetSheet(context), child: const Text('Set target')),
       ],
     );
@@ -143,47 +148,43 @@ class _TargetHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final semantic = Theme.of(context).extension<AppSemanticColors>();
-    final textTheme = Theme.of(context).textTheme;
+    final t = context.tokens;
+    final text = Theme.of(context).textTheme;
     final date = target.targetDate;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
           children: [
-            Expanded(child: Text(target.displayLabel, style: textTheme.titleMedium)),
+            Expanded(child: Text(target.displayLabel, style: text.labelSmall?.copyWith(color: t.heroInk))),
             IconButton(
-              icon: const Icon(Icons.edit_outlined),
+              icon: Icon(Icons.edit_outlined, color: t.heroInk),
               tooltip: 'Edit target',
               onPressed: () => showTargetSheet(context, existing: target),
             ),
           ],
         ),
         Text(
-          overview.targetMet ? 'Target met' : 'Gap ${formatZAR(overview.gap)}',
-          style: textTheme.headlineSmall?.copyWith(
-            fontWeight: FontWeight.w600,
-            color: overview.targetMet ? semantic?.success : null,
+          overview.targetMet ? 'Target met' : 'Gap ${HeroMetricCard.wholeRand(formatZAR(overview.gap))}',
+          style: text.headlineMedium?.copyWith(
+            color: t.heroInk,
+            fontFeatures: const [FontFeature.tabularFigures()],
           ),
         ),
-        const SizedBox(height: 2),
+        const SizedBox(height: AppSpace.s12),
+        PillBar(
+          value: overview.progress,
+          color: t.heroBar,
+          track: t.heroTrack,
+          // Read out as "Progress to Rent, 87%" rather than a bare "87".
+          semanticsLabel: 'Progress to ${target.displayLabel}',
+          semanticsValue: '${(overview.progress * 100).round()}%',
+        ),
+        const SizedBox(height: AppSpace.s8),
         Text(
           'Target ${formatZAR(target.monthlyAmount)} a month'
           '${date == null ? '' : ' · by ${dayLabel(date)}'}',
-          style: textTheme.bodySmall,
-        ),
-        const SizedBox(height: 12),
-        ClipRRect(
-          borderRadius: BorderRadius.circular(8),
-          child: LinearProgressIndicator(
-            value: overview.progress,
-            // Read out as "Progress to Rent, 87%" rather than a bare "87".
-            semanticsLabel: 'Progress to ${target.displayLabel}',
-            semanticsValue: '${(overview.progress * 100).round()}%',
-            minHeight: 8,
-            color: overview.targetMet ? semantic?.success : Theme.of(context).colorScheme.primary,
-            backgroundColor: semantic?.accentChipBg,
-          ),
+          style: text.bodySmall?.copyWith(color: t.heroSecondary),
         ),
       ],
     );
@@ -197,7 +198,7 @@ class _Breakdown extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final semantic = Theme.of(context).extension<AppSemanticColors>();
+    final t = context.tokens;
     final negative = overview.leftOver < Decimal.zero;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -208,21 +209,22 @@ class _Breakdown extends StatelessWidget {
         ),
         _BreakdownRow(label: 'Fixed costs', value: '−${formatZAR(overview.fixedCosts)}'),
         _BreakdownRow(label: 'Everyday spending', value: '−${formatZAR(overview.everydaySpending)}'),
-        const Divider(height: 16),
+        Divider(height: AppSpace.s16, color: t.outline.withValues(alpha: 0.3)),
         _BreakdownRow(
           label: 'Left over each month',
           value: formatZAR(overview.leftOver),
           bold: true,
-          color: negative ? semantic?.danger : null,
+          // Spending more than comes in is the one over-budget case here (J4).
+          color: negative ? t.danger : null,
         ),
         if (overview.savingsFound > Decimal.zero)
           _BreakdownRow(
             label: 'Savings found so far',
             value: '${formatZAR(overview.savingsFound)} a month',
-            color: semantic?.success,
+            color: t.positive,
           ),
-        const SizedBox(height: 8),
-        Text(basisNote(overview), style: TextStyle(color: semantic?.textMuted, fontSize: 12)),
+        const SizedBox(height: AppSpace.s8),
+        Text(basisNote(overview), style: Theme.of(context).textTheme.bodySmall?.copyWith(color: t.muted)),
       ],
     );
   }
@@ -250,13 +252,14 @@ class _BreakdownRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final style = TextStyle(fontWeight: bold ? FontWeight.w600 : null, color: color);
+    final text = Theme.of(context).textTheme;
+    final style = (bold ? text.titleSmall : text.bodyMedium)?.copyWith(color: color);
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 3),
+      padding: const EdgeInsets.symmetric(vertical: AppSpace.s4),
       child: Row(
         children: [
           Expanded(child: Text(label, style: style)),
-          Text(value, style: style),
+          Text(value, style: style?.copyWith(fontFeatures: const [FontFeature.tabularFigures()])),
         ],
       ),
     );
@@ -384,12 +387,9 @@ class _CostsSectionState extends ConsumerState<_CostsSection> {
             ),
           ],
         ),
-        const SizedBox(height: 8),
-        ref.watch(recurringCostsProvider).when(
-              loading: () => const Padding(
-                padding: EdgeInsets.all(24),
-                child: Center(child: CircularProgressIndicator()),
-              ),
+        const SizedBox(height: AppSpace.s8),
+        SkeletonSwitcher(child: ref.watch(recurringCostsProvider).when(
+              loading: () => const SkeletonRows(count: 3),
               error: (err, _) => InlineError(
                 message: err is ApiError ? err.message : "Couldn't load your recurring costs",
                 onRetry: () => ref.invalidate(recurringCostsProvider),
@@ -397,7 +397,8 @@ class _CostsSectionState extends ConsumerState<_CostsSection> {
               data: (all) {
                 final suggestions = all.where((c) => c.isSuggestion && !_settling.contains(c.id)).toList();
                 final hidden = ref.watch(pendingDeletesProvider);
-                final costs = all.where((c) => !c.isSuggestion && !hidden.contains(c.id)).toList();
+                // Deleted costs stay while they slide out (M15).
+                final costs = all.where((c) => !c.isSuggestion).toList();
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -410,9 +411,9 @@ class _CostsSectionState extends ConsumerState<_CostsSection> {
                           onConfirm: () => _settle(cost, RecurringCostStatus.confirmed),
                           onDismiss: () => _settle(cost, RecurringCostStatus.dismissed),
                         ),
-                      if (costs.isNotEmpty) const SizedBox(height: 16),
+                      if (costs.isNotEmpty) const SizedBox(height: AppSpace.s16),
                     ],
-                    if (costs.isEmpty && suggestions.isEmpty)
+                    if (all.where((c) => !c.isSuggestion).every((c) => hidden.contains(c.id)) && suggestions.isEmpty)
                       const EmptyState(
                         icon: Icons.autorenew,
                         title: 'No recurring costs yet.',
@@ -422,11 +423,15 @@ class _CostsSectionState extends ConsumerState<_CostsSection> {
                         topPadding: 16,
                       )
                     else
-                      for (final cost in costs) _CostRow(cost: cost),
+                      // One group card for the confirmed costs (spec §4.1).
+                      GroupCard(
+                        key: const Key('recurring-costs'),
+                        children: [for (final cost in costs) DeleteExit(id: cost.id, child: _CostRow(cost: cost))],
+                      ),
                   ],
                 );
               },
-            ),
+            )),
       ],
     );
   }
@@ -438,9 +443,9 @@ class _SuggestionsHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final semantic = Theme.of(context).extension<AppSemanticColors>();
+    final t = context.tokens;
     return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.only(bottom: AppSpace.s8),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -451,7 +456,7 @@ class _SuggestionsHeader extends StatelessWidget {
           const SizedBox(height: 2),
           Text(
             'These charged you every month. Confirm the real ones, dismiss the rest.',
-            style: TextStyle(fontSize: 12, color: semantic?.textMuted),
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(color: t.muted),
           ),
         ],
       ),
@@ -470,75 +475,74 @@ class _SuggestionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final semantic = Theme.of(context).extension<AppSemanticColors>();
-    final colors = Theme.of(context).colorScheme;
+    final t = context.tokens;
+    final text = Theme.of(context).textTheme;
     final seen = cost.lastSeenOn;
-    return Dismissible(
+    // Follows the finger, ticks once past the threshold and springs back if
+    // let go short of it (M19, as Review's M18).
+    return SpringSwipe(
       key: ValueKey('dismiss-${cost.id}'),
       background: SwipeBackground(
-        color: colors.primaryContainer,
-        foreground: colors.onPrimaryContainer,
+        color: t.primaryContainer,
+        foreground: t.onPrimaryContainer,
         icon: Icons.check,
         label: 'Confirm',
         alignment: Alignment.centerLeft,
-        bottomMargin: 8,
+        bottomMargin: AppSpace.rowGap,
       ),
       secondaryBackground: SwipeBackground(
-        color: colors.surfaceContainerHighest,
-        foreground: colors.onSurfaceVariant,
+        color: t.sunk,
+        foreground: t.muted,
         icon: Icons.close,
         label: 'Dismiss',
         alignment: Alignment.centerRight,
-        bottomMargin: 8,
+        bottomMargin: AppSpace.rowGap,
       ),
-      onDismissed: (direction) {
-        HapticFeedback.lightImpact();
-        direction == DismissDirection.startToEnd ? onConfirm() : onDismiss();
-      },
-      child: Card(
-        margin: const EdgeInsets.only(bottom: 8),
-        clipBehavior: Clip.antiAlias,
-        child: InkWell(
+      onSwiped: (direction) => direction == DismissDirection.startToEnd ? onConfirm() : onDismiss(),
+      child: Padding(
+        padding: const EdgeInsets.only(bottom: AppSpace.rowGap),
+        child: AppCard(
           onTap: () => showRecurringCostSheet(context, existing: cost),
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(12, 12, 12, 4),
-            child: Column(
-              children: [
-                Row(
-                  children: [
-                    IconChip(icon: kindIcon(cost.kind), size: 40),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(cost.name,
-                              style: Theme.of(context).textTheme.titleSmall, overflow: TextOverflow.ellipsis),
-                          const SizedBox(height: 2),
-                          Text(
-                            [
-                              cost.kind.label,
-                              if (seen != null) 'last charged ${dayLabel(seen, withYear: false)}',
-                            ].join(' · '),
-                            style: TextStyle(fontSize: 12, color: semantic?.textMuted),
-                          ),
-                        ],
-                      ),
+          padding: const EdgeInsets.fromLTRB(AppSpace.cardPad, AppSpace.s16, AppSpace.s12, AppSpace.s8),
+          child: Column(
+            children: [
+              Row(
+                children: [
+                  IconChip(icon: kindIcon(cost.kind), size: 40),
+                  const SizedBox(width: AppSpace.s12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(cost.name, style: text.titleSmall, overflow: TextOverflow.ellipsis),
+                        const SizedBox(height: 2),
+                        Text(
+                          [
+                            cost.kind.label,
+                            if (seen != null) 'last charged ${dayLabel(seen, withYear: false)}',
+                          ].join(' · '),
+                          style: text.bodySmall?.copyWith(color: t.muted),
+                        ),
+                      ],
                     ),
-                    const SizedBox(width: 8),
-                    Text(formatZAR(cost.monthlyAmount)),
-                  ],
-                ),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    TextButton(onPressed: onDismiss, child: const Text('Dismiss')),
-                    const SizedBox(width: 8),
-                    FilledButton.tonal(onPressed: onConfirm, child: const Text('Confirm')),
-                  ],
-                ),
-              ],
-            ),
+                  ),
+                  const SizedBox(width: AppSpace.s8),
+                  Text(
+                    formatZAR(cost.monthlyAmount),
+                    style: text.titleSmall?.copyWith(fontFeatures: const [FontFeature.tabularFigures()]),
+                  ),
+                ],
+              ),
+              const SizedBox(height: AppSpace.s4),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton(onPressed: onDismiss, child: const Text('Dismiss')),
+                  const SizedBox(width: AppSpace.s8),
+                  FilledButton.tonal(onPressed: onConfirm, child: const Text('Confirm')),
+                ],
+              ),
+            ],
           ),
         ),
       ),
@@ -562,75 +566,80 @@ class _CostRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final semantic = Theme.of(context).extension<AppSemanticColors>();
+    final t = context.tokens;
+    final text = Theme.of(context).textTheme;
     final isCut = cost.decision == RecurringCostDecision.cut;
-    final isCandidate = cost.decision == RecurringCostDecision.cutCandidate;
     final seen = cost.lastSeenOn;
     // Insurance costs carry policy details and the policy check (item 6).
     final isInsurance = cost.kind == RecurringCostKind.insurance;
     final row = Row(
       children: [
-        IconChip(icon: kindIcon(cost.kind), size: 40, danger: isCandidate || cost.stillCharged),
-        const SizedBox(width: 12),
+        // Red only for money still leaving after a cut (J4); a cut
+        // candidate is a decision, not an alarm.
+        IconChip(icon: kindIcon(cost.kind), size: 40, danger: cost.stillCharged),
+        const SizedBox(width: AppSpace.s12),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(cost.name, style: Theme.of(context).textTheme.titleSmall, overflow: TextOverflow.ellipsis),
+              Text(cost.name, style: text.titleSmall, overflow: TextOverflow.ellipsis),
               const SizedBox(height: 2),
-              Text(
-                _subtitle,
-                style: TextStyle(
-                  fontSize: 12,
-                  color: isCut ? semantic?.success : (isCandidate ? semantic?.danger : semantic?.textMuted),
-                ),
-              ),
+              Text(_subtitle, style: text.bodySmall?.copyWith(color: isCut ? t.positive : t.muted)),
               if (cost.stillCharged) ...[
-                const SizedBox(height: 4),
+                const SizedBox(height: AppSpace.s4),
                 _Pill(
                   label: seen == null ? 'Still charged' : 'Still charged · ${dayLabel(seen, withYear: false)}',
-                  color: semantic?.danger,
-                  background: semantic?.dangerChipBg,
+                  color: t.onDangerContainer,
+                  background: t.dangerContainer,
                 ),
               ],
             ],
           ),
         ),
-        const SizedBox(width: 8),
+        const SizedBox(width: AppSpace.s8),
         Text(
           formatZAR(cost.monthlyAmount),
-          style: TextStyle(
+          style: text.titleSmall?.copyWith(
             decoration: isCut ? TextDecoration.lineThrough : null,
-            color: isCut ? semantic?.textMuted : null,
+            color: isCut ? t.muted : t.ink,
+            fontFeatures: const [FontFeature.tabularFigures()],
           ),
         ),
       ],
     );
-    return Card(
-      margin: const EdgeInsets.only(bottom: 8),
-      clipBehavior: Clip.antiAlias,
+    return SavedHighlight(
+      id: cost.id,
       child: InkWell(
+        key: Key('cost-${cost.id}'),
         onTap: () => showRecurringCostSheet(context, existing: cost),
-        child: Padding(
-          padding: EdgeInsets.fromLTRB(12, 12, 12, isInsurance ? 4 : 12),
-          child: isInsurance
-              ? Column(
-                  children: [
-                    row,
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: TextButton.icon(
-                        key: Key('policy-${cost.id}'),
-                        onPressed: () => Navigator.of(context).push(
-                          MaterialPageRoute<void>(builder: (_) => PolicyScreen(cost: cost)),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: GroupRow.minHeight),
+          child: Padding(
+            padding: EdgeInsets.fromLTRB(
+              AppSpace.cardPad,
+              AppSpace.s12,
+              AppSpace.s12,
+              isInsurance ? AppSpace.s4 : AppSpace.s12,
+            ),
+            child: isInsurance
+                ? Column(
+                    children: [
+                      row,
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: TextButton.icon(
+                          key: Key('policy-${cost.id}'),
+                          onPressed: () => Navigator.of(context).push(
+                            MaterialPageRoute<void>(builder: (_) => PolicyScreen(cost: cost)),
+                          ),
+                          icon: Icon(cost.policyId == null ? Icons.add : Icons.fact_check_outlined, size: 18),
+                          label: Text(cost.policyId == null ? 'Add policy details' : 'Policy check'),
                         ),
-                        icon: Icon(cost.policyId == null ? Icons.add : Icons.fact_check_outlined, size: 18),
-                        label: Text(cost.policyId == null ? 'Add policy details' : 'Policy check'),
                       ),
-                    ),
-                  ],
-                )
-              : row,
+                    ],
+                  )
+                : row,
+          ),
         ),
       ),
     );
@@ -647,9 +656,9 @@ class _Pill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-      decoration: BoxDecoration(color: background, borderRadius: BorderRadius.circular(999)),
-      child: Text(label, style: TextStyle(color: color, fontWeight: FontWeight.w700, fontSize: 11)),
+      padding: const EdgeInsets.symmetric(horizontal: AppSpace.s8, vertical: 2),
+      decoration: BoxDecoration(color: background, borderRadius: AppRadius.pillAll),
+      child: Text(label, style: Theme.of(context).textTheme.labelSmall?.copyWith(color: color, letterSpacing: 0)),
     );
   }
 }
@@ -712,7 +721,7 @@ class _TargetSheetState extends ConsumerState<TargetSheet> {
   }
 
   Future<void> _pickDate() async {
-    final now = DateTime.now();
+    final now = clock.now();
     final picked = await showDatePicker(
       context: context,
       initialDate: _targetDate ?? now,

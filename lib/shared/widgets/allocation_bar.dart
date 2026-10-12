@@ -1,10 +1,11 @@
 import 'package:decimal/decimal.dart';
 import 'package:flutter/material.dart';
 
-import '../../core/theme/app_theme.dart';
+import '../../core/theme/app_tokens.dart';
 import '../../features/portfolios/asset_class_style.dart';
 import '../../features/portfolios/models/holding.dart';
 import '../../features/portfolios/models/investment_overview.dart';
+import '../motion/chart_reveal.dart';
 
 /// Horizontal stacked-bar allocation-by-asset-class view with a compact
 /// legend beneath it — Portfolio Detail's denser variant per DESIGN.md §9
@@ -19,23 +20,28 @@ class AllocationBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (items.isEmpty) return const SizedBox.shrink();
-    final semantic = Theme.of(context).extension<AppSemanticColors>();
+    final t = context.tokens;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // The 8 dp pill bar (spec §3) on a sunk track, drawn in left to
+        // right (M24).
         ClipRRect(
-          borderRadius: BorderRadius.circular(6),
-          child: SizedBox(
-            height: 12,
-            child: Row(
-              children: [
-                for (final item in items)
-                  Expanded(
-                    flex: (item.percent.toDouble() * 100).round().clamp(1, 100000),
-                    child: Container(color: assetClassColors[item.assetClass]),
-                  ),
-              ],
+          borderRadius: AppRadius.pillAll,
+          child: Container(
+            height: 8,
+            color: t.sunk,
+            child: ChartReveal(
+              child: Row(
+                children: [
+                  for (final item in items)
+                    Expanded(
+                      flex: (item.percent.toDouble() * 100).round().clamp(1, 100000),
+                      child: Container(color: assetClassColor(t, item.assetClass)),
+                    ),
+                ],
+              ),
             ),
           ),
         ),
@@ -51,12 +57,12 @@ class AllocationBar extends StatelessWidget {
                   Container(
                     width: 9,
                     height: 9,
-                    decoration: BoxDecoration(color: assetClassColors[item.assetClass], shape: BoxShape.circle),
+                    decoration: BoxDecoration(color: assetClassColor(t, item.assetClass), shape: BoxShape.circle),
                   ),
                   const SizedBox(width: 6),
                   Text(
                     '${assetClassLabels[item.assetClass]} · ${_formatPercent(item.percent)}%',
-                    style: TextStyle(color: semantic?.textMuted, fontSize: 12, fontWeight: FontWeight.w600),
+                    style: Theme.of(context).textTheme.labelMedium?.copyWith(color: t.muted, fontSize: 12),
                   ),
                 ],
               ),

@@ -1,56 +1,70 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/physics.dart';
 
 import '../../../core/theme/app_motion.dart';
+import '../../../shared/widgets/mascot_moment.dart';
 
-/// Penny the mascot, presented for the onboarding tour with a continuous
-/// subtle idle "bob". Reuses the `ClipRRect` + `Image.asset` presentation
-/// already established in `login_screen.dart`, parameterized by size.
+/// Penny for the onboarding tour, as a cutout straight on the surface
+/// (visual spec §2). With [entrance] she fades in and springs up once
+/// ([AppMotion.springPop]); otherwise, and always under reduced motion, she's
+/// static. No looping idle motion: the old bob ran for the whole tour.
 /// Stateless from the outside — no Riverpod/go_router dependency.
 class PennyAvatar extends StatefulWidget {
-  const PennyAvatar({this.size = 120, this.assetPath = 'assets/mascot.jpg', super.key});
+  const PennyAvatar({this.size = 120, this.assetPath = MascotMoment.welcoming, this.entrance = false, super.key});
 
   final double size;
   final String assetPath;
+
+  /// Play the one-off fade + spring when first shown (the tour's first page).
+  final bool entrance;
 
   @override
   State<PennyAvatar> createState() => _PennyAvatarState();
 }
 
 class _PennyAvatarState extends State<PennyAvatar> with SingleTickerProviderStateMixin {
-  late final AnimationController _controller = AnimationController(
-    vsync: this,
-    duration: AppMotion.valueTransition,
-  );
-  late final Animation<double> _bob = Tween<double>(
-    begin: -4,
-    end: 4,
-  ).animate(CurvedAnimation(parent: _controller, curve: AppMotion.easeInOut));
+  AnimationController? _controller;
+  bool _started = false;
 
   @override
-  void initState() {
-    super.initState();
-    // MediaQuery isn't reliably available yet in initState, so this checks
-    // the platform accessibility flag directly (same underlying signal
-    // MediaQuery.disableAnimations reads from).
-    if (!WidgetsBinding.instance.platformDispatcher.accessibilityFeatures.disableAnimations) {
-      _controller.repeat(reverse: true);
-    }
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_started) return;
+    _started = true;
+    if (!widget.entrance || context.reducedMotion) return;
+    _controller = AnimationController.unbounded(vsync: this)
+      ..addStatusListener(_onStatus)
+      ..animateWith(SpringSimulation(AppMotion.springPop, 0, 1, 0));
+  }
+
+  /// Once the spring rests, drop the wrapper so no Opacity layer lingers at
+  /// 0.9999.
+  void _onStatus(AnimationStatus status) {
+    if (status != AnimationStatus.completed) return;
+    setState(() {
+      _controller?.dispose();
+      _controller = null;
+    });
   }
 
   @override
   void dispose() {
-    _controller.dispose();
+    _controller?.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    final image = PennyImage(widget.assetPath, size: widget.size);
+    final controller = _controller;
+    if (controller == null) return image;
     return AnimatedBuilder(
-      animation: _bob,
-      builder: (context, child) => Transform.translate(offset: Offset(0, _bob.value), child: child),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(24),
-        child: Image.asset(widget.assetPath, width: widget.size, height: widget.size, fit: BoxFit.cover),
+      animation: controller,
+      child: image,
+      builder: (context, child) => Opacity(
+        key: const Key('penny-entrance'),
+        opacity: controller.value.clamp(0.0, 1.0),
+        child: Transform.scale(scale: popScale(controller.value), child: child),
       ),
     );
   }

@@ -1,16 +1,22 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_motion.dart';
+import '../../../core/theme/app_tokens.dart';
+import '../../../shared/widgets/bubble_border.dart';
 
-/// A rounded card with a small triangular tail pointing up toward
-/// `PennyAvatar`, carrying one tour page's title + body. Slides up and
+/// A surface bubble (radius 24, a 12 dp tail up toward `PennyAvatar`,
+/// visual spec §3) carrying one tour page's title, body and optional tab
+/// icon. Slides up and
 /// fades in whenever its content changes. Stateless from the outside — no
 /// Riverpod/go_router/`OnboardingScreen` dependency.
 class SpeechBubble extends StatefulWidget {
-  const SpeechBubble({required this.title, required this.body, super.key});
+  const SpeechBubble({required this.title, required this.body, this.icon, super.key});
 
   final String title;
   final String body;
+
+  /// The tab this page is about, shown beside the title.
+  final IconData? icon;
 
   @override
   State<SpeechBubble> createState() => _SpeechBubbleState();
@@ -47,64 +53,40 @@ class _SpeechBubbleState extends State<SpeechBubble> with SingleTickerProviderSt
 
   @override
   Widget build(BuildContext context) {
+    final t = context.tokens;
+    final text = Theme.of(context).textTheme;
     return AnimatedBuilder(
       animation: _curved,
       builder: (context, child) => Opacity(
         opacity: _curved.value,
         child: Transform.translate(offset: Offset(0, (1 - _curved.value) * 16), child: child),
       ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          CustomPaint(
-            size: const Size(16, 8),
-            painter: _TailPainter(
-              color: Theme.of(context).cardColor,
-              borderColor: Theme.of(context).colorScheme.outline,
-            ),
-          ),
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(widget.title, style: Theme.of(context).textTheme.titleLarge),
-                  const SizedBox(height: 8),
-                  Text(widget.body, style: Theme.of(context).textTheme.bodyLarge),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(AppSpace.cardPad),
+        decoration: ShapeDecoration(
+          color: t.surface,
+          shape: const BubbleBorder(tail: BubbleTail.up),
+          shadows: AppShadows.level1(Theme.of(context).brightness),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Row(
+              children: [
+                if (widget.icon != null) ...[
+                  Icon(widget.icon, color: t.primary),
+                  const SizedBox(width: AppSpace.s8),
                 ],
-              ),
+                Expanded(child: Text(widget.title, style: text.titleLarge)),
+              ],
             ),
-          ),
-        ],
+            const SizedBox(height: AppSpace.s8),
+            Text(widget.body, style: text.bodyLarge),
+          ],
+        ),
       ),
     );
   }
-}
-
-class _TailPainter extends CustomPainter {
-  const _TailPainter({required this.color, required this.borderColor});
-
-  final Color color;
-  final Color borderColor;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final path = Path()
-      ..moveTo(size.width / 2, 0)
-      ..lineTo(0, size.height)
-      ..lineTo(size.width, size.height)
-      ..close();
-    canvas.drawPath(path, Paint()..color = color);
-    // Card's own border comes from CardThemeData; the tail needs its own
-    // stroke on the two visible edges — its fill otherwise matches the
-    // background exactly in light mode, making it disappear entirely.
-    canvas.drawLine(Offset(size.width / 2, 0), Offset(0, size.height), Paint()..color = borderColor);
-    canvas.drawLine(Offset(size.width / 2, 0), Offset(size.width, size.height), Paint()..color = borderColor);
-  }
-
-  @override
-  bool shouldRepaint(covariant _TailPainter oldDelegate) =>
-      oldDelegate.color != color || oldDelegate.borderColor != borderColor;
 }

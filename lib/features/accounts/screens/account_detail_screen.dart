@@ -3,6 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/format/money.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/theme/app_tokens.dart';
+import '../../../shared/widgets/app_controls.dart';
+import '../../../shared/widgets/app_skeleton.dart';
 import '../../../shared/widgets/group_card.dart';
 import '../../transactions/models/transaction.dart';
 import '../../transactions/providers/transactions_provider.dart';
@@ -35,7 +38,7 @@ class AccountDetailScreen extends ConsumerWidget {
         ],
       ),
       body: SafeArea(
-        child: RefreshIndicator(
+        child: AppRefresh(
           onRefresh: () => ref.refresh(accountTransactionsProvider(account.id).future),
           child: ListView(
             padding: const EdgeInsets.all(16),
@@ -60,14 +63,14 @@ class AccountDetailScreen extends ConsumerWidget {
               const SizedBox(height: 24),
               Text('Recent transactions', style: Theme.of(context).textTheme.labelMedium),
               const SizedBox(height: 12),
-              transactionsAsync.when(
-                loading: () => const Center(child: Padding(padding: EdgeInsets.all(24), child: CircularProgressIndicator())),
+              SkeletonSwitcher(child: transactionsAsync.when(
+                loading: () => const SkeletonRows(count: 5),
                 error: (err, _) => const Text('Failed to load transactions'),
                 data: (page) {
                   if (page.items.isEmpty) return const Text('No transactions yet.');
                   return GroupCard(children: [for (final t in page.items) _AccountTransactionRow(transaction: t)]);
                 },
-              ),
+              )),
             ],
           ),
         ),
@@ -96,7 +99,6 @@ class _AccountTransactionRow extends StatelessWidget {
     final isExpense = transaction.transactionType == TransactionType.expense;
     final isIncome = transaction.transactionType == TransactionType.income;
     final signedAmount = isExpense ? -transaction.amount.toDouble() : transaction.amount.toDouble();
-    final semantic = Theme.of(context).extension<AppSemanticColors>();
     final date = transaction.transactionDate;
     final dateLabel = '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
 
@@ -109,7 +111,7 @@ class _AccountTransactionRow extends StatelessWidget {
         style: moneyTextStyle(
           context,
           fontSize: 15,
-          color: isIncome ? semantic?.success : (isExpense ? semantic?.danger : null),
+          color: isIncome ? context.tokens.positive : context.tokens.ink,
         ),
       ),
     );

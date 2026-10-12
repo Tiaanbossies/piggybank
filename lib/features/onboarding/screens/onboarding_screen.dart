@@ -1,9 +1,13 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/physics.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/auth/auth_controller.dart';
+import '../../../core/theme/app_haptics.dart';
 import '../../../core/theme/app_motion.dart';
-import '../../../shared/widgets/icon_chip.dart';
+import '../../../core/theme/app_tokens.dart';
 import '../models/tour_page.dart';
 import '../widgets/penny_avatar.dart';
 import '../widgets/speech_bubble.dart';
@@ -18,6 +22,8 @@ import '../widgets/speech_bubble.dart';
 /// [_pages] to match.
 class OnboardingScreen extends ConsumerStatefulWidget {
   const OnboardingScreen({super.key});
+
+  static const pennySize = 180.0;
 
   @override
   ConsumerState<OnboardingScreen> createState() => _OnboardingScreenState();
@@ -74,8 +80,21 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     return ref.read(authControllerProvider.notifier).completeOnboarding();
   }
 
+  /// Skip (M36): a selection tick, then the tour ends.
+  Future<void> _skip() {
+    unawaited(AppHaptics.selection());
+    return _complete();
+  }
+
+  /// Next (M36): a selection tick and the page slides over 250 ms; under
+  /// reduced motion it cuts.
   void _next() {
-    _pageController.animateToPage(_page + 1, duration: AppMotion.stateChange, curve: AppMotion.easeOut);
+    unawaited(AppHaptics.selection());
+    if (context.reducedMotion) {
+      _pageController.jumpToPage(_page + 1);
+    } else {
+      _pageController.animateToPage(_page + 1, duration: AppMotion.pageTransition, curve: AppMotion.easeOut);
+    }
   }
 
   @override
@@ -95,7 +114,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                       ? null
                       : Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 8),
-                          child: TextButton(onPressed: _complete, child: const Text('Skip')),
+                          child: TextButton(onPressed: _skip, child: const Text('Skip')),
                         ),
                 ),
               ),
@@ -114,23 +133,18 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                     return LayoutBuilder(
                       builder: (context, constraints) {
                         return SingleChildScrollView(
-                          padding: const EdgeInsets.symmetric(horizontal: 32),
+                          padding: const EdgeInsets.symmetric(horizontal: AppSpace.s24),
                           child: ConstrainedBox(
                             constraints: BoxConstraints(minHeight: constraints.maxHeight),
                             child: Center(
                               child: Column(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  if (page.icon != null) ...[
-                                    IconChip(icon: page.icon!),
-                                    const SizedBox(height: 12),
-                                  ],
-                                  PennyAvatar(
-                                    size: isWelcome ? 160 : 96,
-                                    assetPath: isWelcome ? 'assets/mascot_welcoming.jpg' : 'assets/mascot.jpg',
-                                  ),
-                                  const SizedBox(height: 24),
-                                  SpeechBubble(title: page.title, body: page.body),
+                                  // Welcoming Penny at 180 dp on every page;
+                                  // her entrance plays on the first only.
+                                  PennyAvatar(size: OnboardingScreen.pennySize, entrance: isWelcome),
+                                  const SizedBox(height: AppSpace.s12),
+                                  SpeechBubble(title: page.title, body: page.body, icon: page.icon),
                                 ],
                               ),
                             ),
@@ -141,29 +155,11 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                   },
                 ),
               ),
-              const SizedBox(height: 16),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  for (var i = 0; i < _pages.length; i++)
-                    AnimatedContainer(
-                      duration: AppMotion.stateChange,
-                      curve: AppMotion.easeOut,
-                      margin: const EdgeInsets.symmetric(horizontal: 4),
-                      width: i == _page ? 20 : 8,
-                      height: 8,
-                      decoration: BoxDecoration(
-                        color: i == _page
-                            ? Theme.of(context).colorScheme.primary
-                            : Theme.of(context).colorScheme.outline,
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                    ),
-                ],
-              ),
-              const SizedBox(height: 24),
+              const SizedBox(height: AppSpace.s16),
+              _PageDots(count: _pages.length, page: _page),
+              const SizedBox(height: AppSpace.s24),
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 32),
+                padding: const EdgeInsets.symmetric(horizontal: AppSpace.s24),
                 child: SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
@@ -172,9 +168,80 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                   ),
                 ),
               ),
-              const SizedBox(height: 32),
+              const SizedBox(height: AppSpace.s24),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+/// The page dots (M36): the active one is an elongated pill. When the page
+/// changes the pill stretches across on [AppMotion.springSettle]; under
+/// reduced motion it jumps.
+class _PageDots extends StatefulWidget {
+  const _PageDots({required this.count, required this.page});
+
+  final int count;
+  final int page;
+
+  static const dot = 8.0;
+  static const active = 24.0;
+
+  @override
+  State<_PageDots> createState() => _PageDotsState();
+}
+
+class _PageDotsState extends State<_PageDots> with SingleTickerProviderStateMixin {
+  late final AnimationController _position = AnimationController.unbounded(vsync: this, value: widget.page.toDouble());
+
+  @override
+  void didUpdateWidget(_PageDots oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.page == oldWidget.page) return;
+    final target = widget.page.toDouble();
+    if (context.reducedMotion) {
+      _position.value = target;
+    } else {
+      _position.animateWith(SpringSimulation(AppMotion.springSettle, _position.value, target, _position.velocity));
+    }
+  }
+
+  @override
+  void dispose() {
+    _position.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.tokens;
+    return Semantics(
+      label: 'Page ${widget.page + 1} of ${widget.count}',
+      child: AnimatedBuilder(
+        animation: _position,
+        builder: (context, _) => Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            for (var i = 0; i < widget.count; i++)
+              Builder(
+                builder: (context) {
+                  // How "active" this dot is as the pill passes over it.
+                  final near = (1 - (_position.value - i).abs()).clamp(0.0, 1.0);
+                  return Container(
+                    key: Key('page-dot-$i'),
+                    margin: const EdgeInsets.symmetric(horizontal: AppSpace.s4),
+                    width: _PageDots.dot + (_PageDots.active - _PageDots.dot) * near,
+                    height: _PageDots.dot,
+                    decoration: BoxDecoration(
+                      color: Color.lerp(t.outline, t.primary, near),
+                      borderRadius: AppRadius.pillAll,
+                    ),
+                  );
+                },
+              ),
+          ],
         ),
       ),
     );

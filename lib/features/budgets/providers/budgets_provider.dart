@@ -1,3 +1,4 @@
+import 'package:clock/clock.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/auth/auth_controller.dart';
@@ -51,7 +52,7 @@ final budgetProgressProvider = FutureProvider.autoDispose<List<BudgetProgress>>(
 /// Home's progress card. It used [budgetProgressProvider], so browsing
 /// back to August in Budgets quietly put August's budget on Home.
 final currentMonthBudgetProgressProvider = FutureProvider.autoDispose<List<BudgetProgress>>((ref) {
-  return ref.watch(budgetsApiProvider).progress(_firstOfMonth(DateTime.now()));
+  return ref.watch(budgetsApiProvider).progress(_firstOfMonth(clock.now()));
 });
 
 /// Flat budget list for the current month, used to populate the

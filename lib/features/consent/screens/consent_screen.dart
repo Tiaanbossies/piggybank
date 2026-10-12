@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/api/api_error.dart';
 import '../../../core/auth/auth_controller.dart';
+import '../../../shared/widgets/app_skeleton.dart';
 import '../../../shared/widgets/group_card.dart';
 import '../../../shared/widgets/icon_chip.dart';
 import '../consent_documents.dart';
@@ -134,9 +135,7 @@ class _ConsentScreenState extends ConsumerState<ConsentScreen> {
     return Scaffold(
       appBar: AppBar(title: const Text('Privacy & consent')),
       body: SafeArea(
-        child: _loading
-            ? const Center(child: CircularProgressIndicator())
-            : _buildBody(context),
+        child: SkeletonSwitcher(child: _loading ? const SkeletonPage(rows: 4) : _buildBody(context)),
       ),
     );
   }

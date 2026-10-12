@@ -5,6 +5,8 @@ import 'package:piggybank/core/auth/auth_controller.dart';
 import 'package:piggybank/core/auth/auth_state.dart';
 import 'package:piggybank/core/auth/user.dart';
 import 'package:piggybank/core/router/placeholder_screens.dart';
+import 'package:piggybank/core/theme/app_theme.dart';
+import 'package:piggybank/core/theme/app_tokens.dart';
 
 const _user = User(id: 'u1', email: 'a@b.com', fullName: 'A B', role: 'user', isActive: true);
 
@@ -34,7 +36,7 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [authControllerProvider.overrideWith((ref) => auth)],
-        child: const MaterialApp(home: SettingsScreen()),
+        child: MaterialApp(theme: AppTheme.light(), home: const SettingsScreen()),
       ),
     );
     await tester.pumpAndSettle();
@@ -81,5 +83,30 @@ void main() {
     await tester.tap(find.descendant(of: find.byType(AlertDialog), matching: find.text('Log out')));
     await tester.pumpAndSettle();
     expect(auth.logouts, 1);
+  });
+
+  group('Settings look (spec §2.6, §4.1)', () {
+    testWidgets('a profile card with the real name and email, and no invented subtitles', (tester) async {
+      await pumpSettings(tester);
+      final card = find.byKey(const Key('settings-profile'));
+      expect(find.descendant(of: card, matching: find.text(_user.fullName!)), findsOneWidget);
+      expect(find.descendant(of: card, matching: find.text(_user.email)), findsOneWidget);
+      // The rows carry titles only; the mockup's subtitles were drift.
+      for (final drift in ['Plus Plan', 'Renews', 'Capitec', 'Build 384', 'Made with care']) {
+        expect(find.textContaining(drift), findsNothing, reason: drift);
+      }
+      // The only subtitle anywhere is the profile's real email.
+      expect(find.text(_user.email), findsOneWidget);
+    });
+
+    testWidgets('Log out is a danger outline pill, at the bottom', (tester) async {
+      await pumpSettings(tester);
+      final button = find.byKey(const Key('settings-log-out'));
+      expect(tester.widget(button), isA<OutlinedButton>());
+      final style = tester.widget<OutlinedButton>(button).style!;
+      expect(style.foregroundColor!.resolve({}), AppTokens.light.danger);
+      expect(style.side!.resolve({})!.color, AppTokens.light.danger);
+      expect(tester.getTopLeft(button).dy, greaterThan(tester.getTopLeft(find.text('About')).dy));
+    });
   });
 }

@@ -9,9 +9,11 @@ import '../../features/settings/screens/notifications_screen.dart';
 import '../../features/settings/screens/profile_screen.dart';
 import '../../features/settings/screens/security_screen.dart';
 import '../../features/settings/screens/subscription_screen.dart';
+import '../../shared/widgets/app_card.dart';
 import '../../shared/widgets/confirm_dialog.dart';
 import '../../shared/widgets/group_card.dart';
 import '../auth/auth_controller.dart';
+import '../theme/app_tokens.dart';
 
 /// Stub tabs for domains not yet built at the time this was written
 /// (Invest/Budgets landed in later phases per the migration plan's parity
@@ -47,6 +49,7 @@ class SettingsScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final user = ref.watch(authControllerProvider).user;
+    final t = context.tokens;
     // Pushed above the shell from the tab-root avatar (UX rework spec §2.6),
     // so it has a back arrow and no bottom bar.
     return Scaffold(
@@ -56,17 +59,12 @@ class SettingsScreen extends ConsumerWidget {
           padding: const EdgeInsets.all(16),
           children: [
             if (user != null)
-              GroupCard(
-                children: [
-                  GroupRow(
-                    leadingIcon: Icons.person_outline,
-                    title: user.fullName ?? user.email,
-                    subtitle: user.email,
-                    onTap: () => Navigator.of(context).push(
-                      MaterialPageRoute(builder: (_) => const ProfileScreen()),
-                    ),
-                  ),
-                ],
+              _ProfileCard(
+                name: user.fullName ?? user.email,
+                email: user.email,
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const ProfileScreen()),
+                ),
               ),
             const _SectionLabel('Account'),
             GroupCard(
@@ -137,28 +135,73 @@ class SettingsScreen extends ConsumerWidget {
                 ),
               ],
             ),
-            const SizedBox(height: 12),
-            GroupCard(
-              children: [
-                GroupRow(
-                  key: const Key('settings-log-out'),
-                  leadingIcon: Icons.logout,
-                  leadingDanger: true,
-                  title: 'Log out',
-                  onTap: () async {
-                    final confirmed = await confirmDestroy(
-                      context,
-                      title: 'Log out?',
-                      message: "You'll need your password to sign back in.",
-                      confirmLabel: 'Log out',
-                    );
-                    if (confirmed) await ref.read(authControllerProvider.notifier).logout();
-                  },
-                ),
-              ],
+            const SizedBox(height: AppSpace.sectionGap),
+            // Destructive, so danger outline only (spec §3 Buttons), and
+            // behind a confirm (N8).
+            OutlinedButton.icon(
+              key: const Key('settings-log-out'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: t.danger,
+                side: BorderSide(color: t.danger),
+              ),
+              icon: const Icon(Icons.logout),
+              label: const Text('Log out'),
+              onPressed: () async {
+                final confirmed = await confirmDestroy(
+                  context,
+                  title: 'Log out?',
+                  message: "You'll need your password to sign back in.",
+                  confirmLabel: 'Log out',
+                );
+                if (confirmed) await ref.read(authControllerProvider.notifier).logout();
+              },
             ),
+            const SizedBox(height: AppSpace.sectionGap),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// The profile card that opens Settings (spec §2.6, I1): the same avatar as
+/// the tab roots, then the real name and email. Nothing else; the mockup's
+/// plan and bank subtitles were drift (visual spec §4.3).
+class _ProfileCard extends StatelessWidget {
+  const _ProfileCard({required this.name, required this.email, required this.onTap});
+  final String name;
+  final String email;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.tokens;
+    final text = Theme.of(context).textTheme;
+    return AppCard(
+      key: const Key('settings-profile'),
+      onTap: onTap,
+      semanticLabel: 'Profile, $name',
+      child: Row(
+        children: [
+          CircleAvatar(
+            radius: 24,
+            backgroundColor: t.primaryContainer,
+            foregroundColor: t.onPrimaryContainer,
+            child: const Icon(Icons.person_outline),
+          ),
+          const SizedBox(width: AppSpace.s16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(name, style: text.titleMedium, overflow: TextOverflow.ellipsis),
+                if (email != name)
+                  Text(email, style: text.bodySmall?.copyWith(color: t.muted), overflow: TextOverflow.ellipsis),
+              ],
+            ),
+          ),
+          Icon(Icons.chevron_right, color: t.muted),
+        ],
       ),
     );
   }

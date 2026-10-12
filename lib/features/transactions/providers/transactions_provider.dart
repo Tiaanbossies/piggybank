@@ -1,3 +1,4 @@
+import 'package:clock/clock.dart';
 import 'package:decimal/decimal.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -98,7 +99,7 @@ final recentTransactionsProvider = FutureProvider.autoDispose<TransactionsPage>(
 /// One page at the backend's maximum of 200 is a day's worth with room to
 /// spare; a day beyond that undercounts rather than paging the Dashboard.
 final todaySpendProvider = FutureProvider.autoDispose<Decimal>((ref) async {
-  final today = dateOnly(DateTime.now());
+  final today = dateOnly(clock.now());
   final page = await ref.watch(transactionsApiProvider).list(
         transactionType: TransactionType.expense,
         dateFrom: today,

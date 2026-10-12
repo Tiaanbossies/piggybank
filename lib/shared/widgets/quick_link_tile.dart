@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../core/theme/app_tokens.dart';
+import '../motion/press_scale.dart';
 import 'icon_chip.dart';
 
 /// Small icon-chip + label tile for the Dashboard's 4-up quick-link row
@@ -14,18 +16,20 @@ class QuickLinkTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      borderRadius: BorderRadius.circular(16),
-      onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 8),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            IconChip(icon: icon),
-            const SizedBox(height: 6),
-            Text(label, style: Theme.of(context).textTheme.labelMedium, textAlign: TextAlign.center),
-          ],
+    return PressScale(
+      child: InkWell(
+        borderRadius: AppRadius.tileAll,
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: AppSpace.s8),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              IconChip(icon: icon),
+              const SizedBox(height: 6),
+              Text(label, style: Theme.of(context).textTheme.labelMedium, textAlign: TextAlign.center),
+            ],
+          ),
         ),
       ),
     );

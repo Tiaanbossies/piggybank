@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:piggybank/core/calc/loan_calc.dart';
 import 'package:piggybank/core/format/money.dart';
 import 'package:piggybank/features/calculators/screens/calculators_screen.dart';
+import 'package:piggybank/shared/widgets/hero_metric_card.dart';
 
 import '../../test_helpers/pump_app.dart';
 
@@ -27,7 +28,8 @@ void main() {
       await tester.tap(find.text('Calculate'));
       await tester.pumpAndSettle();
 
-      final expected = formatZAR(calcPmt(150000, 11.5, 60));
+      // The hero shows whole rand (visual spec §3).
+      final expected = HeroMetricCard.wholeRand(formatZAR(calcPmt(150000, 11.5, 60)));
       expect(find.text('Monthly payment'), findsOneWidget);
       expect(find.text(expected), findsOneWidget);
     });
@@ -105,7 +107,7 @@ void main() {
 
       final expected = calcAcceleratedPayoff(80000, 12, 48, 500);
       expect(find.text('Interest saved'), findsOneWidget);
-      expect(find.text(formatZAR(expected.interestSaved)), findsOneWidget);
+      expect(find.text(HeroMetricCard.wholeRand(formatZAR(expected.interestSaved))), findsOneWidget);
       expect(find.text('${expected.monthsSaved.round()} months saved'), findsOneWidget);
     });
 

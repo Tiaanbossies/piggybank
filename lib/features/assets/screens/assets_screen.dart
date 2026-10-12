@@ -5,6 +5,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/api/api_error.dart';
 import '../../../core/format/money.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../shared/widgets/app_controls.dart';
+import '../../../shared/widgets/app_skeleton.dart';
 import '../../../shared/widgets/group_card.dart';
 import '../../../shared/widgets/hero_metric_card.dart';
 import '../models/asset.dart';
@@ -37,10 +39,10 @@ class AssetsScreen extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(title: const Text('Assets')),
       body: SafeArea(
-        child: RefreshIndicator(
+        child: AppRefresh(
           onRefresh: () => ref.refresh(assetsProvider.future),
-          child: assetsAsync.when(
-            loading: () => const Center(child: CircularProgressIndicator()),
+          child: SkeletonSwitcher(child: assetsAsync.when(
+            loading: () => const SkeletonPage(),
             error: (err, _) => Center(child: Text(err is ApiError ? err.message : 'Failed to load assets')),
             data: (assets) {
               if (assets.isEmpty) {
@@ -59,7 +61,7 @@ class AssetsScreen extends ConsumerWidget {
                 ],
               );
             },
-          ),
+          )),
         ),
       ),
       floatingActionButton: FloatingActionButton.extended(

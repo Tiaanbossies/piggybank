@@ -1,14 +1,19 @@
-import 'package:decimal/decimal.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/api/api_error.dart';
 import '../../../core/format/money.dart';
+import '../../../core/theme/app_motion.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/theme/app_tokens.dart';
+import '../../../shared/motion/chart_reveal.dart';
+import '../../../shared/widgets/app_skeleton.dart';
+import '../../../shared/widgets/chart_style.dart';
 import '../../../shared/widgets/confirm_dialog.dart';
 import '../../../shared/widgets/deferred_delete.dart';
 import '../../../shared/widgets/group_card.dart';
+import '../asset_class_style.dart';
 import '../models/dividend.dart';
 import '../models/holding.dart';
 import '../providers/portfolios_provider.dart';
@@ -75,9 +80,9 @@ class _HoldingDetailSheet extends ConsumerWidget {
               ),
               Expanded(
                 child: _Stat(
-                  label: 'Unrealized P&L',
-                  value: formatZAR(holding.unrealizedPl),
-                  color: holding.unrealizedPl >= Decimal.zero ? semantic?.success : semantic?.danger,
+                  label: 'Gain if sold today',
+                  value: signedPl(holding.unrealizedPl),
+                  color: plColor(context.tokens, holding.unrealizedPl),
                 ),
               ),
               if (holding.realizedPl != null)
@@ -177,24 +182,29 @@ class _PriceHistoryChart extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final historyAsync = ref.watch(tickerHistoryProvider((ticker: ticker, period: '3mo')));
-    final accent = Theme.of(context).colorScheme.primary;
+    final accent = context.tokens.chartSeries.first;
+    final haptics = DatatipHaptics();
 
-    return historyAsync.when(
-      loading: () => const SizedBox(height: 140, child: Center(child: CircularProgressIndicator())),
+    return SkeletonSwitcher(child: historyAsync.when(
+      loading: () => const SkeletonBlock(),
       error: (_, _) => const SizedBox.shrink(),
       data: (history) {
         if (history.data.isEmpty) return const SizedBox.shrink();
         final spots = [
           for (var i = 0; i < history.data.length; i++) FlSpot(i.toDouble(), history.data[i].close.toDouble()),
         ];
+        // Draws in left to right; touch shows the close with a tick (M24).
         return SizedBox(
           height: 140,
-          child: LineChart(
+          child: ChartReveal(
+            revealKey: ticker,
+            child: LineChart(
+            duration: context.reducedMotion ? Duration.zero : AppMotion.stateChange,
             LineChartData(
               gridData: const FlGridData(show: false),
               titlesData: const FlTitlesData(show: false),
               borderData: FlBorderData(show: false),
-              lineTouchData: const LineTouchData(enabled: false),
+              lineTouchData: chartTouch(context, haptics, label: formatZAR),
               lineBarsData: [
                 LineChartBarData(
                   spots: spots,
@@ -207,9 +217,10 @@ class _PriceHistoryChart extends ConsumerWidget {
               ],
             ),
           ),
+          ),
         );
       },
-    );
+    ));
   }
 }
 
@@ -247,11 +258,8 @@ class _DividendSectionState extends ConsumerState<_DividendSection> {
             holdingId: widget.holding.id,
             onDone: () => setState(() => _adding = false),
           ),
-        dividendsAsync.when(
-          loading: () => const Padding(
-            padding: EdgeInsets.symmetric(vertical: 16),
-            child: Center(child: CircularProgressIndicator()),
-          ),
+        SkeletonSwitcher(child: dividendsAsync.when(
+          loading: () => const SkeletonRows(count: 2),
           error: (err, _) => Text(err is ApiError ? err.message : 'Failed to load dividends'),
           data: (all) {
             final hidden = ref.watch(pendingDeletesProvider);
@@ -261,7 +269,7 @@ class _DividendSectionState extends ConsumerState<_DividendSection> {
               children: [for (final d in dividends) _DividendRow(dividend: d, holdingId: widget.holding.id)],
             );
           },
-        ),
+        )),
       ],
     );
   }

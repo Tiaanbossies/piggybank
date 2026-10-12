@@ -5,6 +5,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/api/api_error.dart';
 import '../../../core/format/money.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/theme/app_tokens.dart';
+import '../../../shared/widgets/app_controls.dart';
+import '../../../shared/widgets/app_skeleton.dart';
 import '../../../shared/widgets/group_card.dart';
 import '../../../shared/widgets/hero_metric_card.dart';
 import '../../../shared/widgets/icon_chip.dart';
@@ -50,10 +53,10 @@ class LiabilitiesScreen extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(title: const Text('Liabilities')),
       body: SafeArea(
-        child: RefreshIndicator(
+        child: AppRefresh(
           onRefresh: () => ref.refresh(liabilitiesProvider.future),
-          child: liabilitiesAsync.when(
-            loading: () => const Center(child: CircularProgressIndicator()),
+          child: SkeletonSwitcher(child: liabilitiesAsync.when(
+            loading: () => const SkeletonPage(),
             error: (err, _) => Center(child: Text(err is ApiError ? err.message : 'Failed to load liabilities')),
             data: (liabilities) {
               if (liabilities.isEmpty) {
@@ -72,7 +75,7 @@ class LiabilitiesScreen extends ConsumerWidget {
                 ],
               );
             },
-          ),
+          )),
         ),
       ),
       floatingActionButton: FloatingActionButton.extended(
@@ -102,7 +105,8 @@ class _LiabilityRow extends StatelessWidget {
           children: [
             Row(
               children: [
-                IconChip(icon: _liabilityTypeIcons[liability.liabilityType] ?? Icons.request_quote_outlined, danger: true),
+                // A debt is a fact, not an alarm: ink, never red (visual spec §4.1).
+                IconChip(icon: _liabilityTypeIcons[liability.liabilityType] ?? Icons.request_quote_outlined),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Column(
@@ -130,7 +134,7 @@ class _LiabilityRow extends StatelessWidget {
                 const SizedBox(width: 12),
                 Text(
                   formatZAR(liability.outstandingAmount),
-                  style: moneyTextStyle(context, fontSize: 15, color: semantic?.danger),
+                  style: moneyTextStyle(context, fontSize: 15, color: context.tokens.ink),
                 ),
               ],
             ),
