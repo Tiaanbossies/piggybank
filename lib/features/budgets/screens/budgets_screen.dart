@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/api/api_error.dart';
 import '../../../core/format/money.dart';
+import '../../../core/format/pay_period.dart';
 import '../../../core/theme/app_haptics.dart';
 import '../../../core/theme/app_motion.dart';
 import '../../../core/theme/app_tokens.dart';
@@ -199,7 +200,23 @@ class BudgetMonthSwitcher extends ConsumerWidget implements PreferredSizeWidget 
                 notifier.previous();
               },
             ),
-            Text('${_monthNames[month.month - 1]} ${month.year}', style: Theme.of(context).textTheme.titleMedium),
+            // With a salary day, the dates it covers sit under the name:
+            // "October 2026 · 25 Sep – 24 Oct" (QA pass 1).
+            Builder(builder: (context) {
+              final range = periodForLabel(month, ref.watch(salaryDayProvider)).rangeLabel;
+              return Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text('${_monthNames[month.month - 1]} ${month.year}', style: Theme.of(context).textTheme.titleMedium),
+                  if (range.isNotEmpty)
+                    Text(
+                      range,
+                      key: const Key('budget-period-range'),
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(color: context.tokens.muted),
+                    ),
+                ],
+              );
+            }),
             IconButton(
               icon: const Icon(Icons.chevron_right),
               tooltip: 'Next month',

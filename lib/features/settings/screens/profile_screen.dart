@@ -97,7 +97,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               keyboardType: TextInputType.number,
               decoration: const InputDecoration(
                 labelText: 'Salary day (optional)',
-                helperText: 'Day of the month your salary lands, 1–28',
+                helperText: 'Day of the month your salary lands, 1–28. Your budget months then run payday to payday: '
+                    'with the 25th, 25 Sep – 24 Oct is October.',
+                helperMaxLines: 3,
               ),
             ),
             const SizedBox(height: 24),
