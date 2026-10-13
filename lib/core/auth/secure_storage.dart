@@ -14,9 +14,21 @@ class SecureStorage {
 
   static const _refreshTokenKey = 'refresh_token';
 
+  /// The session kept for "Log in with fingerprint" after a log out (QA A5).
+  /// Separate from [_refreshTokenKey] so a cold start with only this one
+  /// lands on the login screen, never straight into the app; it's only read
+  /// after the device's biometric check passes.
+  static const _biometricRefreshTokenKey = 'biometric_refresh_token';
+
   Future<String?> readRefreshToken() => _storage.read(key: _refreshTokenKey);
 
   Future<void> writeRefreshToken(String token) => _storage.write(key: _refreshTokenKey, value: token);
 
   Future<void> clearRefreshToken() => _storage.delete(key: _refreshTokenKey);
+
+  Future<String?> readBiometricRefreshToken() => _storage.read(key: _biometricRefreshTokenKey);
+
+  Future<void> writeBiometricRefreshToken(String token) => _storage.write(key: _biometricRefreshTokenKey, value: token);
+
+  Future<void> clearBiometricRefreshToken() => _storage.delete(key: _biometricRefreshTokenKey);
 }

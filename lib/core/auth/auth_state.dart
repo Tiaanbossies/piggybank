@@ -26,6 +26,7 @@ class AuthState {
     this.locked = false,
     this.consentsRequired = false,
     this.onboardingRequired = false,
+    this.biometricLoginAvailable = false,
   });
 
   final AuthStatus status;
@@ -34,6 +35,10 @@ class AuthState {
   final bool locked;
   final bool consentsRequired;
   final bool onboardingRequired;
+
+  /// Signed out, with a kept session behind the device's biometric check:
+  /// the login screen offers "Log in with fingerprint" (QA A5).
+  final bool biometricLoginAvailable;
 
   static const initial = AuthState(status: AuthStatus.unknown);
 
@@ -57,5 +62,6 @@ class AuthState {
     );
   }
 
-  static AuthState unauthenticated() => const AuthState(status: AuthStatus.unauthenticated);
+  static AuthState unauthenticated({bool biometricLoginAvailable = false}) =>
+      AuthState(status: AuthStatus.unauthenticated, biometricLoginAvailable: biometricLoginAvailable);
 }

@@ -44,6 +44,7 @@ void main() {
     when(() => mockOnboardingStore.clearPending(any())).thenAnswer((_) async {});
     final mockSecureStorage = MockSecureStorage();
     when(mockSecureStorage.readRefreshToken).thenAnswer((_) async => null);
+    when(mockSecureStorage.readBiometricRefreshToken).thenAnswer((_) async => null);
 
     authController = AuthController(
       authApi: MockAuthApi(),
