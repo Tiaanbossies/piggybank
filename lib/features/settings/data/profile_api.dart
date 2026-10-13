@@ -16,11 +16,12 @@ class ProfileApi {
   /// independently optional (`exclude_unset`), unlike notification_preferences'
   /// whole-dict replace, so a null [salaryDay] here means "don't change it",
   /// not "clear it".
-  Future<void> updateProfile({String? fullName, int? salaryDay}) async {
+  Future<void> updateProfile({String? fullName, int? salaryDay, bool? autoSalaryDay}) async {
     try {
       await _client.dio.patch('/auth/me', data: {
         'full_name': ?fullName,
         'salary_day': ?salaryDay,
+        'auto_salary_day': ?autoSalaryDay,
       });
     } on DioException catch (e) {
       throw ApiClient.errorFrom(e);

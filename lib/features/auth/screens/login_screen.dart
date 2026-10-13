@@ -86,6 +86,27 @@ class _LoginScreenState extends ConsumerState<LoginScreen> with SingleTickerProv
     }
   }
 
+  /// "Log in with fingerprint" (QA A5): only offered after a Settings log
+  /// out with biometrics on. A failed or cancelled check just stays here.
+  Future<void> _biometricLogin() async {
+    setState(() {
+      _submitting = true;
+      _error = null;
+    });
+    try {
+      final ok = await ref.read(authControllerProvider.notifier).loginWithBiometrics();
+      if (ok) {
+        unawaited(AppHaptics.light());
+      } else if (mounted && !ref.read(biometricLoginAvailableProvider)) {
+        setState(() => _error = 'Your saved sign-in has expired. Log in with your password.');
+      }
+    } on ApiError catch (e) {
+      if (mounted) setState(() => _error = loginErrorMessage(e));
+    } finally {
+      if (mounted) setState(() => _submitting = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final t = context.tokens;
@@ -141,6 +162,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> with SingleTickerProv
             ),
             const SizedBox(height: AppSpace.s20),
             SubmitButton(key: const Key('login-submit'), label: 'Log in', busy: _submitting, onPressed: _submit),
+            if (ref.watch(biometricLoginAvailableProvider)) ...[
+              const SizedBox(height: AppSpace.s8),
+              OutlinedButton.icon(
+                key: const Key('login-biometric'),
+                onPressed: _submitting ? null : _biometricLogin,
+                icon: const Icon(Icons.fingerprint),
+                label: const Text('Log in with fingerprint'),
+              ),
+            ],
             const SizedBox(height: AppSpace.s4),
             Align(
               alignment: Alignment.centerRight,

@@ -2,24 +2,28 @@ import 'package:clock/clock.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/auth/auth_controller.dart';
+import '../../../core/format/pay_period.dart';
 import '../data/budgets_api.dart';
 import '../models/budget.dart';
 
 final budgetsApiProvider = Provider<BudgetsApi>((ref) => BudgetsApi(ref.watch(apiClientProvider)));
 
-DateTime _firstOfMonth(DateTime date) => DateTime(date.year, date.month, 1);
-
 /// The month the Budgets tab is showing. Not autoDispose — the user's
 /// browsing survives tab switches — which is exactly why it needs
 /// [syncToCurrentMonth]: an app left running from 30 September was still
 /// showing September in October (UX plan item 4).
+///
+/// Months are pay-cycle labels (`pay_period.dart`): with salary day 25, on
+/// 26 September "this month" is already October.
 class SelectedMonthNotifier extends StateNotifier<DateTime> {
-  SelectedMonthNotifier({DateTime Function()? clock})
+  SelectedMonthNotifier({DateTime Function()? clock, int? salaryDay})
       : _clock = clock ?? DateTime.now,
-        _currentMonth = _firstOfMonth((clock ?? DateTime.now)()),
-        super(_firstOfMonth((clock ?? DateTime.now)()));
+        _salaryDay = salaryDay,
+        _currentMonth = labelForDate((clock ?? DateTime.now)(), salaryDay),
+        super(labelForDate((clock ?? DateTime.now)(), salaryDay));
 
   final DateTime Function() _clock;
+  final int? _salaryDay;
 
   /// What "this month" was at the last sync — not [state], which may be a
   /// month the user deliberately browsed to.
@@ -32,7 +36,7 @@ class SelectedMonthNotifier extends StateNotifier<DateTime> {
   /// only if the calendar month has turned since the last sync; a month
   /// the user browsed to within the same calendar month is left alone.
   void syncToCurrentMonth() {
-    final current = _firstOfMonth(_clock());
+    final current = labelForDate(_clock(), _salaryDay);
     if (current == _currentMonth) return;
     _currentMonth = current;
     state = current;
@@ -40,7 +44,8 @@ class SelectedMonthNotifier extends StateNotifier<DateTime> {
 }
 
 final selectedBudgetMonthProvider = StateNotifierProvider<SelectedMonthNotifier, DateTime>(
-  (ref) => SelectedMonthNotifier(),
+  // Rebuilt when the salary day changes, so "this month" moves with it.
+  (ref) => SelectedMonthNotifier(salaryDay: ref.watch(salaryDayProvider)),
 );
 
 final budgetProgressProvider = FutureProvider.autoDispose<List<BudgetProgress>>((ref) {
@@ -48,11 +53,11 @@ final budgetProgressProvider = FutureProvider.autoDispose<List<BudgetProgress>>(
   return ref.watch(budgetsApiProvider).progress(month);
 });
 
-/// This calendar month's progress, whatever month the Budgets tab is on —
+/// This (pay-cycle) month's progress, whatever month the Budgets tab is on —
 /// Home's progress card. It used [budgetProgressProvider], so browsing
 /// back to August in Budgets quietly put August's budget on Home.
 final currentMonthBudgetProgressProvider = FutureProvider.autoDispose<List<BudgetProgress>>((ref) {
-  return ref.watch(budgetsApiProvider).progress(_firstOfMonth(clock.now()));
+  return ref.watch(budgetsApiProvider).progress(labelForDate(clock.now(), ref.watch(salaryDayProvider)));
 });
 
 /// Flat budget list for the current month, used to populate the

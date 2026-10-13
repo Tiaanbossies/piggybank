@@ -22,6 +22,7 @@ class ProfileScreen extends ConsumerStatefulWidget {
 class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   late final TextEditingController _nameController;
   late final TextEditingController _salaryDayController;
+  late bool _autoSalaryDay;
   bool _busy = false;
   String? _error;
 
@@ -31,6 +32,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     final user = ref.read(authControllerProvider).user;
     _nameController = TextEditingController(text: user?.fullName ?? '');
     _salaryDayController = TextEditingController(text: user?.salaryDay?.toString() ?? '');
+    _autoSalaryDay = user?.autoSalaryDay ?? true;
   }
 
   @override
@@ -55,6 +57,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       await ref.read(profileApiProvider).updateProfile(
             fullName: _nameController.text.trim(),
             salaryDay: salaryDay,
+            autoSalaryDay: _autoSalaryDay,
           );
       await ref.read(authControllerProvider.notifier).refreshUser();
       if (mounted) Navigator.of(context).pop();
@@ -97,10 +100,25 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               keyboardType: TextInputType.number,
               decoration: const InputDecoration(
                 labelText: 'Salary day (optional)',
-                helperText: 'Day of the month your salary lands, 1–28',
+                helperText: 'Day of the month your salary lands, 1–28. Your budget months then run payday to payday: '
+                    'with the 25th, 25 Sep – 24 Oct is October.',
+                helperMaxLines: 3,
               ),
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 8),
+            // Pro (QA pass 1): the server ignores it on Free, so it only
+            // says so rather than checking the tier here.
+            SwitchListTile(
+              key: const Key('auto-salary-day'),
+              contentPadding: EdgeInsets.zero,
+              value: _autoSalaryDay,
+              onChanged: _busy ? null : (v) => setState(() => _autoSalaryDay = v),
+              title: const Text('Penny follows your real payday'),
+              subtitle: const Text(
+                'Pro. When your salary lands a few days early or late, that month starts on the day it arrived.',
+              ),
+            ),
+            const SizedBox(height: 16),
             FilledButton(
               onPressed: _busy ? null : _save,
               child: _busy

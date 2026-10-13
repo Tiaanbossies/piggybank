@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/api/api_error.dart';
 import '../../../core/auth/auth_controller.dart';
+import '../../../core/format/pay_period.dart';
 import '../data/summaries_api.dart';
 import '../models/summaries.dart';
 
@@ -72,4 +73,41 @@ final recurringExpensesProvider = FutureProvider.autoDispose<List<RecurringExpen
 /// This month's biggest expense categories.
 final highCostExpensesProvider = FutureProvider.autoDispose<List<HighCostExpenseSummary>>((ref) {
   return ref.watch(summariesApiProvider).highCostExpenses();
+});
+
+/// The server's dates for a label month, Penny's payday moves included
+/// (Pro, QA pass 1).
+final _serverPayPeriodProvider = FutureProvider.autoDispose.family<PayPeriod, DateTime>((ref, label) {
+  return ref.watch(summariesApiProvider).payPeriod(month: label);
+});
+
+/// [label]'s pay period: the server's once it answers, the local rule
+/// (`pay_period.dart`) until then or if it can't, so a label never waits on
+/// the network.
+///
+/// No salary day means calendar months and nothing for Penny to move, so no
+/// call at all.
+final payPeriodForLabelProvider = Provider.autoDispose.family<PayPeriod, DateTime>((ref, label) {
+  final salaryDay = ref.watch(salaryDayProvider);
+  final local = periodForLabel(label, salaryDay);
+  if (salaryDay == null || salaryDay <= 1) return local;
+  return ref.watch(_serverPayPeriodProvider(label)).valueOrNull ?? local;
+});
+
+/// The pay period today falls in, the same way.
+final currentPayPeriodProvider = Provider.autoDispose<PayPeriod>((ref) {
+  final salaryDay = ref.watch(salaryDayProvider);
+  final local = periodContaining(clock.now(), salaryDay);
+  if (salaryDay == null || salaryDay <= 1) return local;
+  final server = ref.watch(_serverPayPeriodProvider(local.label)).valueOrNull;
+  if (server == null) return local;
+  final today = DateTime(clock.now().year, clock.now().month, clock.now().day);
+  // Penny may have moved the boundary across today: then it's the next one.
+  if (today.isAfter(server.end)) {
+    return ref.watch(_serverPayPeriodProvider(DateTime(local.label.year, local.label.month + 1))).valueOrNull ?? local;
+  }
+  if (today.isBefore(server.start)) {
+    return ref.watch(_serverPayPeriodProvider(DateTime(local.label.year, local.label.month - 1))).valueOrNull ?? local;
+  }
+  return server;
 });

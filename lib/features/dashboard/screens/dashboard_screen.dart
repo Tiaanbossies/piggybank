@@ -32,6 +32,7 @@ import '../../detection/widgets/review_banner.dart';
 import '../../goals/models/goal.dart';
 import '../../goals/providers/goals_provider.dart';
 import '../../networth/screens/net_worth_screen.dart';
+import '../../notifications/screens/notifications_inbox_screen.dart';
 import '../../plan/screens/plan_screen.dart';
 import '../../savings/providers/savings_provider.dart';
 import '../../summaries/providers/summaries_provider.dart';
@@ -58,7 +59,8 @@ class DashboardScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return Scaffold(
-      appBar: const TabAppBar(title: 'Piggybank'),
+      // The bell is back, with an inbox behind it now (QA C12).
+      appBar: const TabAppBar(title: 'Piggybank', actions: [NotificationBell()]),
       body: SafeArea(
         child: AppRefresh(
           onRefresh: () async {

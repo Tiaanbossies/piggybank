@@ -14,6 +14,8 @@ import '../../../shared/widgets/deferred_delete.dart';
 import '../../../shared/widgets/expand_section.dart';
 import '../../../shared/widgets/progress_card.dart';
 import '../../../shared/widgets/state_views.dart';
+import '../../categories/providers/categories_provider.dart';
+import '../../categories/widgets/category_field.dart';
 import '../models/goal.dart';
 import '../providers/goals_provider.dart';
 
@@ -167,6 +169,7 @@ class _GoalSheetState extends ConsumerState<_GoalSheet> {
   late final TextEditingController _targetController;
   late final TextEditingController _currentController;
   DateTime? _targetDate;
+  String? _category;
   bool _submitting = false;
   String? _error;
 
@@ -178,6 +181,7 @@ class _GoalSheetState extends ConsumerState<_GoalSheet> {
     _targetController = TextEditingController(text: existing != null ? existing.targetAmount.toString() : '');
     _currentController = TextEditingController(text: existing != null ? existing.currentAmount.toString() : '0');
     _targetDate = existing?.targetDate;
+    _category = existing?.category;
   }
 
   Future<void> _pickDate() async {
@@ -214,6 +218,7 @@ class _GoalSheetState extends ConsumerState<_GoalSheet> {
               targetAmount: targetAmount,
               currentAmount: currentAmount,
               targetDate: _targetDate,
+              category: _category,
             );
         markSaved(ref, created.id);
       } else {
@@ -223,10 +228,13 @@ class _GoalSheetState extends ConsumerState<_GoalSheet> {
               targetAmount: targetAmount,
               currentAmount: currentAmount,
               targetDate: _targetDate,
+              category: _category,
             );
         markSaved(ref, widget.existing!.id);
       }
-      ref.invalidate(goalsProvider);
+      ref
+        ..invalidate(goalsProvider)
+        ..invalidate(categoriesProvider);
       if (mounted) Navigator.of(context).pop();
     } on ApiError catch (e) {
       setState(() => _error = e.message);
@@ -257,13 +265,24 @@ class _GoalSheetState extends ConsumerState<_GoalSheet> {
     final busy = _submitting;
     return Padding(
       padding: EdgeInsets.only(left: 24, right: 24, top: 24, bottom: MediaQuery.of(context).viewInsets.bottom + 24),
-      child: Column(
+      // Scrolls once the keyboard and the category field don't both fit.
+      child: SingleChildScrollView(
+        child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Text(isEdit ? 'Edit goal' : 'Add goal', style: Theme.of(context).textTheme.titleLarge),
           const SizedBox(height: 16),
           TextField(controller: _nameController, decoration: const InputDecoration(labelText: 'Goal name')),
+          const SizedBox(height: 16),
+          // The same list as transactions and budgets (QA E2).
+          CategoryField(
+            key: const Key('goal-category'),
+            value: _category,
+            label: 'Category (optional)',
+            noneLabel: 'No category',
+            onChanged: (value) => setState(() => _category = value),
+          ),
           const SizedBox(height: 16),
           TextField(
             controller: _targetController,
@@ -300,6 +319,7 @@ class _GoalSheetState extends ConsumerState<_GoalSheet> {
             ),
           ],
         ],
+      ),
       ),
     );
   }

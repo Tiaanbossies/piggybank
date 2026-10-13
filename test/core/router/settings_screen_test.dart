@@ -18,7 +18,7 @@ class _FakeAuthController extends StateNotifier<AuthState> implements AuthContro
   int logouts = 0;
 
   @override
-  Future<void> logout() async => logouts++;
+  Future<void> logout({bool keepBiometricLogin = false}) async => logouts++;
 
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
