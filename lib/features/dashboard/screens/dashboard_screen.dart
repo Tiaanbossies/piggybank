@@ -1,3 +1,4 @@
+import 'package:clock/clock.dart';
 import 'package:decimal/decimal.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -8,12 +9,19 @@ import '../../../core/api/api_error.dart';
 import '../../../core/format/dates.dart';
 import '../../../core/format/money.dart';
 import '../../../core/theme/app_motion.dart';
-import '../../../core/theme/app_theme.dart';
+import '../../../core/theme/app_tokens.dart';
 import '../../../shared/motion/container_transform.dart';
+import '../../../shared/motion/count_up_text.dart';
+import '../../../shared/motion/stagger_in.dart';
+import '../../../shared/widgets/app_banner.dart';
+import '../../../shared/widgets/app_card.dart';
+import '../../../shared/widgets/app_controls.dart';
+import '../../../shared/widgets/app_skeleton.dart';
 import '../../../shared/widgets/group_card.dart';
 import '../../../shared/widgets/icon_chip.dart';
 import '../../../shared/widgets/mascot_moment.dart';
 import '../../../shared/widgets/progress_card.dart';
+import '../../../shared/widgets/shrinking_fab.dart';
 import '../../../shared/widgets/state_views.dart';
 import '../../../shared/widgets/tab_app_bar.dart';
 import '../../budgets/models/budget.dart';
@@ -28,6 +36,7 @@ import '../../savings/providers/savings_provider.dart';
 import '../../summaries/providers/summaries_provider.dart';
 import '../../transactions/category_icons.dart';
 import '../../transactions/providers/transactions_provider.dart';
+import '../../transactions/widgets/signed_amount.dart';
 import '../../transactions/widgets/transaction_sheet.dart';
 import '../../updates/models/latest_release.dart';
 import '../../updates/providers/updates_provider.dart';
@@ -50,7 +59,7 @@ class DashboardScreen extends ConsumerWidget {
     return Scaffold(
       appBar: const TabAppBar(title: 'Piggybank'),
       body: SafeArea(
-        child: RefreshIndicator(
+        child: AppRefresh(
           onRefresh: () async {
             ref.invalidate(netWorthProvider);
             ref.invalidate(netWorthHistoryProvider);
@@ -62,32 +71,38 @@ class DashboardScreen extends ConsumerWidget {
             ref.invalidate(pendingEventsProvider);
             ref.invalidate(savingsOverviewProvider);
           },
+          // Visual spec §4.1: a fixed order, with a 24 dp gap between
+          // sections so Recent reads as its own section, not the end of the
+          // page (S5). Cards carry a 12 dp bottom margin, so the gaps below
+          // top that up to 24. The bottom inset clears the Add button (S11).
           child: ListView(
-            // The bottom inset clears the Add button (56) plus its margin,
-            // so it never sits over the last recent transaction — the
-            // overlap the 2026-09-21 audit logged as H2 on other screens.
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 96),
+            key: const Key('home-list'),
+            primary: true,
+            padding: const EdgeInsets.fromLTRB(AppSpace.gutter, AppSpace.s8, AppSpace.gutter, AppSpace.fabInset),
             children: const [
               _UpdateBanner(),
               ReviewBanner(),
               LeftToSpendHero(),
-              SizedBox(height: 16),
+              SizedBox(height: AppSpace.sectionGap),
               _SavingsCard(),
               _NetWorthCard(),
-              SizedBox(height: 16),
               _NeedsAttention(),
-              SizedBox(height: 24),
+              SizedBox(height: AppSpace.sectionGap - AppSpace.rowGap),
               _RecentTransactionsPreview(),
             ],
           ),
         ),
       ),
       // Quick add (UX plan item 2, decision D2): the cash coffee gets logged
-      // from where the day starts, not three screens down Transactions.
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => showTransactionSheet(context),
-        icon: const Icon(Icons.add),
-        label: const Text('Add'),
+      // from where the day starts, not three screens down Transactions. It
+      // folds to its icon while Home scrolls down (M42).
+      floatingActionButton: Builder(
+        builder: (context) => ShrinkingFab(
+          controller: PrimaryScrollController.of(context),
+          icon: Icons.add,
+          label: 'Add',
+          onPressed: () => showTransactionSheet(context),
+        ),
       ),
     );
   }
@@ -130,47 +145,15 @@ class _UpdateBannerState extends ConsumerState<_UpdateBanner> {
     if (release == null) return const SizedBox.shrink();
 
     return Padding(
-      padding: const EdgeInsets.only(bottom: 16),
-      child: Card(
-        child: Padding(
-          padding: const EdgeInsets.all(12),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const IconChip(icon: Icons.system_update_outlined, size: 40),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('Update available', style: Theme.of(context).textTheme.titleSmall),
-                    const SizedBox(height: 2),
-                    Text(
-                      'Version ${release.version} is ready to download.',
-                      style: Theme.of(context).textTheme.bodySmall,
-                    ),
-                    const SizedBox(height: 4),
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: TextButton(
-                        onPressed: _opening ? null : () => _openDownload(release.downloadUrl),
-                        style: TextButton.styleFrom(padding: EdgeInsets.zero, minimumSize: const Size(0, 32)),
-                        child: _opening
-                            ? const SizedBox(height: 16, width: 16, child: CircularProgressIndicator(strokeWidth: 2))
-                            : const Text('Download'),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              IconButton(
-                icon: const Icon(Icons.close, size: 18),
-                tooltip: 'Dismiss',
-                onPressed: () => setState(() => _dismissed = true),
-              ),
-            ],
-          ),
-        ),
+      padding: const EdgeInsets.only(bottom: AppSpace.rowGap),
+      child: AppBanner(
+        key: const Key('home-update-banner'),
+        icon: Icons.system_update_outlined,
+        message: _opening ? 'Opening the download…' : 'Update available: version ${release.version}. Tap to download',
+        onTap: () {
+          if (!_opening) _openDownload(release.downloadUrl);
+        },
+        onDismiss: () => setState(() => _dismissed = true),
       ),
     );
   }
@@ -190,7 +173,8 @@ class _SavingsCard extends ConsumerWidget {
     final overview = ref.watch(savingsOverviewProvider).valueOrNull;
     if (overview == null) return const SizedBox.shrink();
 
-    final semantic = Theme.of(context).extension<AppSemanticColors>();
+    final t = context.tokens;
+    final text = Theme.of(context).textTheme;
     final target = overview.target;
     final String title;
     final String subtitle;
@@ -206,59 +190,58 @@ class _SavingsCard extends ConsumerWidget {
           ? '${formatZAR(overview.savingsFound)} a month found so far'
           : 'Tap to find costs to cut';
     }
+    final pct = (overview.progress * 100).round();
 
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 16),
-      child: Card(
-        clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          onTap: () {
-            ref.read(planSegmentProvider.notifier).state = PlanSegment.savings;
-            context.go('/plan');
-          },
-          child: Padding(
-            padding: const EdgeInsets.all(12),
-            child: Row(
+    return AppCard(
+      key: const Key('home-savings'),
+      margin: const EdgeInsets.only(bottom: AppSpace.rowGap),
+      padding: const EdgeInsets.symmetric(horizontal: AppSpace.cardPad, vertical: AppSpace.s16),
+      semanticLabel: '$title. $subtitle',
+      onTap: () {
+        ref.read(planSegmentProvider.notifier).state = PlanSegment.savings;
+        context.go('/plan');
+      },
+      child: Row(
+        children: [
+          // Celebrating Penny only when the target is met (visual spec §2):
+          // a pop and one medium tap, at most once a day (M39).
+          if (overview.targetMet)
+            const MascotMoment(
+              asset: MascotMoment.celebrating,
+              size: 40,
+              motion: MascotMotion.pop,
+              kind: 'savings-target-met',
+            )
+          else
+            const IconChip(icon: Icons.savings_outlined, size: 40),
+          const SizedBox(width: AppSpace.s12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                if (overview.targetMet)
-                  const MascotMoment(
-                    asset: MascotMoment.celebrating,
-                    size: 40,
-                    motion: MascotMotion.pop,
-                    kind: 'savings-target-met',
-                  )
-                else
-                  const IconChip(icon: Icons.savings_outlined, size: 40),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        title,
-                        style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                              color: overview.targetMet ? semantic?.success : null,
-                            ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(subtitle, style: Theme.of(context).textTheme.bodySmall),
-                    ],
-                  ),
-                ),
-                if (target != null && !overview.targetMet)
-                  SizedBox(
-                    width: 40,
-                    child: Text(
-                      '${(overview.progress * 100).round()}%',
-                      textAlign: TextAlign.end,
-                      style: TextStyle(color: semantic?.textMuted, fontSize: 12),
-                    ),
-                  ),
-                const Icon(Icons.chevron_right),
+                Text(title, style: text.titleSmall?.copyWith(color: overview.targetMet ? t.positive : t.ink)),
+                const SizedBox(height: 2),
+                Text(subtitle, style: text.bodySmall?.copyWith(color: t.muted)),
               ],
             ),
           ),
-        ),
+          if (target != null && !overview.targetMet)
+            // The percent says what it's of, stacked so the subtitle keeps
+            // its width.
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                CrossfadeDigits(
+                  key: const Key('home-savings-pct'),
+                  text: '$pct%',
+                  amount: overview.progress,
+                  style: text.labelMedium?.copyWith(color: t.muted),
+                ),
+                Text('of target', style: text.labelSmall?.copyWith(color: t.muted)),
+              ],
+            ),
+          Icon(Icons.chevron_right, color: t.muted),
+        ],
       ),
     );
   }
@@ -279,9 +262,12 @@ class _NetWorthCard extends ConsumerWidget {
       loading: () => '—',
       error: (_, _) => "Couldn't load",
     );
+    final t = context.tokens;
     return GroupCard(
       children: [
+        // Opens the hub by growing out of the row (M6).
         ContainerTransform(
+          radius: AppRadius.card,
           openBuilder: (_) => const NetWorthScreen(),
           closedBuilder: (context, open) => GroupRow(
             key: const Key('home-net-worth'),
@@ -291,8 +277,13 @@ class _NetWorthCard extends ConsumerWidget {
             trailing: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(value, style: moneyTextStyle(context, fontSize: 16)),
-                const Icon(Icons.chevron_right),
+                // The figure crossfades when it changes (M22).
+                CrossfadeDigits(
+                  text: value,
+                  amount: netWorth.valueOrNull?.netWorth.toDouble() ?? 0,
+                  style: Theme.of(context).textTheme.titleSmall?.copyWith(color: t.ink),
+                ),
+                Icon(Icons.chevron_right, color: t.muted),
               ],
             ),
             onTap: open,
@@ -321,18 +312,17 @@ class _NeedsAttention extends ConsumerWidget {
 
     final Widget child;
     if (goalsAsync.isLoading || budgetsAsync.isLoading) {
-      child = const Card(
+      child = const Padding(
         key: ValueKey('loading'),
-        child: Padding(
-          padding: EdgeInsets.all(16),
-          child: SizedBox(height: 56, child: Center(child: CircularProgressIndicator(strokeWidth: 2))),
-        ),
+        padding: EdgeInsets.only(top: AppSpace.sectionGap - AppSpace.rowGap),
+        child: SkeletonProgressCards(count: 1),
       );
     } else if (goalsAsync.hasError && budgetsAsync.hasError) {
-      child = Card(
+      child = Padding(
         key: const ValueKey('error'),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.only(top: AppSpace.sectionGap - AppSpace.rowGap),
+        child: AppCard(
+          margin: const EdgeInsets.only(bottom: AppSpace.rowGap),
           child: InlineError(
             message: 'Failed to load your progress',
             onRetry: () => ref
@@ -362,12 +352,20 @@ class _NeedsAttention extends ConsumerWidget {
         candidates.isEmpty ? null : candidates.reduce((a, b) => b.pctUsed > a.pctUsed ? b : a);
 
     final atRisk = busiest(budgets.where((b) => b.overBudget)) ?? busiest(budgets.where((b) => b.pctUsed >= 80));
-    if (atRisk != null) return _budgetCard(atRisk);
+    if (atRisk != null) return _section(_budgetCard(atRisk));
 
     final inProgress = goals.where((g) => g.status != GoalStatus.completed);
-    if (inProgress.isNotEmpty) return _goalCard(inProgress.first);
+    if (inProgress.isNotEmpty) return _section(_goalCard(inProgress.first));
 
     return const SizedBox.shrink();
+  }
+
+  /// Its own section: the 24 dp gap above it only when there's a card.
+  Widget _section(Widget card) {
+    return Padding(
+      padding: const EdgeInsets.only(top: AppSpace.sectionGap - AppSpace.rowGap),
+      child: card,
+    );
   }
 
   Widget _goalCard(Goal goal) {
@@ -389,7 +387,7 @@ class _NeedsAttention extends ConsumerWidget {
         pct: budget.pctUsed / 100,
         overBudget: budget.overBudget,
         footnote: budget.overBudget
-            ? '${formatZAR(budget.remaining.abs())} over budget'
+            ? 'Over by ${formatZAR(budget.remaining.abs())}'
             : '${formatZAR(budget.spent)} / ${formatZAR(budget.budgetAmount)}',
       ),
     );
@@ -422,26 +420,29 @@ class _RecentTransactionsPreview extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final recentAsync = ref.watch(recentTransactionsProvider);
+    final text = Theme.of(context).textTheme;
 
     return Column(
+      key: const Key('home-recent'),
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text('Recent transactions', style: Theme.of(context).textTheme.titleMedium),
+            Text('Recent transactions', style: text.titleMedium),
             TextButton(
               onPressed: () => context.go('/transactions'),
               child: const Text('See all'),
             ),
           ],
         ),
+        const SizedBox(height: AppSpace.s4),
         AnimatedSwitcher(
           duration: context.reducedMotion ? Duration.zero : AppMotion.stateChange,
           switchInCurve: AppMotion.easeOut,
           switchOutCurve: AppMotion.easeOut,
           child: recentAsync.when(
-            loading: () => const Center(key: ValueKey('loading'), child: CircularProgressIndicator()),
+            loading: () => const SkeletonRows(key: ValueKey('loading'), count: 5),
             error: (err, _) => Center(
               key: const ValueKey('error'),
               child: InlineError(
@@ -458,33 +459,28 @@ class _RecentTransactionsPreview extends ConsumerWidget {
                   topPadding: 24,
                 );
               }
-              final semantic = Theme.of(context).extension<AppSemanticColors>();
               return GroupCard(
                 key: const ValueKey('list'),
                 children: [
-                  for (final t in page.items)
-                    GroupRow(
-                      leadingIcon: categoryIcon(
-                        t.category,
-                        isExpense: t.transactionType.name == 'expense',
-                        isTransfer: t.transactionType.name == 'transfer',
-                      ),
-                      title: t.merchantName ?? t.description ?? t.category,
-                      // Dated, so "did that coffee go in yet?" is answered
-                      // here instead of on the full Transactions list.
-                      subtitle: '${t.category} · ${dayLabel(
-                        t.transactionDate,
-                        withYear: t.transactionDate.year != DateTime.now().year,
-                      )}',
-                      trailing: Text(
-                        formatZAR(t.transactionType.name == 'expense' ? -t.amount.toDouble() : t.amount.toDouble()),
-                        style: moneyTextStyle(
-                          context,
-                          fontSize: 14,
-                          color: t.transactionType.name == 'income'
-                              ? semantic?.success
-                              : (t.transactionType.name == 'expense' ? semantic?.danger : null),
+                  for (final (i, tx) in page.items.indexed)
+                    StaggerIn(
+                      index: i,
+                      child: GroupRow(
+                        key: ValueKey('home-recent-${tx.id}'),
+                        leadingIcon: categoryIcon(
+                          tx.category,
+                          isExpense: tx.transactionType.name == 'expense',
+                          isTransfer: tx.transactionType.name == 'transfer',
                         ),
+                        family: categoryFamily(tx.category),
+                        title: tx.merchantName ?? tx.description ?? tx.category,
+                        // Dated, so "did that coffee go in yet?" is answered
+                        // here instead of on the full Transactions list.
+                        subtitle: '${tx.category} · ${dayLabel(
+                          tx.transactionDate,
+                          withYear: tx.transactionDate.year != clock.now().year,
+                        )}',
+                        trailing: SignedAmount.of(tx),
                       ),
                     ),
                 ],

@@ -1,3 +1,4 @@
+import 'package:clock/clock.dart';
 import 'package:decimal/decimal.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -6,7 +7,9 @@ import 'package:go_router/go_router.dart';
 import '../../../core/api/api_error.dart';
 import '../../../core/format/money.dart';
 import '../../../core/theme/app_motion.dart';
-import '../../../shared/motion/press_scale.dart';
+import '../../../core/theme/app_tokens.dart';
+import '../../../shared/widgets/app_card.dart';
+import '../../../shared/widgets/app_skeleton.dart';
 import '../../../shared/widgets/hero_metric_card.dart';
 import '../../../shared/widgets/mascot_moment.dart';
 import '../../../shared/widgets/state_views.dart';
@@ -36,16 +39,12 @@ class LeftToSpendHero extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final today = now ?? DateTime.now();
+    final today = now ?? clock.now();
     final state = ref.watch(leftToSpendProvider);
     final month = _months[today.month - 1];
 
     final Widget child = state.when(
-      loading: () => const SizedBox(
-        key: ValueKey('loading'),
-        height: 120,
-        child: Center(child: CircularProgressIndicator()),
-      ),
+      loading: () => const SkeletonHero(key: ValueKey('loading'), progress: true),
       error: (err, _) => InlineError(
         key: const ValueKey('error'),
         message: err is ApiError ? err.message : "Couldn't load this month's budgets",
@@ -99,18 +98,20 @@ class _Hero extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return switch (value) {
-      UnderBudget(:final amount) => _Tappable(
+      UnderBudget(:final amount, :final spentShare) => HeroMetricCard(
+          key: const Key('left-to-spend-hero'),
+          label: 'Left to spend · $month',
+          value: formatZAR(amount),
+          amount: amount.toDouble(),
+          progress: spentShare,
+          deltaText: subline,
           onTap: () => _openBudgets(context, ref),
-          child: HeroMetricCard(
-            label: 'Left to spend · $month',
-            value: formatZAR(amount),
-            amount: amount.toDouble(),
-            deltaText: subline,
-          ),
         ),
-      OverBudget(:final amount) => _Tappable(
+      OverBudget(:final amount) => _OverBudgetCard(
+          month: month,
+          amount: amount,
+          subline: subline,
           onTap: () => _openBudgets(context, ref),
-          child: _OverBudgetCard(month: month, amount: amount, subline: subline),
         ),
       NoBudgets(:final spentThisMonth) => Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -135,36 +136,45 @@ class _Hero extends ConsumerWidget {
   }
 }
 
-/// The hero's over-budget form. The green gradient can't carry red text, so
-/// the card itself takes the error container colours.
+/// The hero's over-budget form: the one place Home is red, as its reserved
+/// meaning (spec §1.1). It keeps the hero's shape and type, on the danger
+/// container, and states the number without judging it.
 class _OverBudgetCard extends StatelessWidget {
-  const _OverBudgetCard({required this.month, required this.amount, required this.subline});
+  const _OverBudgetCard({required this.month, required this.amount, required this.subline, required this.onTap});
 
   final String month;
   final Decimal amount;
   final String subline;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
+    final t = context.tokens;
     final text = Theme.of(context).textTheme;
-    return Container(
+    final figure = 'Over by ${HeroMetricCard.wholeRand(formatZAR(amount))}';
+    return AppCard(
       key: const Key('hero-over-budget'),
-      width: double.infinity,
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(color: scheme.errorContainer, borderRadius: BorderRadius.circular(24)),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('Budgets · $month', style: text.bodyMedium?.copyWith(color: scheme.onErrorContainer)),
-          const SizedBox(height: 6),
-          Text(
-            'Over by ${formatZAR(amount)}',
-            style: text.headlineLarge?.copyWith(color: scheme.onErrorContainer, fontWeight: FontWeight.w800),
-          ),
-          const SizedBox(height: 10),
-          Text(subline, style: text.labelMedium?.copyWith(color: scheme.onErrorContainer)),
-        ],
+      color: t.dangerContainer,
+      onTap: onTap,
+      semanticLabel: 'Budgets, $month, $figure',
+      child: SizedBox(
+        width: double.infinity,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Budgets · $month', style: text.labelSmall?.copyWith(color: t.onDangerContainer)),
+            const SizedBox(height: AppSpace.s8),
+            Text(
+              figure,
+              style: text.displaySmall?.copyWith(
+                color: t.onDangerContainer,
+                fontFeatures: const [FontFeature.tabularFigures()],
+              ),
+            ),
+            const SizedBox(height: AppSpace.s8),
+            Text(subline, style: text.bodySmall?.copyWith(color: t.onDangerContainer)),
+          ],
+        ),
       ),
     );
   }
@@ -186,24 +196,6 @@ class _QuietDay extends StatelessWidget {
           const SizedBox(width: 8),
           Text('Quiet day so far', style: Theme.of(context).textTheme.bodySmall),
         ],
-      ),
-    );
-  }
-}
-
-class _Tappable extends StatelessWidget {
-  const _Tappable({required this.onTap, required this.child});
-  final VoidCallback onTap;
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    return PressScale(
-      child: Material(
-        color: Colors.transparent,
-        borderRadius: BorderRadius.circular(24),
-        clipBehavior: Clip.antiAlias,
-        child: InkWell(key: const Key('left-to-spend-hero'), onTap: onTap, child: child),
       ),
     );
   }

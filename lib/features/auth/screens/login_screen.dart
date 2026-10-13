@@ -1,10 +1,16 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/api/api_error.dart';
 import '../../../core/auth/auth_controller.dart';
+import '../../../core/theme/app_haptics.dart';
 import '../../../core/theme/app_motion.dart';
+import '../../../core/theme/app_tokens.dart';
+import '../../../shared/widgets/submit_button.dart';
+import '../widgets/auth_layout.dart';
 
 /// The server answers a wrong login with a bare "invalid credentials", and a
 /// malformed one with the validator's own words ("password: String should
@@ -70,6 +76,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> with SingleTickerProv
             email: _emailController.text.trim(),
             password: _passwordController.text,
           );
+      // Signed in: the router rises into the shell (M35).
+      unawaited(AppHaptics.light());
     } on ApiError catch (e) {
       setState(() => _error = loginErrorMessage(e));
       if (mounted && !context.reducedMotion) _shakeController.forward(from: 0);
@@ -80,120 +88,92 @@ class _LoginScreenState extends ConsumerState<LoginScreen> with SingleTickerProv
 
   @override
   Widget build(BuildContext context) {
+    final t = context.tokens;
+    final text = Theme.of(context).textTheme;
     return Scaffold(
-      body: SafeArea(
-        child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 32),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                const SizedBox(height: 48),
-                Center(
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(24),
-                    child: Image.asset('assets/mascot_welcoming.jpg', width: 120, height: 120, fit: BoxFit.cover),
+      body: AuthLayout(
+        subtitle: 'All your wealth in one place',
+        card: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            AnimatedBuilder(
+              animation: _shakeOffset,
+              builder: (context, child) => Transform.translate(offset: Offset(_shakeOffset.value, 0), child: child),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  TextField(
+                    controller: _emailController,
+                    keyboardType: TextInputType.emailAddress,
+                    decoration: const InputDecoration(
+                      labelText: 'Email address',
+                      hintText: 'you@example.com',
+                      prefixIcon: Icon(Icons.mail_outline),
+                    ),
                   ),
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  'Piggybank',
-                  textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.displaySmall?.copyWith(fontWeight: FontWeight.w700),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'All your wealth in one place',
-                  textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.bodyMedium,
-                ),
-                const SizedBox(height: 40),
-                AnimatedBuilder(
-                  animation: _shakeOffset,
-                  builder: (context, child) => Transform.translate(offset: Offset(_shakeOffset.value, 0), child: child),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      TextField(
-                        controller: _emailController,
-                        keyboardType: TextInputType.emailAddress,
-                        decoration: const InputDecoration(
-                          labelText: 'Email address',
-                          hintText: 'you@example.com',
-                          prefixIcon: Icon(Icons.mail_outline),
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      TextField(
-                        controller: _passwordController,
-                        obscureText: _obscurePassword,
-                        decoration: InputDecoration(
-                          labelText: 'Password',
-                          prefixIcon: const Icon(Icons.lock_outline),
-                          suffixIcon: IconButton(
-                            icon: Icon(_obscurePassword ? Icons.visibility_outlined : Icons.visibility_off_outlined),
-                            tooltip: _obscurePassword ? 'Show password' : 'Hide password',
-                            onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
-                          ),
-                        ),
-                      ),
-                      AnimatedSize(
-                        duration: context.reducedMotion ? Duration.zero : AppMotion.stateChange,
-                        curve: AppMotion.easeOut,
-                        alignment: Alignment.topCenter,
-                        child: _error == null
-                            ? const SizedBox(width: double.infinity)
-                            : Padding(
-                                padding: const EdgeInsets.only(top: 16),
-                                child: Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
-                              ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 24),
-                ElevatedButton(
-                  onPressed: _submitting ? null : _submit,
-                  child: _submitting
-                      ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                      : const Text('Log in'),
-                ),
-                const SizedBox(height: 8),
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: TextButton(
-                    onPressed: () => context.push('/forgot-password'),
-                    child: const Text('Forgot password?'),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                TextButton(
-                  onPressed: () => context.push('/register'),
-                  child: const Text("Don't have an account? Register"),
-                ),
-                const SizedBox(height: 24),
-                // Reassurance line per DESIGN.md § 1 / assets/login.jpeg — was
-                // entirely missing from the shipped screen.
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Icon(Icons.verified_user_outlined, size: 18, color: Theme.of(context).colorScheme.primary),
-                    const SizedBox(width: 8),
-                    Flexible(
-                      child: Text(
-                        'Your data is secure and private. Piggybank is protected with bank-level security.',
-                        textAlign: TextAlign.center,
-                        style: Theme.of(context).textTheme.bodySmall,
+                  const SizedBox(height: AppSpace.s16),
+                  TextField(
+                    controller: _passwordController,
+                    obscureText: _obscurePassword,
+                    decoration: InputDecoration(
+                      labelText: 'Password',
+                      prefixIcon: const Icon(Icons.lock_outline),
+                      suffixIcon: IconButton(
+                        icon: Icon(_obscurePassword ? Icons.visibility_outlined : Icons.visibility_off_outlined),
+                        tooltip: _obscurePassword ? 'Show password' : 'Hide password',
+                        onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
                       ),
                     ),
-                  ],
-                ),
-              ],
+                  ),
+                  AnimatedSize(
+                    duration: context.reducedMotion ? Duration.zero : AppMotion.stateChange,
+                    curve: AppMotion.easeOut,
+                    alignment: Alignment.topCenter,
+                    child: _error == null
+                        ? const SizedBox(width: double.infinity)
+                        : Padding(
+                            padding: const EdgeInsets.only(top: AppSpace.s16),
+                            child: Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
+                          ),
+                  ),
+                ],
+              ),
             ),
-          ),
+            const SizedBox(height: AppSpace.s20),
+            SubmitButton(key: const Key('login-submit'), label: 'Log in', busy: _submitting, onPressed: _submit),
+            const SizedBox(height: AppSpace.s4),
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton(
+                onPressed: () => context.push('/forgot-password'),
+                child: const Text('Forgot password?'),
+              ),
+            ),
+          ],
         ),
+        footer: [
+          TextButton(
+            onPressed: () => context.push('/register'),
+            child: const Text("Don't have an account? Register"),
+          ),
+          const SizedBox(height: AppSpace.s12),
+          // Reassurance line per DESIGN.md § 1 / assets/login.jpeg.
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(Icons.verified_user_outlined, size: 18, color: t.primary),
+              const SizedBox(width: AppSpace.s8),
+              Flexible(
+                child: Text(
+                  'Your data is secure and private. Piggybank is protected with bank-level security.',
+                  textAlign: TextAlign.center,
+                  style: text.bodySmall?.copyWith(color: t.muted),
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }

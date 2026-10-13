@@ -4,6 +4,10 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/api/api_error.dart';
 import '../../../core/auth/auth_controller.dart';
+import '../../../core/theme/app_tokens.dart';
+import '../../../shared/widgets/mascot_moment.dart';
+import '../../../shared/widgets/submit_button.dart';
+import '../widgets/auth_layout.dart';
 
 /// Step 1 of the self-service password-reset flow: collect an email and
 /// request a reset code. Always succeeds from the user's point of view
@@ -48,72 +52,57 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
   @override
   Widget build(BuildContext context) {
     final email = _emailController.text.trim();
+    final text = Theme.of(context).textTheme;
     return Scaffold(
       appBar: AppBar(title: const Text('Forgot password')),
-      body: SafeArea(
-        child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 32),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Center(
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(24),
-                    child: Image.asset('assets/mascot_thinking.jpg', width: 96, height: 96, fit: BoxFit.cover),
-                  ),
+      body: AuthLayout(
+        pose: MascotMoment.thinking,
+        card: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            if (!_sent) ...[
+              Text(
+                "Enter your account's email address and we'll send you a code to reset your password.",
+                style: text.bodyMedium,
+              ),
+              const SizedBox(height: AppSpace.s20),
+              TextField(
+                controller: _emailController,
+                keyboardType: TextInputType.emailAddress,
+                decoration: const InputDecoration(
+                  labelText: 'Email address',
+                  hintText: 'you@example.com',
+                  prefixIcon: Icon(Icons.mail_outline),
                 ),
-                const SizedBox(height: 24),
-                if (!_sent) ...[
-                  Text(
-                    "Enter your account's email address and we'll send you a code to reset your password.",
-                    style: Theme.of(context).textTheme.bodyMedium,
-                  ),
-                  const SizedBox(height: 24),
-                  TextField(
-                    controller: _emailController,
-                    keyboardType: TextInputType.emailAddress,
-                    decoration: const InputDecoration(
-                      labelText: 'Email address',
-                      hintText: 'you@example.com',
-                      prefixIcon: Icon(Icons.mail_outline),
-                    ),
-                  ),
-                  if (_error != null) ...[
-                    const SizedBox(height: 16),
-                    Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
-                  ],
-                  const SizedBox(height: 24),
-                  ElevatedButton(
-                    onPressed: _submitting ? null : _submit,
-                    child: _submitting
-                        ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                        : const Text('Send reset code'),
-                  ),
-                ] else ...[
-                  Icon(Icons.mark_email_read_outlined, size: 56, color: Theme.of(context).colorScheme.primary),
-                  const SizedBox(height: 16),
-                  Text(
-                    'If an account exists for that email, a reset code is on its way.',
-                    textAlign: TextAlign.center,
-                    style: Theme.of(context).textTheme.bodyMedium,
-                  ),
-                  const SizedBox(height: 24),
-                  ElevatedButton(
-                    onPressed: () => context.push('/reset-password', extra: email),
-                    child: const Text('I have my code'),
-                  ),
-                ],
-                const SizedBox(height: 16),
-                TextButton(
-                  onPressed: () => context.pop(),
-                  child: const Text('Back to log in'),
-                ),
+              ),
+              if (_error != null) ...[
+                const SizedBox(height: AppSpace.s16),
+                Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
               ],
-            ),
-          ),
+              const SizedBox(height: AppSpace.s20),
+              SubmitButton(label: 'Send reset code', busy: _submitting, onPressed: _submit),
+            ] else ...[
+              Icon(Icons.mark_email_read_outlined, size: 56, color: context.tokens.primary),
+              const SizedBox(height: AppSpace.s16),
+              Text(
+                'If an account exists for that email, a reset code is on its way.',
+                textAlign: TextAlign.center,
+                style: text.bodyMedium,
+              ),
+              const SizedBox(height: AppSpace.s20),
+              ElevatedButton(
+                onPressed: () => context.push('/reset-password', extra: email),
+                child: const Text('I have my code'),
+              ),
+            ],
+          ],
         ),
+        footer: [
+          TextButton(
+            onPressed: () => context.pop(),
+            child: const Text('Back to log in'),
+          ),
+        ],
       ),
     );
   }

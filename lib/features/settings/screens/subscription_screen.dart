@@ -4,6 +4,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/api/api_error.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../shared/widgets/app_skeleton.dart';
 import '../../../shared/widgets/group_card.dart';
 import '../data/subscription_api.dart';
 import '../models/subscription.dart';
@@ -89,8 +90,8 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
     return Scaffold(
       appBar: AppBar(title: const Text('Subscription')),
       body: SafeArea(
-        child: subAsync.when(
-          loading: () => const Center(child: CircularProgressIndicator()),
+        child: SkeletonSwitcher(child: subAsync.when(
+          loading: () => const SkeletonPage(rows: 3),
           error: (err, _) => Center(
             child: Padding(
               padding: const EdgeInsets.all(24),
@@ -186,7 +187,7 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
               );
             },
           ),
-        ),
+        )),
       ),
     );
   }
@@ -208,16 +209,13 @@ class _TierBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
-        gradient: isPro
-            ? const LinearGradient(colors: [AppColors.heroGradientStart, AppColors.heroGradientEnd])
-            : null,
-        color: isPro ? null : semantic?.accentChipBg,
+        color: isPro ? Theme.of(context).colorScheme.primary : semantic?.accentChipBg,
         borderRadius: BorderRadius.circular(999),
       ),
       child: Text(
         isPro ? 'PRO' : 'FREE',
         style: TextStyle(
-          color: isPro ? Colors.white : Theme.of(context).colorScheme.primary,
+          color: isPro ? Theme.of(context).colorScheme.onPrimary : Theme.of(context).colorScheme.primary,
           fontSize: 11,
           fontWeight: FontWeight.w700,
           letterSpacing: 0.4,

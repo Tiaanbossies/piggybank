@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/theme/app_haptics.dart';
 import '../../core/theme/app_motion.dart';
+import '../../core/theme/app_tokens.dart';
 
 /// The row a sheet just saved, so its list can show where it went (UX rework
 /// spec §3.2, N3/N7). UI-only state.
@@ -9,9 +11,12 @@ typedef SavedRow = ({String id, DateTime at});
 
 final savedRowProvider = StateProvider<SavedRow?>((ref) => null);
 
-/// Called by a sheet after a successful save, before it closes.
-void markSaved(WidgetRef ref, String id) =>
-    ref.read(savedRowProvider.notifier).state = (id: id, at: DateTime.now());
+/// Called by a sheet after a successful save, before it closes. The light
+/// tap is the save's confirmation (visual spec M8), for every sheet.
+void markSaved(WidgetRef ref, String id) {
+  ref.read(savedRowProvider.notifier).state = (id: id, at: DateTime.now());
+  AppHaptics.light();
+}
 
 /// How long a save stays worth pointing at. A row that only comes into view
 /// later (saved from Home, say, then Transactions opened a minute after)
@@ -22,11 +27,11 @@ const _fresh = Duration(seconds: 3);
 /// the fade is what you actually see ("the sheet closes, then the row
 /// highlights"). One controller, no timers.
 const _hold = AppMotion.pageTransition;
-const _fadeMs = 600;
-final highlightDuration = _hold + const Duration(milliseconds: _fadeMs);
+final highlightDuration = _hold + AppMotion.highlightFade;
 
-/// Tints its row, on top of it, and fades the tint out when [id] is the row
-/// just saved. Skipped under reduced motion.
+/// Tints its row `primaryContainer`, behind its content, and fades the tint
+/// out when [id] is the row just saved (visual spec M8). Under reduced
+/// motion the tint shows for the same time and goes without a fade.
 class SavedHighlight extends ConsumerStatefulWidget {
   const SavedHighlight({
     required this.id,
@@ -69,7 +74,6 @@ class _SavedHighlightState extends ConsumerState<SavedHighlight> with SingleTick
   void _maybePlay(SavedRow? saved) {
     if (saved == null || saved.id != widget.id) return;
     if (DateTime.now().difference(saved.at) > _fresh) return;
-    if (context.reducedMotion) return;
     ref.read(savedRowProvider.notifier).state = null;
     _controller.forward(from: 0);
   }
@@ -83,11 +87,11 @@ class _SavedHighlightState extends ConsumerState<SavedHighlight> with SingleTick
   @override
   Widget build(BuildContext context) {
     ref.listen(savedRowProvider, (_, saved) => _maybePlay(saved));
-    final tint = Theme.of(context).colorScheme.primary;
+    final tint = context.tokens.primaryContainer;
+    final reduced = context.reducedMotion;
     final holdFraction = _hold.inMilliseconds / highlightDuration.inMilliseconds;
     return Stack(
       children: [
-        widget.child,
         Positioned.fill(
           left: widget.inset.left,
           top: widget.inset.top,
@@ -99,7 +103,7 @@ class _SavedHighlightState extends ConsumerState<SavedHighlight> with SingleTick
               builder: (context, _) {
                 final t = _controller.value;
                 final fade = t <= holdFraction ? 0.0 : (t - holdFraction) / (1 - holdFraction);
-                final alpha = 0.16 * (1 - AppMotion.easeOut.transform(fade));
+                final alpha = reduced ? (t < 1 ? 1.0 : 0.0) : 1 - AppMotion.easeOut.transform(fade);
                 if (alpha == 0) return const SizedBox.shrink();
                 return DecoratedBox(
                   key: const Key('saved-highlight'),
@@ -112,6 +116,7 @@ class _SavedHighlightState extends ConsumerState<SavedHighlight> with SingleTick
             ),
           ),
         ),
+        widget.child,
       ],
     );
   }

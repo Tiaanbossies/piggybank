@@ -8,6 +8,7 @@ import 'package:piggybank/features/summaries/data/summaries_api.dart';
 import 'package:piggybank/features/summaries/models/summaries.dart';
 import 'package:piggybank/features/summaries/providers/summaries_provider.dart';
 import 'package:piggybank/features/trends/screens/trends_screen.dart';
+import 'package:piggybank/shared/widgets/app_skeleton.dart';
 import 'package:piggybank/shared/widgets/hero_metric_card.dart';
 import 'package:piggybank/shared/widgets/progress_card.dart';
 import 'package:piggybank/shared/widgets/state_views.dart';
@@ -136,7 +137,7 @@ void main() {
   });
 
   group('loading state', () {
-    testWidgets('shows progress indicators while every source is in flight', (tester) async {
+    testWidgets('shows skeletons, not spinners, while every source is in flight (M11)', (tester) async {
       _useTallSurface(tester);
       when(() => mockApi.netWorthHistory(months: any(named: 'months')))
           .thenAnswer((_) => Future.delayed(const Duration(seconds: 1), () => <NetWorthSnapshot>[]));
@@ -144,7 +145,8 @@ void main() {
       await pumpApp(tester, const TrendsScreen(), overrides: overrides(), useAppTheme: true);
       await tester.pump();
 
-      expect(find.byType(CircularProgressIndicator), findsWidgets);
+      expect(find.byType(AppSkeleton), findsWidgets);
+      expect(find.byType(CircularProgressIndicator), findsNothing);
 
       await tester.pumpAndSettle(const Duration(seconds: 2));
     });

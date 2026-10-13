@@ -1,3 +1,4 @@
+import 'package:clock/clock.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// Rate-limits a mascot moment (UX rework spec §3.3: "at most once a day per
@@ -8,7 +9,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// records it, so every later call returns false.
 bool claimMoment(SharedPreferences prefs, String kind, {bool daily = true, DateTime? now}) {
   final key = 'mascot.$kind';
-  final today = now ?? DateTime.now();
+  final today = now ?? clock.now();
   final stamp = daily
       ? '${today.year.toString().padLeft(4, '0')}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}'
       : '1';

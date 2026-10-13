@@ -1,13 +1,17 @@
+import 'package:clock/clock.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/api/api_error.dart';
 import '../../../core/format/money.dart';
 import '../../../core/theme/app_motion.dart';
-import '../../../shared/motion/press_scale.dart';
+import '../../../core/theme/app_tokens.dart';
 import '../../../shared/motion/saved_highlight.dart';
+import '../../../shared/widgets/app_controls.dart';
+import '../../../shared/widgets/app_skeleton.dart';
 import '../../../shared/widgets/completed_goal_card.dart';
 import '../../../shared/widgets/deferred_delete.dart';
+import '../../../shared/widgets/expand_section.dart';
 import '../../../shared/widgets/progress_card.dart';
 import '../../../shared/widgets/state_views.dart';
 import '../models/goal.dart';
@@ -28,18 +32,22 @@ Future<void> showEditGoalSheet(BuildContext context, Goal existing) {
 class GoalsBody extends ConsumerWidget {
   const GoalsBody({super.key});
 
+  /// Clears the Add goal button.
+  static const _padding =
+      EdgeInsets.fromLTRB(AppSpace.gutter, AppSpace.s8, AppSpace.gutter, AppSpace.s16 + AppSpace.fabInset);
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final goalsAsync = ref.watch(goalsProvider);
 
-    return RefreshIndicator(
+    return AppRefresh(
       onRefresh: () => ref.refresh(goalsProvider.future),
       child: AnimatedSwitcher(
         duration: context.reducedMotion ? Duration.zero : AppMotion.stateChange,
         switchInCurve: AppMotion.easeOut,
         switchOutCurve: AppMotion.easeOut,
         child: goalsAsync.when(
-          loading: () => const Center(key: ValueKey('loading'), child: CircularProgressIndicator()),
+          loading: () => const SkeletonPage(key: ValueKey('loading'), progressCards: true),
           error: (err, _) => Center(
             key: const ValueKey('error'),
             child: InlineError(
@@ -53,7 +61,8 @@ class GoalsBody extends ConsumerWidget {
             if (goals.isEmpty) {
               return ListView(
                 key: const ValueKey('empty'),
-                padding: const EdgeInsets.all(16),
+                primary: true,
+                padding: _padding,
                 children: const [
                   EmptyState(
                     icon: Icons.flag_outlined,
@@ -64,21 +73,25 @@ class GoalsBody extends ConsumerWidget {
                 ],
               );
             }
-            final inProgress = goals.where((g) => g.status != GoalStatus.completed).toList()
-              ..sort(_byTargetDate);
-            final completed = goals.where((g) => g.status == GoalStatus.completed).toList();
+            // Deleted goals stay in the list while they slide out (M15) and
+            // grow back on Undo; only the empty check ignores them.
+            final inProgress = all.where((g) => g.status != GoalStatus.completed).toList()..sort(_byTargetDate);
+            final completed = all.where((g) => g.status == GoalStatus.completed).toList();
+            final completedShown = completed.where((g) => !hidden.contains(g.id)).length;
             return ListView(
               key: const ValueKey('list'),
-              // Clears the Add goal button.
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 104),
+              primary: true,
+              padding: _padding,
               children: [
-                for (final goal in inProgress) _GoalRow(goal: goal),
-                if (completed.isNotEmpty)
-                  ExpansionTile(
+                for (final goal in inProgress) DeleteExit(id: goal.id, child: _GoalRow(goal: goal)),
+                if (completedShown > 0)
+                  // Grows open with a size transition (M29).
+                  ExpandSection(
                     key: const Key('goals-completed'),
-                    tilePadding: const EdgeInsets.symmetric(horizontal: 4),
-                    title: Text('Completed (${completed.length})'),
-                    children: [for (final goal in completed) _GoalRow(goal: goal)],
+                    title: 'Completed ($completedShown)',
+                    child: Column(
+                      children: [for (final goal in completed) DeleteExit(id: goal.id, child: _GoalRow(goal: goal))],
+                    ),
                   ),
               ],
             );
@@ -98,18 +111,27 @@ class _GoalRow extends StatelessWidget {
     final targetDate = goal.targetDate;
     final footnote = '${formatZAR(goal.currentAmount)} saved / ${formatZAR(goal.targetAmount)} goal'
         '${targetDate == null ? '' : ' / by ${_formatDate(targetDate)}'}';
+    void edit() => showEditGoalSheet(context, goal);
     final child = goal.status == GoalStatus.completed
-        ? CompletedGoalCard(title: goal.name, footnote: footnote, goalId: goal.id)
+        ? CompletedGoalCard(
+            key: Key('goal-${goal.id}'),
+            title: goal.name,
+            footnote: footnote,
+            goalId: goal.id,
+            onTap: edit,
+          )
         : ProgressCard(
+            key: Key('goal-${goal.id}'),
             title: goal.name,
             pct: goal.progressPct / 100,
             footnote: footnote,
+            onTap: edit,
           );
     return SavedHighlight(
       id: goal.id,
-      radius: 16,
-      inset: const EdgeInsets.only(bottom: 12),
-      child: PressScale(child: InkWell(onTap: () => showEditGoalSheet(context, goal), child: child)),
+      radius: AppRadius.card,
+      inset: const EdgeInsets.only(bottom: AppSpace.rowGap),
+      child: child,
     );
   }
 }
@@ -159,7 +181,7 @@ class _GoalSheetState extends ConsumerState<_GoalSheet> {
   }
 
   Future<void> _pickDate() async {
-    final now = DateTime.now();
+    final now = clock.now();
     final picked = await showDatePicker(
       context: context,
       initialDate: _targetDate ?? now,

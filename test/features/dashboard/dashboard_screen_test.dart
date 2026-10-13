@@ -9,6 +9,7 @@ import 'package:mocktail/mocktail.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:piggybank/core/api/api_error.dart';
 import 'package:piggybank/core/theme/app_theme.dart';
+import 'package:piggybank/core/theme/app_tokens.dart';
 import 'package:piggybank/core/theme/shared_preferences_provider.dart';
 import 'package:piggybank/features/accounts/data/accounts_api.dart';
 import 'package:piggybank/features/accounts/providers/accounts_provider.dart';
@@ -16,6 +17,7 @@ import 'package:piggybank/features/budgets/data/budgets_api.dart';
 import 'package:piggybank/features/budgets/models/budget.dart';
 import 'package:piggybank/features/budgets/providers/budgets_provider.dart';
 import 'package:piggybank/features/dashboard/screens/dashboard_screen.dart';
+import 'package:piggybank/features/dashboard/widgets/left_to_spend_hero.dart';
 import 'package:piggybank/features/detection/data/detection_api.dart';
 import 'package:piggybank/features/detection/models/detected_event.dart';
 import 'package:piggybank/features/detection/providers/detection_provider.dart';
@@ -37,6 +39,7 @@ import 'package:piggybank/features/transactions/providers/transactions_provider.
 import 'package:piggybank/features/transactions/widgets/transaction_sheet.dart';
 import 'package:piggybank/features/updates/data/updates_api.dart';
 import 'package:piggybank/features/updates/models/latest_release.dart';
+import 'package:piggybank/shared/widgets/app_card.dart';
 import 'package:piggybank/shared/widgets/completed_goal_card.dart';
 import 'package:piggybank/shared/widgets/hero_metric_card.dart';
 import 'package:piggybank/shared/widgets/mascot_moment.dart';
@@ -325,7 +328,10 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.byKey(const Key('hero-over-budget')), findsOneWidget);
-      expect(find.text('Over by R 640,00'), findsOneWidget);
+      expect(
+        find.descendant(of: find.byKey(const Key('hero-over-budget')), matching: find.text('Over by R\u00A0640')),
+        findsOneWidget,
+      );
       expect(find.byType(HeroMetricCard), findsNothing);
       // No mascot on bad news, not even the quiet-day one (spec §3.3).
       expect(find.byType(MascotMoment), findsNothing);
@@ -537,6 +543,147 @@ void main() {
     });
   });
 
+  group('Visual spec order (visual rework Step 5)', () {
+    void stubFullHome({List<Transaction>? today}) {
+      stubDefaults(
+        budgets: [_budget(id: 'b1', category: 'Groceries', pctUsed: 84)],
+        recentTransactions: List.generate(5, (i) => _transaction(id: 't$i', category: 'Cat$i')),
+        pendingEvents: [_detected('e1')],
+        todayExpenses: today,
+      );
+      when(() => mockSavingsApi.overview()).thenAnswer((_) async => _savings(target: _rent));
+    }
+
+    double top(WidgetTester tester, Finder f) => tester.getTopLeft(f).dy;
+
+    testWidgets('banner, hero, savings, net worth, needs attention, recent', (tester) async {
+      _useTallView(tester);
+      stubFullHome();
+      await pumpApp(tester, const DashboardScreen(), overrides: overrides(), useAppTheme: true);
+      await tester.pumpAndSettle();
+
+      final order = [
+        find.byKey(const Key('review-banner')),
+        find.byType(LeftToSpendHero),
+        find.byKey(const Key('home-savings')),
+        find.byKey(const Key('home-net-worth')),
+        find.byType(ProgressCard),
+        find.byKey(const Key('home-recent')),
+      ];
+      for (var i = 1; i < order.length; i++) {
+        expect(top(tester, order[i]), greaterThan(top(tester, order[i - 1])), reason: '${order[i]}');
+      }
+    });
+
+    testWidgets('savings sits above net worth, both full width', (tester) async {
+      _useTallView(tester);
+      stubFullHome();
+      await pumpApp(tester, const DashboardScreen(), overrides: overrides(), useAppTheme: true);
+      await tester.pumpAndSettle();
+
+      final savings = tester.getRect(find.byKey(const Key('home-savings')));
+      final netWorth = tester.getRect(find.ancestor(of: find.byKey(const Key('home-net-worth')), matching: find.byType(AppCard)));
+      expect(savings.bottom, lessThanOrEqualTo(netWorth.top));
+      expect(savings.width, netWorth.width);
+      expect(savings.left, netWorth.left);
+    });
+
+    testWidgets('a 24 dp gap separates the hero from the cards below it', (tester) async {
+      _useTallView(tester);
+      stubFullHome(today: [_transaction(id: 'd1', category: 'Coffee', amount: 38.5)]);
+      await pumpApp(tester, const DashboardScreen(), overrides: overrides(), useAppTheme: true);
+      await tester.pumpAndSettle();
+
+      final hero = tester.getRect(find.byType(LeftToSpendHero));
+      expect(top(tester, find.byKey(const Key('home-savings'))) - hero.bottom, AppSpace.sectionGap);
+    });
+
+    testWidgets('no Penny on Home when neither moment applies', (tester) async {
+      _useTallView(tester);
+      stubFullHome(today: [_transaction(id: 'd1', category: 'Coffee', amount: 38.5)]);
+      await pumpApp(tester, const DashboardScreen(), overrides: overrides(), useAppTheme: true);
+      await tester.pumpAndSettle();
+
+      expect(find.byType(MascotMoment), findsNothing);
+      expect(find.byType(PennyImage), findsNothing);
+    });
+
+    testWidgets('the hero shows how much of the month is spent as a pill bar', (tester) async {
+      _useTallView(tester);
+      stubFullHome();
+      await pumpApp(tester, const DashboardScreen(), overrides: overrides(), useAppTheme: true);
+      await tester.pumpAndSettle();
+
+      final bar = tester.widget<PillBar>(find.descendant(of: find.byType(HeroMetricCard), matching: find.byType(PillBar)));
+      expect(bar.color, AppTokens.light.heroBar);
+      expect(bar.value, inInclusiveRange(0, 1));
+    });
+
+    testWidgets('a budget at 84 % needs attention without any red', (tester) async {
+      _useTallView(tester);
+      stubFullHome();
+      await pumpApp(tester, const DashboardScreen(), overrides: overrides(), useAppTheme: true);
+      await tester.pumpAndSettle();
+
+      final card = find.byType(ProgressCard);
+      expect(tester.widget<ProgressCard>(card).overBudget, isFalse);
+      final bar = tester.widget<PillBar>(find.descendant(of: card, matching: find.byType(PillBar)));
+      expect(bar.color, AppTokens.light.primary);
+      expect(bar.color, isNot(AppTokens.light.danger));
+    });
+
+    testWidgets('recent spending is a minus in ink; income a plus in green', (tester) async {
+      _useTallView(tester);
+      stubDefaults(recentTransactions: [
+        _transaction(id: 'out', category: 'Groceries', amount: 100),
+        _transaction(id: 'in', category: 'Salary', amount: 500, type: TransactionType.income),
+      ]);
+      await pumpApp(tester, const DashboardScreen(), overrides: overrides(), useAppTheme: true);
+      await tester.pumpAndSettle();
+
+      final spent = tester.widget<Text>(find.text('\u2212R\u00A0100,00'));
+      final earned = tester.widget<Text>(find.text('+R\u00A0500,00'));
+      expect(spent.style?.color, AppTokens.light.ink);
+      expect(earned.style?.color, AppTokens.light.positive);
+    });
+
+    testWidgets('the last recent row clears the Add button', (tester) async {
+      stubFullHome();
+      await pumpApp(tester, const DashboardScreen(), overrides: overrides(), useAppTheme: true);
+      await tester.pumpAndSettle();
+
+      await tester.drag(find.byKey(const Key('home-list')), const Offset(0, -4000));
+      await tester.pumpAndSettle();
+      final last = tester.getRect(find.byKey(const ValueKey('home-recent-t4')));
+      final fab = tester.getRect(find.byType(FloatingActionButton));
+      expect(last.bottom, lessThanOrEqualTo(fab.top));
+      expect(find.byKey(const ValueKey('home-recent-t4')).hitTestable(), findsOneWidget);
+    });
+
+    testWidgets('liabilities on the Net worth hub are ink, not red', (tester) async {
+      stubDefaults(
+        netWorth: NetWorthSummary(
+          totalAssets: Decimal.fromInt(200000),
+          liabilitiesTotal: Decimal.fromInt(80000),
+          netWorth: Decimal.fromInt(120000),
+        ),
+      );
+      when(() => mockSummariesApi.netWorthHistory(months: any(named: 'months'))).thenAnswer((_) async => const []);
+      await pumpApp(tester, const NetWorthScreen(), overrides: overrides(), useAppTheme: true);
+      await tester.pumpAndSettle();
+
+      final total = tester.widget<Text>(
+        find.descendant(of: find.byKey(const Key('net-worth-liabilities')), matching: find.text('R\u00A080\u00A0000,00')),
+      );
+      expect(total.style?.color, AppTokens.light.ink);
+      // Calculators come last, in their own card.
+      expect(
+        tester.getTopLeft(find.byKey(const Key('net-worth-calculators'))).dy,
+        greaterThan(tester.getTopLeft(find.byKey(const Key('net-worth-liabilities'))).dy),
+      );
+    });
+  });
+
   group('Update banner', () {
     LatestRelease release({required String buildNumber}) => LatestRelease(
           version: '1.4.0',
@@ -552,8 +699,8 @@ void main() {
       await pumpApp(tester, const DashboardScreen(), overrides: overrides(), useAppTheme: true);
       await tester.pumpAndSettle();
 
-      expect(find.text('Update available'), findsOneWidget);
-      expect(find.text('Version 1.4.0 is ready to download.'), findsOneWidget);
+      expect(find.byKey(const Key('home-update-banner')), findsOneWidget);
+      expect(find.text('Update available: version 1.4.0. Tap to download'), findsOneWidget);
     });
 
     testWidgets('stays hidden when the current build is already up to date', (tester) async {
@@ -562,7 +709,7 @@ void main() {
       await pumpApp(tester, const DashboardScreen(), overrides: overrides(), useAppTheme: true);
       await tester.pumpAndSettle();
 
-      expect(find.text('Update available'), findsNothing);
+      expect(find.byKey(const Key('home-update-banner')), findsNothing);
     });
 
     testWidgets('stays hidden when no release has ever been published', (tester) async {
@@ -571,7 +718,7 @@ void main() {
       await pumpApp(tester, const DashboardScreen(), overrides: overrides(), useAppTheme: true);
       await tester.pumpAndSettle();
 
-      expect(find.text('Update available'), findsNothing);
+      expect(find.byKey(const Key('home-update-banner')), findsNothing);
     });
 
     testWidgets('the close button dismisses it for the rest of this session', (tester) async {
@@ -580,12 +727,12 @@ void main() {
       await pumpApp(tester, const DashboardScreen(), overrides: overrides(), useAppTheme: true);
       await tester.pumpAndSettle();
 
-      expect(find.text('Update available'), findsOneWidget);
+      expect(find.byKey(const Key('home-update-banner')), findsOneWidget);
 
       await tester.tap(find.byIcon(Icons.close));
       await tester.pumpAndSettle();
 
-      expect(find.text('Update available'), findsNothing);
+      expect(find.byKey(const Key('home-update-banner')), findsNothing);
     });
   });
 
@@ -716,7 +863,7 @@ void main() {
       await pumpApp(tester, const DashboardScreen(), overrides: overrides(), useAppTheme: true);
       await tester.pumpAndSettle();
       expect(find.text('Rent: target met this month'), findsOneWidget);
-      final card = find.ancestor(of: find.text('Rent: target met this month'), matching: find.byType(Card));
+      final card = find.ancestor(of: find.text('Rent: target met this month'), matching: find.byType(AppCard));
       expect(find.descendant(of: card, matching: find.byType(MascotMoment)), findsOneWidget);
     });
 

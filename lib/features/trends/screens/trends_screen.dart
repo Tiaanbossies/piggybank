@@ -6,6 +6,8 @@ import '../../../core/api/api_error.dart';
 import '../../../core/format/money.dart';
 import '../../../core/theme/app_motion.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../shared/widgets/app_controls.dart';
+import '../../../shared/widgets/app_skeleton.dart';
 import '../../../shared/widgets/group_card.dart';
 import '../../../shared/widgets/hero_metric_card.dart';
 import '../../../shared/widgets/progress_card.dart';
@@ -40,7 +42,7 @@ class TrendsScreen extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(title: const Text('Trends')),
       body: SafeArea(
-        child: RefreshIndicator(
+        child: AppRefresh(
           onRefresh: () async {
             ref.invalidate(netWorthTrendHistoryProvider);
             for (final month in trailingMonthKeys()) {
@@ -107,9 +109,18 @@ class _SectionCard extends StatelessWidget {
   }
 }
 
-Widget _loadingCard() => const _SectionCard(
+Widget _loadingCard() => const AppSkeleton(
       key: ValueKey('loading'),
-      child: SizedBox(height: 56, child: Center(child: CircularProgressIndicator(strokeWidth: 2))),
+      child: _SectionCard(
+        child: SizedBox(
+          height: 56,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: [Text('Placeholder title'), Text('Placeholder line of detail')],
+          ),
+        ),
+      ),
     );
 
 Widget _errorCard(Object err, String fallback) => _SectionCard(
@@ -246,7 +257,6 @@ class _HighCostStatStrip extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final highCostAsync = ref.watch(highCostExpensesProvider);
-    final semantic = Theme.of(context).extension<AppSemanticColors>();
 
     return _asyncSection(
       context,
@@ -285,7 +295,8 @@ class _HighCostStatStrip extends ConsumerWidget {
                       child: _Stat(
                         label: 'Spent there',
                         value: formatZAR(top.totalAmount),
-                        valueStyle: moneyTextStyle(context, fontSize: 18, color: semantic?.danger),
+                        // Spending is ink, not red (J4).
+                        valueStyle: moneyTextStyle(context, fontSize: 18),
                       ),
                     ),
                   ],

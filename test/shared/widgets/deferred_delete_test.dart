@@ -157,4 +157,58 @@ void main() {
       verify(() => api.delete('g1')).called(1);
     });
   });
+
+  group('CollapseOut (M15, M16)', () {
+    Future<void> pump(WidgetTester tester, {required bool gone, bool reduced = false}) => tester.pumpWidget(
+          MediaQuery(
+            data: MediaQueryData(disableAnimations: reduced),
+            child: MaterialApp(
+              home: Scaffold(
+                body: Column(children: [CollapseOut(gone: gone, child: const SizedBox(height: 60, child: Text('Row')))]),
+              ),
+            ),
+          ),
+        );
+
+    double height(WidgetTester tester) => tester.getSize(find.byType(CollapseOut)).height;
+
+    testWidgets('a row slides left and fades, then the gap closes', (tester) async {
+      await pump(tester, gone: false);
+      expect(height(tester), 60);
+
+      await pump(tester, gone: true);
+      await tester.pump(const Duration(milliseconds: 90));
+      final exit = tester.widget<Opacity>(find.byKey(const Key('delete-exit')));
+      expect(exit.opacity, inExclusiveRange(0, 1));
+      expect(height(tester), 60, reason: 'the gap waits for the slide');
+      final shift = tester.widget<Transform>(
+        find.descendant(of: find.byKey(const Key('delete-exit')), matching: find.byType(Transform)),
+      );
+      expect(shift.transform.getTranslation().x, lessThan(0));
+
+      await tester.pumpAndSettle();
+      expect(height(tester), 0);
+    });
+
+    testWidgets('Undo grows it back', (tester) async {
+      await pump(tester, gone: true);
+      expect(height(tester), 0);
+      await pump(tester, gone: false);
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(height(tester), inExclusiveRange(0, 60));
+      await tester.pumpAndSettle();
+      expect(height(tester), 60);
+      expect(tester.widget<Opacity>(find.byKey(const Key('delete-exit'))).opacity, 1);
+    });
+
+    testWidgets('reduced motion: it vanishes and returns at once', (tester) async {
+      await pump(tester, gone: false, reduced: true);
+      await pump(tester, gone: true, reduced: true);
+      await tester.pump();
+      expect(height(tester), 0);
+      await pump(tester, gone: false, reduced: true);
+      await tester.pump();
+      expect(height(tester), 60);
+    });
+  });
 }

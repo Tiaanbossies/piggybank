@@ -1,5 +1,8 @@
+import 'dart:async';
+
 import 'package:decimal/decimal.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
@@ -11,6 +14,7 @@ import 'package:piggybank/features/transactions/models/transaction.dart';
 import 'package:piggybank/features/transactions/providers/quick_add_providers.dart';
 import 'package:piggybank/features/transactions/providers/transactions_provider.dart';
 import 'package:piggybank/features/transactions/widgets/transaction_sheet.dart';
+import 'package:piggybank/shared/motion/saved_highlight.dart';
 
 import '../../../test_helpers/mocktail_setup.dart';
 import '../../../test_helpers/pump_app.dart';
@@ -199,5 +203,39 @@ void main() {
 
     expect(find.text("Couldn't load your accounts"), findsNothing);
     expect(find.text('No account'), findsOneWidget);
+  });
+
+  testWidgets('Save shows a 16 dp ring, then closes the sheet, marks the row and taps once (M8)', (tester) async {
+    final haptics = <Object?>[];
+    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(SystemChannels.platform, (call) async {
+      if (call.method == 'HapticFeedback.vibrate') haptics.add(call.arguments);
+      return null;
+    });
+    addTearDown(() => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(SystemChannels.platform, null));
+    final saving = Completer<Transaction>();
+    when(() => mockApi.create(
+          transactionType: any(named: 'transactionType'),
+          category: any(named: 'category'),
+          amount: any(named: 'amount'),
+          transactionDate: any(named: 'transactionDate'),
+          accountId: any(named: 'accountId'),
+          merchantName: any(named: 'merchantName'),
+          notes: any(named: 'notes'),
+        )).thenAnswer((_) => saving.future);
+    await openSheet(tester);
+
+    await tester.enterText(find.widgetWithText(TextField, 'Amount (ZAR)'), '38.50');
+    await tester.tap(find.widgetWithText(ChoiceChip, 'Coffee'));
+    await tester.pump();
+    await tester.tap(find.byKey(const Key('transaction-save')));
+    await tester.pump();
+    expect(tester.getSize(find.byKey(const Key('transaction-save-ring'))), const Size(16, 16));
+
+    saving.complete(_tx('Coffee', id: 'new-1'));
+    await tester.pumpAndSettle();
+    expect(find.text('Add transaction'), findsNothing);
+    final container = ProviderScope.containerOf(tester.element(find.text('Open')));
+    expect(container.read(savedRowProvider)?.id, 'new-1');
+    expect(haptics, ['HapticFeedbackType.lightImpact']);
   });
 }

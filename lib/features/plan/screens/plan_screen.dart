@@ -3,6 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/theme/app_motion.dart';
+import '../../../core/theme/app_tokens.dart';
+import '../../../shared/widgets/shrinking_fab.dart';
+import '../../../shared/widgets/sliding_segments.dart';
 import '../../../shared/widgets/tab_app_bar.dart';
 import '../../budgets/providers/budgets_provider.dart';
 import '../../budgets/screens/budgets_screen.dart';
@@ -66,15 +69,16 @@ class _PlanScreenState extends ConsumerState<PlanScreen> {
         child: Column(
           children: [
             Padding(
-              padding: const EdgeInsets.all(16),
-              child: SegmentedButton<PlanSegment>(
+              padding: const EdgeInsets.fromLTRB(AppSpace.gutter, AppSpace.s8, AppSpace.gutter, AppSpace.s8),
+              // The thumb slides on a spring and ticks once (M25).
+              child: SlidingSegments<PlanSegment>(
                 segments: const [
-                  ButtonSegment(value: PlanSegment.budgets, label: Text('Budgets')),
-                  ButtonSegment(value: PlanSegment.goals, label: Text('Goals')),
-                  ButtonSegment(value: PlanSegment.savings, label: Text('Savings')),
+                  (PlanSegment.budgets, 'Budgets'),
+                  (PlanSegment.goals, 'Goals'),
+                  (PlanSegment.savings, 'Savings'),
                 ],
-                selected: {segment},
-                onSelectionChanged: (selection) => ref.read(planSegmentProvider.notifier).state = selection.first,
+                selected: segment,
+                onChanged: (next) => ref.read(planSegmentProvider.notifier).state = next,
               ),
             ),
             Expanded(
@@ -102,23 +106,23 @@ class _PlanScreenState extends ConsumerState<PlanScreen> {
           ],
         ),
       ),
-      floatingActionButton: switch (segment) {
-        PlanSegment.budgets => FloatingActionButton.extended(
-            onPressed: () => showAddBudgetSheet(context),
-            label: const Text('Add budget'),
-            icon: const Icon(Icons.add),
-          ),
-        PlanSegment.goals => FloatingActionButton.extended(
-            onPressed: () => showAddGoalSheet(context),
-            label: const Text('Add goal'),
-            icon: const Icon(Icons.add),
-          ),
-        PlanSegment.savings => FloatingActionButton.extended(
-            onPressed: () => showRecurringCostSheet(context),
-            label: const Text('Add cost'),
-            icon: const Icon(Icons.add),
-          ),
-      },
+      // Folds to its icon while the segment's list scrolls down (M42).
+      floatingActionButton: Builder(
+        builder: (context) => ShrinkingFab(
+          controller: PrimaryScrollController.of(context),
+          icon: Icons.add,
+          label: switch (segment) {
+            PlanSegment.budgets => 'Add budget',
+            PlanSegment.goals => 'Add goal',
+            PlanSegment.savings => 'Add cost',
+          },
+          onPressed: () => switch (segment) {
+            PlanSegment.budgets => showAddBudgetSheet(context),
+            PlanSegment.goals => showAddGoalSheet(context),
+            PlanSegment.savings => showRecurringCostSheet(context),
+          },
+        ),
+      ),
     );
   }
 }

@@ -1,6 +1,10 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
-import '../../core/theme/app_theme.dart';
+import '../../core/theme/app_motion.dart';
+import '../../core/theme/app_tokens.dart';
+import '../motion/press_scale.dart';
 import 'icon_chip.dart';
 import 'mascot_moment.dart';
 
@@ -63,51 +67,118 @@ class EmptyState extends StatelessWidget {
 /// [onRetry] adds a Retry button (UX plan item 5): without one, a failed
 /// load on a bad-signal moment was a dead end until the user left the
 /// screen and came back. Callers pass a provider invalidate.
-class InlineError extends StatelessWidget {
+///
+/// Visual spec M14: it fades in over 200 ms; Retry presses on the spring
+/// and then shows a 16 dp ring until the next result arrives.
+class InlineError extends StatefulWidget {
   const InlineError({required this.message, this.onRetry, super.key});
 
   final String message;
   final VoidCallback? onRetry;
 
+  /// The ring outlasts a fast failure by at least this long, so it reads
+  /// as "tried again" rather than a flicker.
+  static const minRetry = AppMotion.retryMin;
+
+  /// Back to "Retry" after this even if nothing rebuilds the error.
+  static const maxRetry = Duration(seconds: 10);
+
+  @override
+  State<InlineError> createState() => _InlineErrorState();
+}
+
+class _InlineErrorState extends State<InlineError> {
+  bool _retrying = false;
+
+  /// The ring has shown for [InlineError.minRetry].
+  bool _minShown = false;
+
+  /// Rebuilds since the tap. A retry rebuilds the error twice: once into
+  /// "refreshing", once with the new result.
+  int _updates = 0;
+  Timer? _timer;
+  Timer? _giveUp;
+
+  void _retry() {
+    setState(() {
+      _retrying = true;
+      _minShown = false;
+      _updates = 0;
+    });
+    _timer?.cancel();
+    _timer = Timer(InlineError.minRetry, () {
+      _minShown = true;
+      if (_updates >= 2) _done();
+    });
+    _giveUp?.cancel();
+    _giveUp = Timer(InlineError.maxRetry, _done);
+    widget.onRetry?.call();
+  }
+
+  void _done() {
+    if (mounted && _retrying) setState(() => _retrying = false);
+  }
+
+  @override
+  void didUpdateWidget(InlineError oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!_retrying) return;
+    _updates++;
+    if (_minShown) _retrying = false;
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    _giveUp?.cancel();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
-    final semantic = Theme.of(context).extension<AppSemanticColors>();
-    return Padding(
+    final t = context.tokens;
+    final row = Padding(
       padding: const EdgeInsets.symmetric(vertical: 12),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.error_outline, size: 18, color: semantic?.danger),
+          Icon(Icons.error_outline, size: 18, color: t.danger),
           const SizedBox(width: 8),
-          Flexible(child: Text(message, style: TextStyle(color: semantic?.danger))),
-          if (onRetry != null) ...[
+          Flexible(child: Text(widget.message, style: TextStyle(color: t.danger))),
+          if (widget.onRetry != null) ...[
             const SizedBox(width: 4),
-            TextButton(onPressed: onRetry, child: const Text('Retry')),
+            PressScale(
+              child: TextButton(
+                onPressed: _retrying ? null : _retry,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (_retrying) ...[
+                      const SizedBox(
+                        key: Key('retry-ring'),
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                      const SizedBox(width: 8),
+                    ],
+                    const Text('Retry'),
+                  ],
+                ),
+              ),
+            ),
           ],
         ],
       ),
     );
-  }
-}
-
-/// A grey placeholder the shape of content that's still loading, so the page
-/// keeps its layout instead of showing a lone spinner (UX rework spec §1.2,
-/// rule 6).
-class SkeletonBox extends StatelessWidget {
-  const SkeletonBox({this.height = 64, this.radius = 16, super.key});
-
-  final double height;
-  final double radius;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: height,
-      width: double.infinity,
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(radius),
-      ),
+    if (context.reducedMotion) return row;
+    return TweenAnimationBuilder<double>(
+      key: const Key('inline-error-in'),
+      tween: Tween(begin: 0, end: 1),
+      duration: AppMotion.stateChange,
+      curve: AppMotion.easeOut,
+      builder: (context, v, child) => Opacity(opacity: v, child: child),
+      child: row,
     );
   }
 }

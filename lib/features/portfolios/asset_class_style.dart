@@ -1,20 +1,40 @@
+import 'package:decimal/decimal.dart';
 import 'package:flutter/material.dart';
 
+import '../../core/format/money.dart';
+import '../../core/theme/app_tokens.dart';
+import '../../shared/widgets/chart_style.dart';
 import 'models/holding.dart';
 
-/// Chart/legend colours for [AssetClass] — distinct from the app's
-/// success/danger palette (those are reserved for P&L direction), used by
-/// `AllocationDonut` (Invest tab-root) and `AllocationBar` (Portfolio
-/// Detail) so both allocation views share one consistent colour key.
-const Map<AssetClass, Color> assetClassColors = {
-  AssetClass.stock: Color(0xFF3B82F6),
-  AssetClass.equity: Color(0xFF8B5CF6),
-  AssetClass.bond: Color(0xFFF59E0B),
-  AssetClass.etf: Color(0xFF06B6D4),
-  AssetClass.crypto: Color(0xFFEC4899),
-  AssetClass.cash: Color(0xFF14B8A6),
-  AssetClass.other: Color(0xFF9CA3AF),
-};
+/// Chart/legend colour for [AssetClass], from the chart ramp (visual spec
+/// §1.3) so it follows light and dark: the four ramp colours first, two
+/// lighter steps of them for the rarer classes, and the neutral for
+/// "other". Shared by `AllocationDonut` (Invest) and `AllocationBar`
+/// (Portfolio Detail) so both allocation views read with one key. The
+/// legend's labels carry the meaning; the colour only groups.
+Color assetClassColor(AppTokens t, AssetClass assetClass) {
+  final ramp = chartPalette(t);
+  return switch (assetClass) {
+    AssetClass.stock => ramp[0],
+    AssetClass.etf => ramp[1],
+    AssetClass.bond => ramp[2],
+    AssetClass.cash => ramp[3],
+    AssetClass.equity => chartTint(t, ramp[0]),
+    AssetClass.crypto => chartTint(t, ramp[2]),
+    AssetClass.other => ramp[4],
+  };
+}
+
+/// A gain reads "+R 1 200,00" in green; a loss "−R 300,00" in ink. Red is
+/// kept for over budget and destructive actions (J4), and a paper loss is
+/// neither.
+String signedPl(Decimal pl) {
+  if (pl > Decimal.zero) return '+${formatZAR(pl)}';
+  if (pl < Decimal.zero) return '\u2212${formatZAR(-pl)}';
+  return formatZAR(pl);
+}
+
+Color plColor(AppTokens t, Decimal pl) => pl > Decimal.zero ? t.positive : t.ink;
 
 const Map<AssetClass, IconData> assetClassIcons = {
   AssetClass.stock: Icons.show_chart,

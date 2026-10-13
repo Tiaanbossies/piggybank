@@ -5,8 +5,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/api/api_error.dart';
 import '../../../core/format/money.dart';
+import '../../../core/theme/app_motion.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/theme/app_tokens.dart';
+import '../../../shared/motion/chart_reveal.dart';
 import '../../../shared/widgets/allocation_bar.dart';
+import '../../../shared/widgets/app_controls.dart';
+import '../../../shared/widgets/app_skeleton.dart';
 import '../../../shared/widgets/group_card.dart';
 import '../../../shared/widgets/hero_metric_card.dart';
 import '../../ra/screens/ra_ledger_screen.dart';
@@ -69,13 +74,13 @@ class PortfolioDetailScreen extends ConsumerWidget {
         ],
       ),
       body: SafeArea(
-        child: RefreshIndicator(
+        child: AppRefresh(
           onRefresh: () async {
             ref.invalidate(portfolioHoldingsProvider(portfolio.id));
             ref.invalidate(portfolioValueProvider(portfolio.id));
           },
-          child: holdingsAsync.when(
-            loading: () => const Center(child: CircularProgressIndicator()),
+          child: SkeletonSwitcher(child: holdingsAsync.when(
+            loading: () => const SkeletonPage(hero: true),
             error: (err, _) => Center(child: Text(err is ApiError ? err.message : 'Failed to load holdings')),
             data: (holdings) {
               return ListView(
@@ -104,18 +109,18 @@ class PortfolioDetailScreen extends ConsumerWidget {
                     ],
                   ),
                   const SizedBox(height: 16),
-                  valueAsync.when(
-                    loading: () => const SizedBox(height: 96, child: Center(child: CircularProgressIndicator())),
+                  SkeletonSwitcher(child: valueAsync.when(
+                    loading: () => const SkeletonHero(),
                     error: (_, _) => const SizedBox.shrink(),
                     data: (value) {
                       final plUp = value.unrealizedPl >= Decimal.zero;
                       return HeroMetricCard(
                         label: 'Portfolio value',
                         value: formatZAR(value.totalValue),
-                        deltaText: '${plUp ? '+' : ''}${formatZAR(value.unrealizedPl)} unrealized',
+                        deltaText: '${plUp ? '+' : ''}${formatZAR(value.unrealizedPl)} if sold today',
                       );
                     },
-                  ),
+                  )),
                   const SizedBox(height: 24),
                   _AllocationSection(holdings: holdings),
                   const SizedBox(height: 24),
@@ -142,7 +147,7 @@ class PortfolioDetailScreen extends ConsumerWidget {
                 ],
               );
             },
-          ),
+          )),
         ),
       ),
       floatingActionButton: FloatingActionButton.extended(
@@ -226,9 +231,9 @@ class _HoldingRow extends StatelessWidget {
 }
 
 /// Day-change percentage beneath the holding's value, per
-/// `stitch-design-brief.md` §8's "day-change as a small percentage beneath
-/// (green if up, red if down)" — the one place red/green on an ordinary
-/// figure is correct, since it's price direction, not a budget state.
+/// `stitch-design-brief.md` §8's day-change as a small percentage beneath.
+/// Up is "+" in green; down is "−" in ink, since red is kept for over
+/// budget and destructive actions (J4).
 /// Derived from the same '1mo' [tickerHistoryProvider] key [_Sparkline]
 /// already watches (Riverpod shares the cached result — no extra request),
 /// comparing the last two closes rather than fetching a dedicated '1d'/'5d'
@@ -239,7 +244,7 @@ class _DayChange extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final semantic = Theme.of(context).extension<AppSemanticColors>();
+    final t = context.tokens;
     final historyAsync = ref.watch(tickerHistoryProvider((ticker: ticker, period: '1mo')));
 
     return historyAsync.when(
@@ -251,10 +256,13 @@ class _DayChange extends ConsumerWidget {
         final last = history.data.last.close.toDouble();
         if (prev == 0) return const SizedBox(height: 14);
         final pct = (last - prev) / prev * 100;
-        final up = pct >= 0;
+        final up = pct > 0;
         return Text(
-          '${up ? '+' : ''}${pct.toStringAsFixed(2)}%',
-          style: TextStyle(fontSize: 12, color: up ? semantic?.success : semantic?.danger),
+          '${up ? '+' : (pct < 0 ? '\u2212' : '')}${pct.abs().toStringAsFixed(2)}%',
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+            color: up ? t.positive : t.ink,
+            fontFeatures: const [FontFeature.tabularFigures()],
+          ),
         );
       },
     );
@@ -275,7 +283,7 @@ class _Sparkline extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final historyAsync = ref.watch(tickerHistoryProvider((ticker: ticker, period: '1mo')));
-    final accent = Theme.of(context).colorScheme.primary;
+    final accent = context.tokens.chartSeries.first;
 
     return historyAsync.when(
       loading: () => SizedBox.fromSize(size: _size),
@@ -287,7 +295,10 @@ class _Sparkline extends ConsumerWidget {
         ];
         return SizedBox.fromSize(
           size: _size,
-          child: LineChart(
+          // Draws in left to right (M24).
+          child: ChartReveal(
+            child: LineChart(
+            duration: context.reducedMotion ? Duration.zero : AppMotion.stateChange,
             LineChartData(
               gridData: const FlGridData(show: false),
               titlesData: const FlTitlesData(show: false),
@@ -303,6 +314,7 @@ class _Sparkline extends ConsumerWidget {
                 ),
               ],
             ),
+          ),
           ),
         );
       },
