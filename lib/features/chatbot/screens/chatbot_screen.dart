@@ -123,6 +123,15 @@ class _ChatbotScreenState extends ConsumerState<ChatbotScreen> {
           _retryText = text;
         });
       }
+    } catch (_) {
+      // Anything else (a reply that doesn't parse, say) still gets a visible
+      // error and a Retry, never a silent return to the welcome screen.
+      if (mounted) {
+        setState(() {
+          _error = 'Please try again.';
+          _retryText = text;
+        });
+      }
     }
   }
 
@@ -137,7 +146,10 @@ class _ChatbotScreenState extends ConsumerState<ChatbotScreen> {
   Widget build(BuildContext context) {
     final state = ref.watch(chatbotControllerProvider);
     final suggestions = ref.watch(suggestedQuestionsProvider);
-    final empty = state.messages.isEmpty && !state.sending;
+    // A failed first message rolls back out of the history, so the error
+    // keeps the thread up: otherwise the welcome comes back and the send
+    // looks like it did nothing (QA H1).
+    final empty = state.messages.isEmpty && !state.sending && _error == null;
     // A draft set while this tab is already alive in the shell.
     ref.listen<String?>(chatDraftProvider, (_, next) {
       if (next == null) return;
@@ -184,6 +196,14 @@ class _ChatbotScreenState extends ConsumerState<ChatbotScreen> {
                           for (var i = 0; i < state.messages.length; i++)
                             _ChatBubble(key: ValueKey(i), message: state.messages[i], animate: i >= _animatedFloor),
                           if (state.sending) const _ThinkingSlot(),
+                          // The question that failed, shown where it was
+                          // asked; Retry sends it again.
+                          if (_error != null && _retryText != null && !state.sending)
+                            _ChatBubble(
+                              key: const ValueKey('chat-failed'),
+                              message: ChatMessage(role: ChatRole.user, content: _retryText!.trim()),
+                              animate: false,
+                            ),
                           if (_error != null)
                             _ErrorBubble(message: _error!, onRetry: _retryText == null ? null : () => _send(_retryText)),
                         ],

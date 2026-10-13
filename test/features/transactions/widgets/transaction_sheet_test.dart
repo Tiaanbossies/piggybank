@@ -238,4 +238,44 @@ void main() {
     expect(container.read(savedRowProvider)?.id, 'new-1');
     expect(haptics, ['HapticFeedbackType.lightImpact']);
   });
+
+  group('closing (QA C11)', () {
+    testWidgets('the X closes an untouched sheet straight away', (tester) async {
+      await openSheet(tester);
+
+      await tester.tap(find.byKey(const Key('transaction-close')));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(TransactionSheet), findsNothing);
+    });
+
+    testWidgets('the X asks before throwing away a started entry', (tester) async {
+      await openSheet(tester);
+      await tester.enterText(find.widgetWithText(TextField, 'Amount (ZAR)'), '120');
+
+      await tester.tap(find.byKey(const Key('transaction-close')));
+      await tester.pumpAndSettle();
+      expect(find.text('Discard this transaction?'), findsOneWidget);
+
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+      expect(find.byType(TransactionSheet), findsOneWidget);
+
+      await tester.tap(find.byKey(const Key('transaction-close')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('confirm-destroy')));
+      await tester.pumpAndSettle();
+      expect(find.byType(TransactionSheet), findsNothing);
+    });
+
+    testWidgets('system back on a started entry asks too', (tester) async {
+      await openSheet(tester);
+      await tester.enterText(find.widgetWithText(TextField, 'Amount (ZAR)'), '120');
+
+      await tester.binding.handlePopRoute();
+      await tester.pumpAndSettle();
+
+      expect(find.text('Discard this transaction?'), findsOneWidget);
+    });
+  });
 }

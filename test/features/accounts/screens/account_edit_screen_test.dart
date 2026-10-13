@@ -73,7 +73,7 @@ void main() {
       expect(find.text('Deactivate account'), findsOneWidget);
     });
 
-    testWidgets('shows inactive message for inactive accounts', (WidgetTester tester) async {
+    testWidgets('an inactive account offers Restore instead of Deactivate (QA D2a)', (WidgetTester tester) async {
       final inactiveAccount = Account(
         id: testAccount.id,
         name: testAccount.name,
@@ -90,7 +90,8 @@ void main() {
         ),
       );
 
-      expect(find.text('This account is inactive.'), findsOneWidget);
+      expect(find.textContaining('This account is inactive.'), findsOneWidget);
+      expect(find.text('Restore account'), findsOneWidget);
       expect(find.text('Deactivate account'), findsNothing);
     });
 

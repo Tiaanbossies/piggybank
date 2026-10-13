@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/api/api_client.dart';
+import '../../../core/api/api_error.dart';
 import '../../../core/auth/auth_controller.dart';
 import '../models/chat_message.dart';
 import '../models/policy_research.dart';
@@ -20,11 +21,16 @@ class ChatbotApi {
         '/chatbot/chat',
         data: {'messages': [for (final m in history) m.toJson()]},
         // Real Ollama inference can take well beyond the client's short
-        // global default — see fix-it plan Step 3 / QA H6.
-        options: Options(receiveTimeout: const Duration(seconds: 60)),
+        // global default — see fix-it plan Step 3 / QA H6. Kept above the
+        // server's own 120 s Ollama timeout, so a slow model comes back as
+        // the server's 503 rather than the client giving up first.
+        options: Options(receiveTimeout: const Duration(seconds: 150)),
       );
       return ChatReply.fromJson(response.data as Map<String, dynamic>);
     } on DioException catch (e) {
+      if (e.type == DioExceptionType.receiveTimeout) {
+        throw const ApiError(statusCode: 0, message: 'Penny took too long to answer. Try again in a moment.');
+      }
       throw ApiClient.errorFrom(e);
     }
   }

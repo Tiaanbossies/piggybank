@@ -92,6 +92,44 @@ void main() {
       expect(find.byType(ChatbotScreen), findsOneWidget);
     });
 
+    testWidgets('a failed first message stays on screen with the error and Retry (QA H1)', (tester) async {
+      final adapter = _FakeAdapter([
+        () => _json(503, {'detail': 'Penny is busy, try again'}),
+        () => _json(200, {'reply': 'Here you go.', 'model': 'm', 'web_search_enabled': false}),
+      ]);
+      await tester.pumpWidget(_wrap(_apiWith(adapter)));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(find.byType(TextField), 'How am I doing?');
+      await tester.testTextInput.receiveAction(TextInputAction.send);
+      await tester.pumpAndSettle();
+
+      expect(find.text("Hi, I'm Penny"), findsNothing);
+      expect(find.text('How am I doing?'), findsOneWidget);
+      expect(find.textContaining('Penny is busy'), findsOneWidget);
+
+      await tester.tap(find.text('Retry'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('How am I doing?'), findsOneWidget);
+      expect(find.text('Here you go.'), findsOneWidget);
+      expect(find.text('Retry'), findsNothing);
+    });
+
+    testWidgets('a reply that does not parse still shows an error, not the welcome', (tester) async {
+      final adapter = _FakeAdapter([() => _json(200, {'unexpected': true})]);
+      await tester.pumpWidget(_wrap(_apiWith(adapter)));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(find.byType(TextField), 'hi');
+      await tester.tap(find.byIcon(Icons.send));
+      await tester.pumpAndSettle();
+
+      expect(find.text("Hi, I'm Penny"), findsNothing);
+      expect(find.textContaining("I'm having trouble"), findsOneWidget);
+      expect(find.text('Retry'), findsOneWidget);
+    });
+
     testWidgets('stat-card trend icon uses a neutral color regardless of up/down direction', (tester) async {
       final adapter = _FakeAdapter([
         () => _json(200, {

@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/api/api_error.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../shared/motion/saved_highlight.dart';
+import '../../../shared/widgets/confirm_dialog.dart';
 import '../../../shared/widgets/deferred_delete.dart';
 import '../../../shared/widgets/state_views.dart';
 import '../../accounts/models/account.dart';
@@ -21,6 +22,7 @@ Future<void> showTransactionSheet(BuildContext context, {Transaction? existing})
   return showModalBottomSheet(
     context: context,
     isScrollControlled: true,
+    useSafeArea: true,
     builder: (_) => TransactionSheet(existing: existing),
   );
 }
@@ -61,6 +63,32 @@ class _TransactionSheetState extends ConsumerState<TransactionSheet> {
     _type = existing?.transactionType ?? TransactionType.expense;
     _date = existing?.transactionDate ?? clock.now();
     _accountId = existing != null ? existing.accountId : ref.read(lastUsedAccountProvider);
+  }
+
+  /// Whether anything has been typed or picked since the sheet opened, so
+  /// closing it asks first rather than silently dropping the entry.
+  bool get _dirty {
+    final existing = widget.existing;
+    return _amountController.text.trim() != (existing != null ? existing.amount.toString() : '') ||
+        _merchantController.text.trim() != (existing?.merchantName ?? '') ||
+        _notesController.text.trim() != (existing?.notes ?? '') ||
+        _category != (existing?.category ?? '') ||
+        _type != (existing?.transactionType ?? TransactionType.expense);
+  }
+
+  /// The X and the system back (QA C11: swipe-down alone wasn't an
+  /// obvious way out). Clean sheets close at once; a started entry asks.
+  Future<void> _close() async {
+    if (_dirty) {
+      final discard = await confirmDestroy(
+        context,
+        title: _isAdding ? 'Discard this transaction?' : 'Discard your changes?',
+        message: "What you've entered won't be saved.",
+        confirmLabel: 'Discard',
+      );
+      if (!discard) return;
+    }
+    if (mounted) Navigator.of(context).pop();
   }
 
   @override
@@ -188,7 +216,12 @@ class _TransactionSheetState extends ConsumerState<TransactionSheet> {
     // already carries (an edit can hold a category neither list has).
     final allCategories = <String>{...used, ...commonCategories, if (_category.isNotEmpty) _category}.toList();
 
-    return Padding(
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) _close();
+      },
+      child: Padding(
       padding: EdgeInsets.only(left: 24, right: 24, top: 16, bottom: MediaQuery.of(context).viewInsets.bottom + 24),
       child: SingleChildScrollView(
         child: Column(
@@ -200,6 +233,13 @@ class _TransactionSheetState extends ConsumerState<TransactionSheet> {
             // scroll on every add.
             Row(
               children: [
+                IconButton(
+                  key: const Key('transaction-close'),
+                  onPressed: busy ? null : _close,
+                  tooltip: 'Close',
+                  icon: const Icon(Icons.close),
+                ),
+                const SizedBox(width: 4),
                 Expanded(
                   child: Text(
                     _isAdding ? 'Add transaction' : 'Edit transaction',
@@ -326,6 +366,7 @@ class _TransactionSheetState extends ConsumerState<TransactionSheet> {
             ],
           ],
         ),
+      ),
       ),
     );
   }
