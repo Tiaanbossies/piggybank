@@ -54,7 +54,12 @@ ssh "$SERVER" "cat > ${REMOTE_DIR}/latest.json" <<EOF
 EOF
 
 echo
+# Lead with the raw IP. Browsers that upgrade to HTTPS by default (Brave) turn
+# the MagicDNS link into https://, which Tailscale Funnel answers by proxying
+# to the backend: a 404, saved as the "APK", so Android says the package is
+# invalid. HTTPS to the raw IP can't connect at all, so the browser falls
+# back to plain HTTP and reaches Caddy's /downloads.
 echo "Done. On the phone (connected to Tailscale), open in a browser:"
-echo "  ${DOWNLOAD_HOST}/piggybank-latest.apk"
-echo "  (fallback if MagicDNS doesn't resolve: ${DOWNLOAD_HOST_IP_FALLBACK}/piggybank-latest.apk)"
+echo "  ${DOWNLOAD_HOST_IP_FALLBACK}/piggybank-latest.apk"
+echo "  (or ${DOWNLOAD_HOST}/piggybank-latest.apk, only if the browser keeps it on http://)"
 echo "Tap the downloaded file to install (enable \"install unknown apps\" for the browser if prompted)."
