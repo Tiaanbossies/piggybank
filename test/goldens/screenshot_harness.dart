@@ -217,6 +217,12 @@ Map<String, Object?> sampleResponses(DateTime now) {
       'suggested_count': 1,
     },
     '/savings/recurring': <Object?>[],
+    '/notifications/unread-count': {'unread': 2},
+    '/notifications/': [
+      {'id': 'n1', 'kind': 'budget_100', 'title': 'Dining Out is over budget', 'body': "You've spent R1,220.50 of R1,000.00 for October.", 'target_route': 'budget', 'target_id': 'b1', 'read_at': null, 'created_at': ts},
+      {'id': 'n2', 'kind': 'review_pending', 'title': '2 new transactions to review', 'body': 'Penny picked these up from your notifications and email. Confirm or ignore them.', 'target_route': 'review', 'target_id': null, 'read_at': null, 'created_at': ts},
+      {'id': 'n3', 'kind': 'goal_50', 'title': 'Emergency fund is 50% there', 'body': 'R15,000.00 saved of R30,000.00.', 'target_route': 'goal', 'target_id': 'g1', 'read_at': ts, 'created_at': ts},
+    ],
     '/detection/pending': {
       'items': [
         {'id': 'e1', 'source_type': 'notification', 'source_ref': 'za.co.capitec', 'raw_text': 'Purchase R89.90 at Vida e Caffe', 'captured_at': ts, 'status': 'pending', 'extracted_json': {'amount': '89.90', 'merchant': 'Vida e Caffe', 'transaction_type': 'expense', 'category': 'Dining Out', 'suggested_category': 'Dining Out', 'description': 'Vida e Caffe'}, 'event_kind': 'transaction', 'error_reason': null},
