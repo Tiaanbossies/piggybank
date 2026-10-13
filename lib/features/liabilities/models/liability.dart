@@ -41,8 +41,12 @@ const liabilityTypeLabels = {
 /// fields plus the loan-params fields needed for the smart-form (backend
 /// auto-computes `outstanding_amount` when `original_balance`/`interest_rate`/
 /// `start_date` and one of `term_months`/`monthly_amount` are given instead).
-/// Payment-log/progress tracking (`/payments`, `/progress`) is a documented
-/// v1 gap, not built.
+///
+/// The balance is worked out on the server from an anchor: a balance and the
+/// date it was true on ([anchorDate]). An [isAmortising] loan moves on by one
+/// instalment a month by itself, so only extra payments need logging.
+/// [needsReview] marks a loan whose balance may have counted payments twice
+/// before that change. The newer fields default safely for older servers.
 class Liability {
   const Liability({
     required this.id,
@@ -53,6 +57,9 @@ class Liability {
     required this.interestRate,
     required this.termMonths,
     required this.startDate,
+    this.anchorDate,
+    this.isAmortising = false,
+    this.needsReview = false,
   });
 
   final String id;
@@ -63,6 +70,9 @@ class Liability {
   final Decimal? interestRate;
   final int? termMonths;
   final DateTime? startDate;
+  final DateTime? anchorDate;
+  final bool isAmortising;
+  final bool needsReview;
 
   factory Liability.fromJson(Map<String, dynamic> json) => Liability(
         id: json['id'] as String,
@@ -73,5 +83,8 @@ class Liability {
         interestRate: json['interest_rate'] == null ? null : Decimal.parse(json['interest_rate'].toString()),
         termMonths: json['term_months'] as int?,
         startDate: json['start_date'] == null ? null : DateTime.parse(json['start_date'] as String),
+        anchorDate: json['anchor_date'] == null ? null : DateTime.parse(json['anchor_date'] as String),
+        isAmortising: json['is_amortising'] as bool? ?? false,
+        needsReview: json['needs_review'] as bool? ?? false,
       );
 }

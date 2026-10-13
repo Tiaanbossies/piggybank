@@ -48,17 +48,24 @@ class LiabilitiesApi {
     }
   }
 
+  /// A new [outstandingAmount] becomes the balance's anchor, dated
+  /// [balanceAsOf] (the statement's date; the server defaults it to today).
+  /// [needsReview] false confirms a flagged balance as it stands.
   Future<Liability> update(
     String liabilityId, {
     LiabilityType? liabilityType,
     String? name,
     String? outstandingAmount,
+    DateTime? balanceAsOf,
+    bool? needsReview,
   }) async {
     try {
       final response = await _client.dio.patch('/liabilities/$liabilityId', data: {
         if (liabilityType case LiabilityType lt) 'liability_type': liabilityTypeToJson(lt),
         if (name case String n) 'name': n,
         if (outstandingAmount case String oa) 'outstanding_amount': oa,
+        if (balanceAsOf case DateTime d) 'balance_as_of': _dateOnly(d),
+        if (needsReview case bool r) 'needs_review': r,
       });
       return Liability.fromJson(response.data as Map<String, dynamic>);
     } on DioException catch (e) {

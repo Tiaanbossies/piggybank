@@ -202,6 +202,9 @@ class _PayoffProgress extends ConsumerWidget {
   }
 }
 
+String _formatYmd(DateTime d) =>
+    '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+
 class _LiabilitySheet extends ConsumerStatefulWidget {
   const _LiabilitySheet({this.existing});
   final Liability? existing;
@@ -218,6 +221,7 @@ class _LiabilitySheetState extends ConsumerState<_LiabilitySheet> {
   late final TextEditingController _termMonthsController;
   late LiabilityType _liabilityType;
   late DateTime _startDate;
+  DateTime _statementDate = DateTime.now();
   bool _useLoanParams = false;
   bool _submitting = false;
   bool _deleting = false;
@@ -268,11 +272,16 @@ class _LiabilitySheetState extends ConsumerState<_LiabilitySheet> {
           await api.create(liabilityType: _liabilityType, name: name, outstandingAmount: _amountController.text.trim());
         }
       } else {
+        // Only a changed balance is sent: it resets the balance's anchor, so
+        // a rename must not pass the old figure back as a new statement.
+        final typed = Decimal.tryParse(_amountController.text.trim());
+        final balanceChanged = typed != widget.existing!.outstandingAmount;
         await api.update(
           widget.existing!.id,
           liabilityType: _liabilityType,
           name: name,
-          outstandingAmount: _amountController.text.trim(),
+          outstandingAmount: balanceChanged ? _amountController.text.trim() : null,
+          balanceAsOf: balanceChanged ? _statementDate : null,
         );
       }
       ref.invalidate(liabilitiesProvider);
@@ -300,6 +309,16 @@ class _LiabilitySheetState extends ConsumerState<_LiabilitySheet> {
     } finally {
       if (mounted) setState(() => _deleting = false);
     }
+  }
+
+  Future<void> _pickStatementDate() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _statementDate,
+      firstDate: DateTime(2000),
+      lastDate: DateTime.now(),
+    );
+    if (picked != null) setState(() => _statementDate = picked);
   }
 
   Future<void> _pickStartDate() async {
@@ -344,7 +363,26 @@ class _LiabilitySheetState extends ConsumerState<_LiabilitySheet> {
                 onSelectionChanged: (selection) => setState(() => _useLoanParams = selection.first),
               ),
             const SizedBox(height: 16),
-            if (isEdit || !_useLoanParams)
+            if (isEdit) ...[
+              TextField(
+                controller: _amountController,
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                decoration: InputDecoration(
+                  labelText: 'Balance on your latest statement (ZAR)',
+                  helperText: widget.existing!.isAmortising
+                      ? 'Moves down with each instalment by itself. Change it only to match a statement.'
+                      : null,
+                  helperMaxLines: 2,
+                ),
+              ),
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('Statement date'),
+                subtitle: Text(_formatYmd(_statementDate)),
+                trailing: const Icon(Icons.calendar_today),
+                onTap: _pickStatementDate,
+              ),
+            ] else if (!_useLoanParams)
               TextField(
                 controller: _amountController,
                 keyboardType: const TextInputType.numberWithOptions(decimal: true),

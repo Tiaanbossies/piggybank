@@ -11,6 +11,7 @@ class LiabilityPayment {
     required this.interestPortion,
     required this.notes,
     required this.createdAt,
+    this.isExtra = true,
   });
 
   final String id;
@@ -22,6 +23,10 @@ class LiabilityPayment {
   final String? notes;
   final DateTime createdAt;
 
+  /// False for a regular instalment kept as a record only, and for payments
+  /// logged before balances were anchored (they are already in the anchor).
+  final bool isExtra;
+
   factory LiabilityPayment.fromJson(Map<String, dynamic> json) => LiabilityPayment(
         id: json['id'] as String,
         liabilityId: json['liability_id'] as String,
@@ -31,6 +36,7 @@ class LiabilityPayment {
         interestPortion: Decimal.parse(json['interest_portion'].toString()),
         notes: json['notes'] as String?,
         createdAt: DateTime.parse(json['created_at'] as String),
+        isExtra: json['is_extra'] as bool? ?? true,
       );
 }
 
