@@ -17,6 +17,8 @@ import '../../../shared/widgets/shrinking_fab.dart';
 import '../../../shared/widgets/state_views.dart';
 import '../../../shared/widgets/tab_app_bar.dart';
 import '../../accounts/providers/accounts_provider.dart';
+import '../../categories/screens/manage_categories_screen.dart';
+import '../../categories/widgets/category_field.dart';
 import '../../detection/widgets/review_banner.dart';
 import '../../expenses/screens/expenses_summary_screen.dart';
 import '../../imports/screens/imports_screen.dart';
@@ -29,7 +31,7 @@ import '../widgets/signed_amount.dart';
 import '../widgets/transaction_sheet.dart';
 
 /// The Transactions tab's overflow menu items.
-enum _TransactionsMenu { expenses, import, importHistory }
+enum _TransactionsMenu { expenses, categories, import, importHistory }
 
 /// Grouped-list-cells pattern per DESIGN.md § Transactions: rows grouped by
 /// date (newest first), tapping a row opens an edit sheet reusing the same
@@ -74,6 +76,7 @@ class TransactionsScreen extends ConsumerWidget {
               MaterialPageRoute(
                 builder: (_) => switch (item) {
                   _TransactionsMenu.expenses => const ExpensesSummaryScreen(),
+                  _TransactionsMenu.categories => const ManageCategoriesScreen(),
                   _TransactionsMenu.import => const ImportsScreen(),
                   _TransactionsMenu.importHistory => const ImportHistoryScreen(),
                 },
@@ -81,6 +84,7 @@ class TransactionsScreen extends ConsumerWidget {
             ),
             itemBuilder: (_) => const [
               PopupMenuItem(value: _TransactionsMenu.expenses, child: Text('Expenses summary')),
+              PopupMenuItem(value: _TransactionsMenu.categories, child: Text('Manage categories')),
               PopupMenuItem(value: _TransactionsMenu.import, child: Text('Import CSV / Scan receipt')),
               PopupMenuItem(value: _TransactionsMenu.importHistory, child: Text('Import history')),
             ],
@@ -405,10 +409,14 @@ class _TransactionFilterSheet extends ConsumerWidget {
               onChanged: (value) => ref.read(transactionFiltersProvider.notifier).setTransactionType(value),
             ),
             const SizedBox(height: 16),
-            TextFormField(
-              initialValue: filters.category ?? '',
-              decoration: const InputDecoration(labelText: 'Category'),
-              onChanged: (value) => ref.read(transactionFiltersProvider.notifier).setCategory(value.isEmpty ? null : value),
+            // The user's own list, not free text (QA D): what you can pick
+            // is exactly what transactions can be filed under.
+            CategoryField(
+              key: const Key('filter-category'),
+              value: filters.category,
+              noneLabel: 'All categories',
+              allowNew: false,
+              onChanged: (value) => ref.read(transactionFiltersProvider.notifier).setCategory(value),
             ),
             const SizedBox(height: 16),
             ListTile(

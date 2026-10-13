@@ -10,6 +10,9 @@ import '../../../shared/widgets/deferred_delete.dart';
 import '../../../shared/widgets/state_views.dart';
 import '../../accounts/models/account.dart';
 import '../../accounts/providers/accounts_provider.dart';
+import '../../categories/models/user_category.dart';
+import '../../categories/providers/categories_provider.dart';
+import '../../categories/widgets/category_field.dart';
 import '../../summaries/providers/summaries_provider.dart';
 import '../models/transaction.dart';
 import '../providers/quick_add_providers.dart';
@@ -209,12 +212,12 @@ class _TransactionSheetState extends ConsumerState<TransactionSheet> {
     final used = ref.watch(categoryUsageProvider(_type)).valueOrNull ?? const <String>[];
     final busy = _submitting;
 
+    final kind = CategoryKind.of(_type);
     // Chips: what this user actually files things under, most-used first;
-    // the stock list only until they have history.
-    final chips = (used.isNotEmpty ? used : commonCategories).take(_chipCount).toList();
-    // Dropdown: everything — used, stock, and whatever this transaction
-    // already carries (an edit can hold a category neither list has).
-    final allCategories = <String>{...used, ...commonCategories, if (_category.isNotEmpty) _category}.toList();
+    // their own list for this type until they have history.
+    final chips = (used.isNotEmpty ? used : categoryChoices(ref.watch(categoriesProvider).valueOrNull, kind: kind))
+        .take(_chipCount)
+        .toList();
 
     return PopScope(
       canPop: false,
@@ -304,17 +307,12 @@ class _TransactionSheetState extends ConsumerState<TransactionSheet> {
               ],
             ),
             const SizedBox(height: 12),
-            DropdownButtonFormField<String>(
-              // Re-keyed on the category so a chip tap shows up here too —
-              // `initialValue` is otherwise only read once.
-              key: ValueKey('category-$_category'),
-              initialValue: _category.isEmpty ? null : _category,
-              decoration: const InputDecoration(labelText: 'Category'),
-              items: [for (final c in allCategories) DropdownMenuItem(value: c, child: Text(c))],
-              onChanged: (value) {
-                if (value != null) setState(() => _category = value);
-              },
-              isExpanded: true,
+            // Everything in the user's list, this type's first, plus
+            // "New category" (QA E1: one list for every picker).
+            CategoryField(
+              value: _category,
+              kind: kind,
+              onChanged: (value) => setState(() => _category = value ?? ''),
             ),
             const SizedBox(height: 16),
             TextField(controller: _merchantController, decoration: const InputDecoration(labelText: 'Merchant (optional)')),
