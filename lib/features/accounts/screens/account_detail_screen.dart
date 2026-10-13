@@ -10,6 +10,7 @@ import '../../../shared/widgets/group_card.dart';
 import '../../transactions/models/transaction.dart';
 import '../../transactions/providers/transactions_provider.dart';
 import '../models/account.dart';
+import '../providers/accounts_provider.dart';
 import 'account_edit_screen.dart';
 
 /// Read-only account detail view (fix-it Step 6, L4). Tapping an account row
@@ -22,6 +23,11 @@ class AccountDetailScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // The fresh copy once the list has it, so a rename or restore made on
+    // the edit screen shows here on the way back; the one it opened with
+    // until then.
+    final account = ref.watch(accountsProvider).valueOrNull?.where((a) => a.id == this.account.id).firstOrNull ??
+        this.account;
     final transactionsAsync = ref.watch(accountTransactionsProvider(account.id));
 
     return Scaffold(

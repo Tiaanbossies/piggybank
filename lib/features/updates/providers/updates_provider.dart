@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
+import '../../../core/app/app_build.dart';
 import '../data/updates_api.dart';
 import '../models/latest_release.dart';
 
@@ -24,8 +25,10 @@ final updateAvailableProvider = FutureProvider.autoDispose<LatestRelease?>((ref)
   if (latest == null) return null;
 
   final info = await PackageInfo.fromPlatform();
-  final currentBuild = int.tryParse(info.buildNumber);
-  final latestBuild = int.tryParse(latest.buildNumber);
+  // Through AppBuild so a split-per-ABI install (versionCode 2009) still
+  // compares as build 9.
+  final currentBuild = AppBuild.buildNumber(info.buildNumber);
+  final latestBuild = AppBuild.buildNumber(latest.buildNumber);
   if (currentBuild == null || latestBuild == null) return null;
 
   return latestBuild > currentBuild ? latest : null;

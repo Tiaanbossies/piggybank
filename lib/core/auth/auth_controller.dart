@@ -30,7 +30,9 @@ class AuthController extends StateNotifier<AuthState> {
   Future<void> restoreSession() async {
     final refreshToken = await _secureStorage.readRefreshToken();
     if (refreshToken == null) {
-      state = AuthState.unauthenticated();
+      state = AuthState.unauthenticated(
+        biometricLoginAvailable: await _secureStorage.readBiometricRefreshToken() != null,
+      );
       return;
     }
     final pair = await _authApi.refresh(refreshToken);
@@ -54,6 +56,8 @@ class AuthController extends StateNotifier<AuthState> {
 
   Future<void> login({required String email, required String password}) async {
     final pair = await _authApi.login(email: email, password: password);
+    // A password login starts a new session: any kept one is retired.
+    await forgetBiometricLogin();
     await _secureStorage.writeRefreshToken(pair.refreshToken);
     final user = await _authApi.me(pair.accessToken);
     final consentsRequired = await _checkConsentsRequired(pair.accessToken);
@@ -131,11 +135,89 @@ class AuthController extends StateNotifier<AuthState> {
     if (state.isAuthenticated) state = state.copyWith(consentsRequired: true);
   }
 
-  Future<void> logout() async {
+  /// Signs out. With [keepBiometricLogin] (Settings → Log out, biometrics
+  /// on, a device that can check them) the session isn't revoked: it moves
+  /// to the biometric slot so the login screen can offer "Log in with
+  /// fingerprint" (QA A5). Otherwise, and always from the lock screen and
+  /// account deletion, it's revoked server-side and nothing is kept.
+  Future<void> logout({bool keepBiometricLogin = false}) async {
     final refreshToken = await _secureStorage.readRefreshToken();
+    if (keepBiometricLogin && refreshToken != null && await _canCheckBiometrics()) {
+      await _secureStorage.writeBiometricRefreshToken(refreshToken);
+      await _secureStorage.clearRefreshToken();
+      state = AuthState.unauthenticated(biometricLoginAvailable: true);
+      return;
+    }
     await _authApi.logout(refreshToken);
     await _secureStorage.clearRefreshToken();
+    await forgetBiometricLogin();
     state = AuthState.unauthenticated();
+  }
+
+  /// "Log in with fingerprint": the device's biometric check, then the kept
+  /// session is refreshed like a cold start, minus the lock (the check just
+  /// happened). Returns false if the check fails or is cancelled; a kept
+  /// session the server no longer accepts is dropped and the button goes.
+  Future<bool> loginWithBiometrics() async {
+    final kept = await _secureStorage.readBiometricRefreshToken();
+    if (kept == null) {
+      state = AuthState.unauthenticated();
+      return false;
+    }
+    final ok = await _authenticateDevice('Log in to Piggybank');
+    if (!ok) return false;
+    final pair = await _authApi.refresh(kept);
+    await _secureStorage.clearBiometricRefreshToken();
+    if (pair == null) {
+      state = AuthState.unauthenticated();
+      return false;
+    }
+    await _secureStorage.writeRefreshToken(pair.refreshToken);
+    final user = await _authApi.me(pair.accessToken);
+    final consentsRequired = await _checkConsentsRequired(pair.accessToken);
+    state = AuthState(
+      status: AuthStatus.authenticated,
+      accessToken: pair.accessToken,
+      user: user,
+      locked: false,
+      consentsRequired: consentsRequired,
+      onboardingRequired: _onboardingStore.isPending(user.id),
+    );
+    return true;
+  }
+
+  /// Revokes and drops a kept biometric session: on a password login, when
+  /// biometrics are switched off, and on a full log out.
+  Future<void> forgetBiometricLogin() async {
+    final kept = await _secureStorage.readBiometricRefreshToken();
+    if (kept == null) return;
+    await _secureStorage.clearBiometricRefreshToken();
+    try {
+      await _authApi.logout(kept);
+    } catch (_) {
+      // Best effort: it expires on its own.
+    }
+    if (!state.isAuthenticated && state.biometricLoginAvailable) state = AuthState.unauthenticated();
+  }
+
+  Future<bool> _canCheckBiometrics() async {
+    try {
+      return await _localAuth.canCheckBiometrics || await _localAuth.isDeviceSupported();
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<bool> _authenticateDevice(String reason) async {
+    try {
+      if (!await _canCheckBiometrics()) return false;
+      return await _localAuth.authenticate(
+        localizedReason: reason,
+        options: const AuthenticationOptions(biometricOnly: false, stickyAuth: true),
+      );
+    } catch (_) {
+      return false;
+    }
   }
 
   /// Passed into [ApiClient] as its refresh callback — same rotation flow as
@@ -221,6 +303,16 @@ final authControllerProvider = StateNotifierProvider<AuthController, AuthState>(
     localAuth: ref.read(localAuthProvider),
     onboardingStore: ref.read(onboardingStoreProvider),
   );
+});
+
+/// Whether the login screen offers "Log in with fingerprint" (QA A5). False
+/// when there's no auth state to read (a login screen pumped on its own).
+final biometricLoginAvailableProvider = Provider<bool>((ref) {
+  try {
+    return ref.watch(authControllerProvider.select((s) => s.biometricLoginAvailable));
+  } on Object {
+    return false;
+  }
 });
 
 final apiClientProvider = Provider<ApiClient>((ref) {

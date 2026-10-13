@@ -34,7 +34,8 @@ Phase 0 deliverable for the Flutter migration (see the approved migration plan a
 >   bar and opens from the avatar.
 > - **Tab-root app bar:** avatar (→ Settings) · title · at most two labelled actions plus
 >   an overflow. **The bell is removed** until a notification inbox exists (this
->   supersedes the "non-functional placeholder" decision below).
+>   supersedes the "non-functional placeholder" decision below). *QA pass 1
+>   (2026-10-12): the inbox exists now, so the bell is back on Home only.*
 > - **Home:** the hero is **Left to spend this month**; Net worth becomes a card that
 >   opens a Net worth hub. Fixed order, still no customisation.
 > - **Motion is expressive** (spec §3) with mascot moments, using the existing mascot
@@ -172,8 +173,11 @@ own stack and scroll position.
 **Top app bar has two patterns**:
 - **Tab-root screens** (all five tabs) use the shared `TabAppBar`: a circular avatar
   (top-left) that opens **Settings**, the title, then at most two labelled actions plus
-  an optional overflow menu. **No notification bell**: it had no feature behind it, and
-  a control that looks tappable and does nothing isn't allowed.
+  an optional overflow menu. **The notification bell is on Home only** (QA pass 1,
+  2026-10-12), as Home's one action. It opens the inbox (`NotificationsInboxScreen`)
+  and carries an unread badge. It hides when every kind is switched off in Settings →
+  Notifications. It was removed earlier because nothing was behind it; a control that
+  looks tappable and does nothing still isn't allowed.
 - **Pushed/detail screens**, including **Settings** (now above the tabs, not one of
   them): back-arrow + screen-name title.
 

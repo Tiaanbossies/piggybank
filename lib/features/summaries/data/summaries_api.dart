@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 
 import '../../../core/api/api_client.dart';
+import '../../../core/format/pay_period.dart';
 import '../models/summaries.dart';
 
 class SummariesApi {
@@ -18,6 +19,28 @@ class SummariesApi {
 
   /// Defaults to the current calendar month when [month] is omitted (backend
   /// convention, per `get_cashflow` in `summaries/router.py`).
+  /// One pay-cycle month's real dates (`/summaries/pay-period`), Penny's
+  /// payday adjustments included: by [month] (its label), else the one
+  /// [on] falls in (default today).
+  Future<PayPeriod> payPeriod({DateTime? month, DateTime? on}) async {
+    String two(int n) => n.toString().padLeft(2, '0');
+    try {
+      final response = await _client.dio.get('/summaries/pay-period', queryParameters: {
+        if (month != null) 'month': '${month.year}-${two(month.month)}',
+        if (on != null) 'on': '${on.year}-${two(on.month)}-${two(on.day)}',
+      });
+      final json = response.data as Map<String, dynamic>;
+      final label = (json['month'] as String).split('-');
+      return PayPeriod(
+        label: DateTime(int.parse(label[0]), int.parse(label[1])),
+        start: DateTime.parse(json['start'] as String),
+        end: DateTime.parse(json['end'] as String),
+      );
+    } on DioException catch (e) {
+      throw ApiClient.errorFrom(e);
+    }
+  }
+
   Future<CashflowSummary> cashflow() async {
     try {
       final response = await _client.dio.get('/summaries/cashflow');

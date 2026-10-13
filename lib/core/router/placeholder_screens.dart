@@ -10,9 +10,9 @@ import '../../features/settings/screens/profile_screen.dart';
 import '../../features/settings/screens/security_screen.dart';
 import '../../features/settings/screens/subscription_screen.dart';
 import '../../shared/widgets/app_card.dart';
-import '../../shared/widgets/confirm_dialog.dart';
 import '../../shared/widgets/group_card.dart';
 import '../auth/auth_controller.dart';
+import '../auth/biometric_preference.dart';
 import '../theme/app_tokens.dart';
 
 /// Stub tabs for domains not yet built at the time this was written
@@ -146,15 +146,7 @@ class SettingsScreen extends ConsumerWidget {
               ),
               icon: const Icon(Icons.logout),
               label: const Text('Log out'),
-              onPressed: () async {
-                final confirmed = await confirmDestroy(
-                  context,
-                  title: 'Log out?',
-                  message: "You'll need your password to sign back in.",
-                  confirmLabel: 'Log out',
-                );
-                if (confirmed) await ref.read(authControllerProvider.notifier).logout();
-              },
+              onPressed: () => confirmLogOut(context, ref),
             ),
             const SizedBox(height: AppSpace.sectionGap),
           ],
@@ -220,3 +212,49 @@ class _SectionLabel extends StatelessWidget {
     );
   }
 }
+
+/// Settings → Log out (QA A5). With biometrics on, the plain "Log out"
+/// keeps a session behind the fingerprint so the login screen can offer
+/// "Log in with fingerprint"; "Log out completely" revokes it like before.
+Future<void> confirmLogOut(BuildContext context, WidgetRef ref) async {
+  bool biometrics;
+  try {
+    biometrics = ref.read(biometricPreferenceProvider);
+  } on Object {
+    // No stored preference to read (a Settings screen pumped on its own).
+    biometrics = false;
+  }
+  final choice = await showDialog<_LogOutChoice>(
+    context: context,
+    builder: (dialogContext) => AlertDialog(
+      title: const Text('Log out?'),
+      content: Text(
+        biometrics
+            ? 'Sign back in with your fingerprint or your password. '
+                '"Log out completely" means only your password will do.'
+            : "You'll need your password to sign back in.",
+      ),
+      actions: [
+        TextButton(onPressed: () => Navigator.of(dialogContext).pop(), child: const Text('Cancel')),
+        if (biometrics)
+          TextButton(
+            key: const Key('log-out-completely'),
+            onPressed: () => Navigator.of(dialogContext).pop(_LogOutChoice.completely),
+            child: const Text('Log out completely'),
+          ),
+        TextButton(
+          key: const Key('confirm-destroy'),
+          style: TextButton.styleFrom(foregroundColor: dialogContext.tokens.danger),
+          onPressed: () => Navigator.of(dialogContext).pop(_LogOutChoice.keepFingerprint),
+          child: const Text('Log out'),
+        ),
+      ],
+    ),
+  );
+  if (choice == null) return;
+  await ref
+      .read(authControllerProvider.notifier)
+      .logout(keepBiometricLogin: biometrics && choice == _LogOutChoice.keepFingerprint);
+}
+
+enum _LogOutChoice { keepFingerprint, completely }

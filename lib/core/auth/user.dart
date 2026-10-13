@@ -7,6 +7,7 @@ class User {
     required this.role,
     required this.isActive,
     this.salaryDay,
+    this.autoSalaryDay = true,
     this.hasPin = false,
     this.notificationPreferences,
   });
@@ -17,6 +18,9 @@ class User {
   final String role;
   final bool isActive;
   final int? salaryDay;
+
+  /// Pro: Penny moves each month's start to the day the salary landed.
+  final bool autoSalaryDay;
   final bool hasPin;
 
   /// Null means "never saved" — the Notifications screen (blueprint Step 5b)
@@ -31,6 +35,7 @@ class User {
         role: json['role'] as String,
         isActive: json['is_active'] as bool,
         salaryDay: json['salary_day'] as int?,
+        autoSalaryDay: json['auto_salary_day'] as bool? ?? true,
         hasPin: json['has_pin'] as bool? ?? false,
         notificationPreferences: (json['notification_preferences'] as Map<String, dynamic>?)
             ?.map((key, value) => MapEntry(key, value as bool)),

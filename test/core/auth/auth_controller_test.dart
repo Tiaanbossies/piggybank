@@ -72,6 +72,10 @@ void main() {
       // Set default mock behavior for restoreSession to return null (no stored token)
       when(() => mockSecureStorage.readRefreshToken())
           .thenAnswer((_) async => null);
+      // No kept fingerprint session unless a test says so (QA A5).
+      when(() => mockSecureStorage.readBiometricRefreshToken()).thenAnswer((_) async => null);
+      when(() => mockSecureStorage.clearBiometricRefreshToken()).thenAnswer((_) async {});
+      when(() => mockSecureStorage.writeBiometricRefreshToken(any())).thenAnswer((_) async {});
 
       // Default: nothing required, so existing login/register/restore tests
       // (which don't assert on consentsRequired) keep passing unchanged.
@@ -365,6 +369,114 @@ void main() {
         verify(() => mockAuthApi.logout('refresh')).called(1);
         verify(() => mockSecureStorage.clearRefreshToken()).called(1);
         expect(authController.state.isAuthenticated, false);
+      });
+    });
+
+    group('biometric login after log out (QA A5)', () {
+      const tokenPair = TokenPair(accessToken: 'token', refreshToken: 'refresh');
+
+      Future<void> signIn() async {
+        when(() => mockAuthApi.login(email: any(named: 'email'), password: any(named: 'password')))
+            .thenAnswer((_) async => tokenPair);
+        when(() => mockSecureStorage.writeRefreshToken(any())).thenAnswer((_) async {});
+        when(() => mockAuthApi.me(any())).thenAnswer((_) async => FakeUser());
+        when(() => mockOnboardingStore.isPending(any())).thenReturn(false);
+        await authController.login(email: 'a@b.co', password: 'pw');
+      }
+
+      test('log out keeping the fingerprint moves the session instead of revoking it', () async {
+        await signIn();
+        when(() => mockSecureStorage.readRefreshToken()).thenAnswer((_) async => 'refresh');
+        when(() => mockSecureStorage.clearRefreshToken()).thenAnswer((_) async {});
+        when(() => mockLocalAuth.canCheckBiometrics).thenAnswer((_) async => true);
+
+        await authController.logout(keepBiometricLogin: true);
+
+        verify(() => mockSecureStorage.writeBiometricRefreshToken('refresh')).called(1);
+        verify(() => mockSecureStorage.clearRefreshToken()).called(1);
+        verifyNever(() => mockAuthApi.logout(any()));
+        expect(authController.state.isAuthenticated, false);
+        expect(authController.state.biometricLoginAvailable, true);
+      });
+
+      test('without biometric hardware it is a normal log out', () async {
+        await signIn();
+        when(() => mockSecureStorage.readRefreshToken()).thenAnswer((_) async => 'refresh');
+        when(() => mockSecureStorage.clearRefreshToken()).thenAnswer((_) async {});
+        when(() => mockLocalAuth.canCheckBiometrics).thenAnswer((_) async => false);
+        when(() => mockLocalAuth.isDeviceSupported()).thenAnswer((_) async => false);
+        when(() => mockAuthApi.logout('refresh')).thenAnswer((_) async {});
+
+        await authController.logout(keepBiometricLogin: true);
+
+        verify(() => mockAuthApi.logout('refresh')).called(1);
+        expect(authController.state.biometricLoginAvailable, false);
+      });
+
+      test('a cold start with only a kept session offers the fingerprint', () async {
+        when(() => mockSecureStorage.readBiometricRefreshToken()).thenAnswer((_) async => 'kept');
+        final controller = AuthController(
+          authApi: mockAuthApi,
+          secureStorage: mockSecureStorage,
+          localAuth: mockLocalAuth,
+          onboardingStore: mockOnboardingStore,
+        );
+        await Future<void>.delayed(Duration.zero);
+        expect(controller.state.isAuthenticated, false);
+        expect(controller.state.biometricLoginAvailable, true);
+      });
+
+      test('the fingerprint signs straight in, unlocked', () async {
+        when(() => mockSecureStorage.readBiometricRefreshToken()).thenAnswer((_) async => 'kept');
+        when(() => mockLocalAuth.canCheckBiometrics).thenAnswer((_) async => true);
+        when(() => mockLocalAuth.authenticate(
+              localizedReason: any(named: 'localizedReason'),
+              options: any(named: 'options'),
+            )).thenAnswer((_) async => true);
+        when(() => mockAuthApi.refresh('kept')).thenAnswer((_) async => tokenPair);
+        when(() => mockSecureStorage.writeRefreshToken('refresh')).thenAnswer((_) async {});
+        when(() => mockAuthApi.me('token')).thenAnswer((_) async => FakeUser());
+        when(() => mockOnboardingStore.isPending(any())).thenReturn(false);
+
+        expect(await authController.loginWithBiometrics(), true);
+        expect(authController.state.isAuthenticated, true);
+        expect(authController.state.locked, false);
+        verify(() => mockSecureStorage.clearBiometricRefreshToken()).called(1);
+      });
+
+      test('a cancelled fingerprint check keeps the session for next time', () async {
+        when(() => mockSecureStorage.readBiometricRefreshToken()).thenAnswer((_) async => 'kept');
+        when(() => mockLocalAuth.canCheckBiometrics).thenAnswer((_) async => true);
+        when(() => mockLocalAuth.authenticate(
+              localizedReason: any(named: 'localizedReason'),
+              options: any(named: 'options'),
+            )).thenAnswer((_) async => false);
+
+        expect(await authController.loginWithBiometrics(), false);
+        verifyNever(() => mockAuthApi.refresh(any()));
+        verifyNever(() => mockSecureStorage.clearBiometricRefreshToken());
+      });
+
+      test('an expired kept session is dropped', () async {
+        when(() => mockSecureStorage.readBiometricRefreshToken()).thenAnswer((_) async => 'kept');
+        when(() => mockLocalAuth.canCheckBiometrics).thenAnswer((_) async => true);
+        when(() => mockLocalAuth.authenticate(
+              localizedReason: any(named: 'localizedReason'),
+              options: any(named: 'options'),
+            )).thenAnswer((_) async => true);
+        when(() => mockAuthApi.refresh('kept')).thenAnswer((_) async => null);
+
+        expect(await authController.loginWithBiometrics(), false);
+        verify(() => mockSecureStorage.clearBiometricRefreshToken()).called(1);
+        expect(authController.state.biometricLoginAvailable, false);
+      });
+
+      test('a password login retires a kept session', () async {
+        when(() => mockSecureStorage.readBiometricRefreshToken()).thenAnswer((_) async => 'kept');
+        when(() => mockAuthApi.logout('kept')).thenAnswer((_) async {});
+        await signIn();
+        verify(() => mockAuthApi.logout('kept')).called(1);
+        verify(() => mockSecureStorage.clearBiometricRefreshToken()).called(1);
       });
     });
 

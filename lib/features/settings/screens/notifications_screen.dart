@@ -24,7 +24,9 @@ class NotificationsScreen extends ConsumerStatefulWidget {
 /// (key, title, subtitle) — the fixed preference set. Add here if the
 /// backend ever grows more keys; nothing else needs to change.
 const _preferenceRows = [
-  (key: 'budget_alerts', title: 'Budget alerts', subtitle: 'When a budget category is close to its limit'),
+  (key: 'review_reminders', title: 'Transactions to review', subtitle: 'When Penny picks up new transactions'),
+  (key: 'budget_alerts', title: 'Budget alerts', subtitle: 'When a budget reaches 80% or goes over'),
+  (key: 'goal_milestones', title: 'Goal milestones', subtitle: 'At 25%, 50%, 75% and when a goal is reached'),
   (key: 'weekly_summary', title: 'Weekly summary', subtitle: 'A weekly recap of spending and progress'),
 ];
 

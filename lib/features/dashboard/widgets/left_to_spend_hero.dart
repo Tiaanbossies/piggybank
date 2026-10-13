@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/api/api_error.dart';
 import '../../../core/format/money.dart';
+import '../../../core/format/pay_period.dart';
 import '../../../core/theme/app_motion.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../shared/widgets/app_card.dart';
@@ -16,6 +17,7 @@ import '../../../shared/widgets/state_views.dart';
 import '../../budgets/providers/budgets_provider.dart';
 import '../../budgets/screens/budgets_screen.dart';
 import '../../plan/screens/plan_screen.dart';
+import '../../summaries/providers/summaries_provider.dart';
 import '../../transactions/providers/transactions_provider.dart';
 import '../providers/left_to_spend_provider.dart';
 
@@ -41,7 +43,10 @@ class LeftToSpendHero extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final today = now ?? clock.now();
     final state = ref.watch(leftToSpendProvider);
-    final month = _months[today.month - 1];
+    // The pay-cycle month (QA pass 1): with salary day 25, the 26th of
+    // September already reads "October", counting down to the 24th.
+    final period = now == null ? ref.watch(currentPayPeriodProvider) : periodContaining(today, ref.watch(salaryDayProvider));
+    final month = _months[period.label.month - 1];
 
     final Widget child = state.when(
       loading: () => const SkeletonHero(key: ValueKey('loading'), progress: true),
@@ -55,7 +60,7 @@ class LeftToSpendHero extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            _Hero(value: value, month: month, subline: _subline(ref, today)),
+            _Hero(value: value, month: month, subline: _subline(ref, today, period)),
             // Never alongside over budget (spec §3.3).
             if (value is! OverBudget && ref.watch(todaySpendProvider).valueOrNull == Decimal.zero) const _QuietDay(),
           ],
@@ -71,9 +76,9 @@ class LeftToSpendHero extends ConsumerWidget {
     );
   }
 
-  String _subline(WidgetRef ref, DateTime today) {
+  String _subline(WidgetRef ref, DateTime today, PayPeriod period) {
     final spent = ref.watch(todaySpendProvider).valueOrNull;
-    final days = daysLeftInMonth(today);
+    final days = period.daysLeftAfter(today);
     final daysText = switch (days) {
       0 => 'last day of the month',
       1 => '1 day left',

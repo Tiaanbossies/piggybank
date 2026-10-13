@@ -11,10 +11,23 @@ import '../../../shared/widgets/confirm_dialog.dart';
 import '../../../shared/widgets/group_card.dart';
 import '../../../shared/widgets/icon_chip.dart';
 import '../../../shared/widgets/progress_card.dart';
+import '../../calculators/screens/calculators_screen.dart';
+import '../../summaries/providers/summaries_provider.dart';
 import '../models/liability.dart';
 import '../models/liability_payment.dart';
 import '../providers/liabilities_provider.dart';
 import 'liabilities_screen.dart' show showLiabilitySheet;
+
+/// Everything a logged or deleted payment changes: the ledger, the
+/// progress card, the balance in the header and the list, and net worth.
+void refreshAfterPayment(WidgetRef ref, String liabilityId) {
+  ref
+    ..invalidate(liabilityPaymentsProvider(liabilityId))
+    ..invalidate(liabilityProgressProvider(liabilityId))
+    ..invalidate(liabilitiesProvider)
+    ..invalidate(netWorthProvider)
+    ..invalidate(netWorthHistoryProvider);
+}
 
 String _formatDate(DateTime date) =>
     '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
@@ -33,12 +46,24 @@ class LiabilityDetailScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // The fresh copy from the list once it has one: a logged payment moves
+    // the outstanding balance, and the header held the opening copy forever
+    // (QA D5).
+    final liability = ref.watch(liabilitiesProvider).valueOrNull?.where((l) => l.id == this.liability.id).firstOrNull ??
+        this.liability;
     final paymentsAsync = ref.watch(liabilityPaymentsProvider(liability.id));
 
     return Scaffold(
       appBar: AppBar(
         title: Text(liability.name),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.calculate_outlined),
+            tooltip: 'Loan calculators',
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const CalculatorsScreen()),
+            ),
+          ),
           IconButton(
             icon: const Icon(Icons.edit_outlined),
             tooltip: 'Edit liability',
@@ -48,10 +73,7 @@ class LiabilityDetailScreen extends ConsumerWidget {
       ),
       body: SafeArea(
         child: AppRefresh(
-          onRefresh: () async {
-            ref.invalidate(liabilityProgressProvider(liability.id));
-            ref.invalidate(liabilityPaymentsProvider(liability.id));
-          },
+          onRefresh: () async => refreshAfterPayment(ref, liability.id),
           child: SkeletonSwitcher(child: paymentsAsync.when(
             loading: () => const SkeletonPage(hero: true),
             error: (err, _) => Center(child: Text(err is ApiError ? err.message : 'Failed to load payments')),
@@ -140,14 +162,16 @@ class _ProgressSection extends ConsumerWidget {
       error: (err, _) => Text(err is ApiError ? err.message : 'Failed to load progress'),
       data: (progress) {
         final pct = progress.percentPaid.toDouble() / 100;
+        final original = progress.originalBalance ?? liability.originalBalance!;
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             ProgressCard(
               title: 'Paid off',
               pct: pct,
-              footnote:
-                  '${formatZAR(progress.totalPrincipalPaid)} principal paid of ${formatZAR(progress.originalBalance)}',
+              // From the balance, not the logged payments: a loan added
+              // mid-term is already partly paid off (QA D5).
+              footnote: '${formatZAR(original - progress.currentBalance)} paid off of ${formatZAR(original)}',
             ),
             const SizedBox(height: 12),
             Text('Loan breakdown', style: Theme.of(context).textTheme.labelMedium),
@@ -217,7 +241,7 @@ class _PaymentRow extends ConsumerWidget {
       subtitle: subtitleParts.join(' · '),
       trailing: IconButton(
         icon: const Icon(Icons.delete_outline),
-        tooltip: 'Delete liability',
+        tooltip: 'Delete payment',
         onPressed: () => _delete(context, ref),
       ),
     );
@@ -232,8 +256,7 @@ class _PaymentRow extends ConsumerWidget {
     if (!confirmed) return;
     try {
       await ref.read(liabilitiesApiProvider).deletePayment(liabilityId, payment.id);
-      ref.invalidate(liabilityPaymentsProvider(liabilityId));
-      ref.invalidate(liabilityProgressProvider(liabilityId));
+      refreshAfterPayment(ref, liabilityId);
     } on ApiError catch (e) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
@@ -303,8 +326,7 @@ class _LogPaymentSheetState extends ConsumerState<_LogPaymentSheet> {
             interestPortion: _interestController.text.trim(),
             notes: _notesController.text.trim().isEmpty ? null : _notesController.text.trim(),
           );
-      ref.invalidate(liabilityPaymentsProvider(widget.liabilityId));
-      ref.invalidate(liabilityProgressProvider(widget.liabilityId));
+      refreshAfterPayment(ref, widget.liabilityId);
       if (mounted) Navigator.of(context).pop();
     } on ApiError catch (e) {
       setState(() => _error = e.message);

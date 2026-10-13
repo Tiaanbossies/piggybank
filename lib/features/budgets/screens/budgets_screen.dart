@@ -15,6 +15,10 @@ import '../../../shared/widgets/app_skeleton.dart';
 import '../../../shared/widgets/deferred_delete.dart';
 import '../../../shared/widgets/progress_card.dart';
 import '../../../shared/widgets/state_views.dart';
+import '../../categories/models/user_category.dart';
+import '../../categories/providers/categories_provider.dart';
+import '../../categories/widgets/category_field.dart';
+import '../../summaries/providers/summaries_provider.dart';
 import '../../transactions/category_icons.dart';
 import '../../trends/screens/trends_screen.dart';
 import '../models/budget.dart';
@@ -196,7 +200,23 @@ class BudgetMonthSwitcher extends ConsumerWidget implements PreferredSizeWidget 
                 notifier.previous();
               },
             ),
-            Text('${_monthNames[month.month - 1]} ${month.year}', style: Theme.of(context).textTheme.titleMedium),
+            // With a salary day, the dates it covers sit under the name:
+            // "October 2026 · 25 Sep – 24 Oct" (QA pass 1).
+            Builder(builder: (context) {
+              final range = ref.watch(payPeriodForLabelProvider(month)).rangeLabel;
+              return Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text('${_monthNames[month.month - 1]} ${month.year}', style: Theme.of(context).textTheme.titleMedium),
+                  if (range.isNotEmpty)
+                    Text(
+                      range,
+                      key: const Key('budget-period-range'),
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(color: context.tokens.muted),
+                    ),
+                ],
+              );
+            }),
             IconButton(
               icon: const Icon(Icons.chevron_right),
               tooltip: 'Next month',
@@ -295,7 +315,7 @@ class _BudgetSheet extends ConsumerStatefulWidget {
 }
 
 class _BudgetSheetState extends ConsumerState<_BudgetSheet> {
-  late final TextEditingController _categoryController;
+  String? _category;
   late final TextEditingController _amountController;
   String? _parentBudgetId;
   bool _submitting = false;
@@ -305,14 +325,13 @@ class _BudgetSheetState extends ConsumerState<_BudgetSheet> {
   void initState() {
     super.initState();
     final existing = widget.existing;
-    _categoryController = TextEditingController(text: existing?.category ?? '');
+    _category = existing?.category;
     _amountController = TextEditingController(text: existing != null ? existing.budgetAmount.toString() : '');
     _parentBudgetId = existing?.parentBudgetId;
   }
 
   @override
   void dispose() {
-    _categoryController.dispose();
     _amountController.dispose();
     super.dispose();
   }
@@ -324,7 +343,7 @@ class _BudgetSheetState extends ConsumerState<_BudgetSheet> {
     });
     try {
       final month = ref.read(selectedBudgetMonthProvider);
-      final category = _categoryController.text.trim().isEmpty ? null : _categoryController.text.trim();
+      final category = (_category == null || _category!.trim().isEmpty) ? null : _category!.trim();
       if (widget.existing == null) {
         final created = await ref.read(budgetsApiProvider).create(
               month: month,
@@ -343,6 +362,7 @@ class _BudgetSheetState extends ConsumerState<_BudgetSheet> {
       }
       ref.invalidate(budgetProgressProvider);
       ref.invalidate(budgetsForMonthProvider);
+      ref.invalidate(categoriesProvider);
       if (mounted) Navigator.of(context).pop();
     } on ApiError catch (e) {
       setState(() => _error = e.message);
@@ -377,7 +397,9 @@ class _BudgetSheetState extends ConsumerState<_BudgetSheet> {
 
     return Padding(
       padding: EdgeInsets.only(left: 24, right: 24, top: 24, bottom: MediaQuery.of(context).viewInsets.bottom + 24),
-      child: Column(
+      // Scrolls once the keyboard and the category field don't both fit.
+      child: SingleChildScrollView(
+        child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -389,7 +411,15 @@ class _BudgetSheetState extends ConsumerState<_BudgetSheet> {
             decoration: const InputDecoration(labelText: 'Amount (ZAR)'),
           ),
           const SizedBox(height: 16),
-          TextField(controller: _categoryController, decoration: const InputDecoration(labelText: 'Category (optional — leave blank for the overall total)')),
+          // The same list as transactions (QA E2), so a budget's spend is
+          // matched against a name transactions can actually carry.
+          CategoryField(
+            key: const Key('budget-category'),
+            value: _category,
+            kind: CategoryKind.expense,
+            noneLabel: 'Overall total (no category)',
+            onChanged: (value) => setState(() => _category = value),
+          ),
           if (!isEdit) ...[
             const SizedBox(height: 16),
             topLevelBudgetsAsync.when(
@@ -427,6 +457,7 @@ class _BudgetSheetState extends ConsumerState<_BudgetSheet> {
             ),
           ],
         ],
+      ),
       ),
     );
   }

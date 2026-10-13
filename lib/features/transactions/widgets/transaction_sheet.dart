@@ -5,10 +5,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/api/api_error.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../shared/motion/saved_highlight.dart';
+import '../../../shared/widgets/confirm_dialog.dart';
 import '../../../shared/widgets/deferred_delete.dart';
 import '../../../shared/widgets/state_views.dart';
 import '../../accounts/models/account.dart';
 import '../../accounts/providers/accounts_provider.dart';
+import '../../categories/models/user_category.dart';
+import '../../categories/providers/categories_provider.dart';
+import '../../categories/widgets/category_field.dart';
 import '../../summaries/providers/summaries_provider.dart';
 import '../models/transaction.dart';
 import '../providers/quick_add_providers.dart';
@@ -21,6 +25,7 @@ Future<void> showTransactionSheet(BuildContext context, {Transaction? existing})
   return showModalBottomSheet(
     context: context,
     isScrollControlled: true,
+    useSafeArea: true,
     builder: (_) => TransactionSheet(existing: existing),
   );
 }
@@ -61,6 +66,32 @@ class _TransactionSheetState extends ConsumerState<TransactionSheet> {
     _type = existing?.transactionType ?? TransactionType.expense;
     _date = existing?.transactionDate ?? clock.now();
     _accountId = existing != null ? existing.accountId : ref.read(lastUsedAccountProvider);
+  }
+
+  /// Whether anything has been typed or picked since the sheet opened, so
+  /// closing it asks first rather than silently dropping the entry.
+  bool get _dirty {
+    final existing = widget.existing;
+    return _amountController.text.trim() != (existing != null ? existing.amount.toString() : '') ||
+        _merchantController.text.trim() != (existing?.merchantName ?? '') ||
+        _notesController.text.trim() != (existing?.notes ?? '') ||
+        _category != (existing?.category ?? '') ||
+        _type != (existing?.transactionType ?? TransactionType.expense);
+  }
+
+  /// The X and the system back (QA C11: swipe-down alone wasn't an
+  /// obvious way out). Clean sheets close at once; a started entry asks.
+  Future<void> _close() async {
+    if (_dirty) {
+      final discard = await confirmDestroy(
+        context,
+        title: _isAdding ? 'Discard this transaction?' : 'Discard your changes?',
+        message: "What you've entered won't be saved.",
+        confirmLabel: 'Discard',
+      );
+      if (!discard) return;
+    }
+    if (mounted) Navigator.of(context).pop();
   }
 
   @override
@@ -181,14 +212,19 @@ class _TransactionSheetState extends ConsumerState<TransactionSheet> {
     final used = ref.watch(categoryUsageProvider(_type)).valueOrNull ?? const <String>[];
     final busy = _submitting;
 
+    final kind = CategoryKind.of(_type);
     // Chips: what this user actually files things under, most-used first;
-    // the stock list only until they have history.
-    final chips = (used.isNotEmpty ? used : commonCategories).take(_chipCount).toList();
-    // Dropdown: everything — used, stock, and whatever this transaction
-    // already carries (an edit can hold a category neither list has).
-    final allCategories = <String>{...used, ...commonCategories, if (_category.isNotEmpty) _category}.toList();
+    // their own list for this type until they have history.
+    final chips = (used.isNotEmpty ? used : categoryChoices(ref.watch(categoriesProvider).valueOrNull, kind: kind))
+        .take(_chipCount)
+        .toList();
 
-    return Padding(
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) _close();
+      },
+      child: Padding(
       padding: EdgeInsets.only(left: 24, right: 24, top: 16, bottom: MediaQuery.of(context).viewInsets.bottom + 24),
       child: SingleChildScrollView(
         child: Column(
@@ -200,6 +236,13 @@ class _TransactionSheetState extends ConsumerState<TransactionSheet> {
             // scroll on every add.
             Row(
               children: [
+                IconButton(
+                  key: const Key('transaction-close'),
+                  onPressed: busy ? null : _close,
+                  tooltip: 'Close',
+                  icon: const Icon(Icons.close),
+                ),
+                const SizedBox(width: 4),
                 Expanded(
                   child: Text(
                     _isAdding ? 'Add transaction' : 'Edit transaction',
@@ -264,17 +307,12 @@ class _TransactionSheetState extends ConsumerState<TransactionSheet> {
               ],
             ),
             const SizedBox(height: 12),
-            DropdownButtonFormField<String>(
-              // Re-keyed on the category so a chip tap shows up here too —
-              // `initialValue` is otherwise only read once.
-              key: ValueKey('category-$_category'),
-              initialValue: _category.isEmpty ? null : _category,
-              decoration: const InputDecoration(labelText: 'Category'),
-              items: [for (final c in allCategories) DropdownMenuItem(value: c, child: Text(c))],
-              onChanged: (value) {
-                if (value != null) setState(() => _category = value);
-              },
-              isExpanded: true,
+            // Everything in the user's list, this type's first, plus
+            // "New category" (QA E1: one list for every picker).
+            CategoryField(
+              value: _category,
+              kind: kind,
+              onChanged: (value) => setState(() => _category = value ?? ''),
             ),
             const SizedBox(height: 16),
             TextField(controller: _merchantController, decoration: const InputDecoration(labelText: 'Merchant (optional)')),
@@ -326,6 +364,7 @@ class _TransactionSheetState extends ConsumerState<TransactionSheet> {
             ],
           ],
         ),
+      ),
       ),
     );
   }
