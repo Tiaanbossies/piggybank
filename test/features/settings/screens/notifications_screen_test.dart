@@ -99,14 +99,16 @@ void main() {
   }
 
   group('NotificationsScreen', () {
-    testWidgets('both toggles default on when no preferences have ever been saved', (tester) async {
+    testWidgets('every toggle defaults on when no preferences have ever been saved', (tester) async {
       await tester.pumpWidget(buildScreen(adapter: _FakeAdapter([])));
       await tester.pumpAndSettle();
 
       expect(find.text('Budget alerts'), findsOneWidget);
       expect(find.text('Weekly summary'), findsOneWidget);
       final switches = tester.widgetList<Switch>(find.byType(Switch)).toList();
-      expect(switches, hasLength(2));
+      expect(switches, hasLength(4));
+      expect(find.text('Transactions to review'), findsOneWidget);
+      expect(find.text('Goal milestones'), findsOneWidget);
       expect(switches.every((s) => s.value), isTrue);
     });
 
@@ -121,8 +123,9 @@ void main() {
       await tester.pumpAndSettle();
 
       final switches = tester.widgetList<Switch>(find.byType(Switch)).toList();
-      expect(switches[0].value, isFalse); // budget_alerts
-      expect(switches[1].value, isTrue); // weekly_summary
+      expect(switches[0].value, isTrue); // review_reminders (never saved)
+      expect(switches[1].value, isFalse); // budget_alerts
+      expect(switches[3].value, isTrue); // weekly_summary
     });
 
     testWidgets('toggling a switch PATCHes the full dict and refreshes the user', (tester) async {
@@ -141,15 +144,20 @@ void main() {
       await tester.pumpWidget(buildScreen(adapter: adapter));
       await tester.pumpAndSettle();
 
-      await tester.tap(find.byType(Switch).first);
+      await tester.tap(find.byType(Switch).at(1)); // budget_alerts
       await tester.pumpAndSettle();
 
       expect(adapter.requestLog.single.path, '/auth/me');
       expect(adapter.requestLog.single.method, 'PATCH');
       expect(adapter.requestLog.single.data, {
-        'notification_preferences': {'budget_alerts': false, 'weekly_summary': true},
+        'notification_preferences': {
+          'review_reminders': true,
+          'budget_alerts': false,
+          'goal_milestones': true,
+          'weekly_summary': true,
+        },
       });
-      expect(tester.widgetList<Switch>(find.byType(Switch)).first.value, isFalse);
+      expect(tester.widgetList<Switch>(find.byType(Switch)).elementAt(1).value, isFalse);
     });
   });
 }
