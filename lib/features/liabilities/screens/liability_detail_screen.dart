@@ -82,6 +82,10 @@ class LiabilityDetailScreen extends ConsumerWidget {
                 padding: const EdgeInsets.fromLTRB(16, 16, 16, 16 + _kFabClearance),
                 children: [
                   _Header(liability: liability),
+                  if (liability.needsReview) ...[
+                    const SizedBox(height: 16),
+                    _ReviewBanner(liability: liability),
+                  ],
                   const SizedBox(height: 24),
                   _ProgressSection(liability: liability),
                   const SizedBox(height: 24),
@@ -103,9 +107,9 @@ class LiabilityDetailScreen extends ConsumerWidget {
         onPressed: () => showModalBottomSheet(
           context: context,
           isScrollControlled: true,
-          builder: (_) => _LogPaymentSheet(liabilityId: liability.id),
+          builder: (_) => _LogPaymentSheet(liabilityId: liability.id, extraOnly: liability.isAmortising),
         ),
-        label: const Text('Log payment'),
+        label: Text(liability.isAmortising ? 'Log extra payment' : 'Log payment'),
         icon: const Icon(Icons.add),
       ),
     );
@@ -128,7 +132,83 @@ class _Header extends StatelessWidget {
         ),
         const SizedBox(height: 4),
         Text(formatZAR(liability.outstandingAmount), style: moneyTextStyle(context, fontSize: 28)),
+        if (liability.isAmortising) ...[
+          const SizedBox(height: 4),
+          Text(
+            'Goes down with each instalment by itself. Update it from a statement if it drifts.',
+            style: TextStyle(color: semantic?.textMuted, fontSize: 13),
+          ),
+        ],
       ],
+    );
+  }
+}
+
+/// Shown on loans whose balance may have counted logged payments twice
+/// before balances were anchored (decision D4: flag, don't fix).
+class _ReviewBanner extends ConsumerStatefulWidget {
+  const _ReviewBanner({required this.liability});
+  final Liability liability;
+
+  @override
+  ConsumerState<_ReviewBanner> createState() => _ReviewBannerState();
+}
+
+class _ReviewBannerState extends ConsumerState<_ReviewBanner> {
+  bool _busy = false;
+
+  Future<void> _confirm() async {
+    setState(() => _busy = true);
+    try {
+      await ref.read(liabilitiesApiProvider).update(widget.liability.id, needsReview: false);
+      ref
+        ..invalidate(liabilitiesProvider)
+        ..invalidate(netWorthProvider);
+    } on ApiError catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                IconChip(icon: Icons.fact_check_outlined),
+                SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'Check this balance against your latest statement. Payments logged for '
+                    'months before you added this loan may have been counted twice.',
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 8,
+              children: [
+                TextButton(
+                  onPressed: _busy ? null : _confirm,
+                  child: const Text('Balance is right'),
+                ),
+                FilledButton.tonal(
+                  onPressed: _busy ? null : () => showLiabilitySheet(context, existing: widget.liability),
+                  child: const Text('Update balance'),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -251,7 +331,9 @@ class _PaymentRow extends ConsumerWidget {
     final confirmed = await confirmDestroy(
       context,
       title: 'Delete payment?',
-      message: "This restores the outstanding balance by this payment's principal portion. This cannot be undone.",
+      message: payment.isExtra
+          ? 'If this payment lowered the balance, deleting it puts that amount back. This cannot be undone.'
+          : 'This payment is a record only, so the balance stays the same. This cannot be undone.',
     );
     if (!confirmed) return;
     try {
@@ -266,8 +348,12 @@ class _PaymentRow extends ConsumerWidget {
 }
 
 class _LogPaymentSheet extends ConsumerStatefulWidget {
-  const _LogPaymentSheet({required this.liabilityId});
+  const _LogPaymentSheet({required this.liabilityId, required this.extraOnly});
   final String liabilityId;
+
+  /// On a loan that follows its repayment schedule, regular instalments are
+  /// already counted, so this sheet logs only money paid on top (D2).
+  final bool extraOnly;
 
   @override
   ConsumerState<_LogPaymentSheet> createState() => _LogPaymentSheetState();
@@ -344,7 +430,14 @@ class _LogPaymentSheetState extends ConsumerState<_LogPaymentSheet> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text('Log payment', style: Theme.of(context).textTheme.titleLarge),
+            Text(widget.extraOnly ? 'Log extra payment' : 'Log payment',
+                style: Theme.of(context).textTheme.titleLarge),
+            if (widget.extraOnly) ...[
+              const SizedBox(height: 8),
+              const Text(
+                'Your regular instalments are counted automatically. Log only money you paid on top of them.',
+              ),
+            ],
             const SizedBox(height: 16),
             ListTile(
               contentPadding: EdgeInsets.zero,

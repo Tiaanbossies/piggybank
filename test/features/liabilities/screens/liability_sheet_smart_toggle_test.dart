@@ -166,6 +166,6 @@ void main() {
 
     expect(find.text('Amount owed'), findsNothing);
     expect(find.text('Loan details'), findsNothing);
-    expect(find.widgetWithText(TextField, 'Outstanding amount (ZAR)'), findsOneWidget);
+    expect(find.widgetWithText(TextField, 'Balance on your latest statement (ZAR)'), findsOneWidget);
   });
 }
