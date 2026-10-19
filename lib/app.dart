@@ -8,6 +8,7 @@ import 'core/auth/background_lock_timer.dart';
 import 'core/router/app_router.dart';
 import 'core/theme/app_theme.dart';
 import 'core/theme/theme_mode_provider.dart';
+import 'features/detection/services/detection_setup_service.dart';
 import 'features/detection/services/notification_capture_service.dart';
 
 class PiggybankApp extends ConsumerStatefulWidget {
@@ -30,6 +31,7 @@ class _PiggybankAppState extends ConsumerState<PiggybankApp> with WidgetsBinding
     // foreground timer — see NotificationCaptureService's doc comment for
     // why this isn't a true background WorkManager task.
     _flushDetectionQueue();
+    _syncDetectionAllowlist();
     _detectionFlushTimer = Timer.periodic(const Duration(minutes: 15), (_) => _flushDetectionQueue());
   }
 
@@ -44,6 +46,9 @@ class _PiggybankAppState extends ConsumerState<PiggybankApp> with WidgetsBinding
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
       _flushDetectionQueue();
+      _syncDetectionAllowlist();
+      // Access is granted in system settings, so re-check Home's banner on return.
+      ref.invalidate(notificationAccessMissingProvider);
       if (_backgroundLockTimer.onResumed()) {
         ref.read(authControllerProvider.notifier).lockApp();
       }
@@ -58,6 +63,12 @@ class _PiggybankAppState extends ConsumerState<PiggybankApp> with WidgetsBinding
     // attempt (NotificationCaptureService.flush already treats any
     // ApiError this way) — never worth blocking app startup on.
     unawaited(ref.read(notificationCaptureServiceProvider).flush());
+  }
+
+  void _syncDetectionAllowlist() {
+    // A reinstall wipes the native allowlist; without this it only came
+    // back when the Detection settings screen was opened.
+    unawaited(ref.read(detectionSetupServiceProvider).syncAllowlist());
   }
 
   @override

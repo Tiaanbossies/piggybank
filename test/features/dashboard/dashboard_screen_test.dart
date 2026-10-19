@@ -22,6 +22,7 @@ import 'package:piggybank/features/detection/data/detection_api.dart';
 import 'package:piggybank/features/detection/models/detected_event.dart';
 import 'package:piggybank/features/detection/providers/detection_provider.dart';
 import 'package:piggybank/features/detection/screens/pending_review_screen.dart';
+import 'package:piggybank/features/detection/services/detection_setup_service.dart';
 import 'package:piggybank/features/goals/data/goals_api.dart';
 import 'package:piggybank/features/goals/models/goal.dart';
 import 'package:piggybank/features/goals/providers/goals_provider.dart';
@@ -195,7 +196,7 @@ void main() {
   late _MockAccountsApi mockAccountsApi;
   late _MockSavingsApi mockSavingsApi;
 
-  List<Override> overrides() => [
+  List<Override> overrides({bool accessMissing = false}) => [
         summariesApiProvider.overrideWithValue(mockSummariesApi),
         goalsApiProvider.overrideWithValue(mockGoalsApi),
         budgetsApiProvider.overrideWithValue(mockBudgetsApi),
@@ -204,6 +205,7 @@ void main() {
         detectionApiProvider.overrideWithValue(mockDetectionApi),
         accountsApiProvider.overrideWithValue(mockAccountsApi),
         savingsApiProvider.overrideWithValue(mockSavingsApi),
+        notificationAccessMissingProvider.overrideWith((ref) async => accessMissing),
       ];
 
   /// Home inside a router, for taps that now switch tabs (UX rework Step 1).
@@ -818,6 +820,22 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.byType(PendingReviewScreen), findsOneWidget);
+    });
+  });
+
+  group('Notification access banner', () {
+    testWidgets('shows on Home when capture is set up but access is off', (tester) async {
+      await pumpApp(tester, const DashboardScreen(), overrides: overrides(accessMissing: true), useAppTheme: true);
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('notification-access-banner')), findsOneWidget);
+    });
+
+    testWidgets('hidden otherwise', (tester) async {
+      await pumpApp(tester, const DashboardScreen(), overrides: overrides(), useAppTheme: true);
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('notification-access-banner')), findsNothing);
     });
   });
 
