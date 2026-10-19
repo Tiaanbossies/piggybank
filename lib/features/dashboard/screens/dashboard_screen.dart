@@ -84,6 +84,7 @@ class DashboardScreen extends ConsumerWidget {
             padding: const EdgeInsets.fromLTRB(AppSpace.gutter, AppSpace.s8, AppSpace.gutter, AppSpace.fabInset),
             children: const [
               _UpdateBanner(),
+              NotificationAccessBanner(),
               ReviewBanner(),
               LeftToSpendHero(),
               SizedBox(height: AppSpace.sectionGap),
