@@ -109,4 +109,4 @@ The **visual rework epic** (#50–#65) and **QA pass 1** (#66–#76, backend #23
 - **`formatZAR`** uses U+00A0 (no-break) spaces, so test literals must too.
 - **Firecrawl:** run searches one at a time (parallel calls get a 429).
 - **Stitch:** generate calls time out client-side but finish server-side, so poll with `get_project`. Say "MOBILE ONLY, 390px". Use only the 4 Penny cutouts in `assets/penny/`.
-- **Release symbols** for every version are in `02_Clients/Piggybank App/Piggybank - Ops/symbols/`.
+- **Release symbols** for every version are in `02_Clients/Piggybank App/ops/symbols/`.

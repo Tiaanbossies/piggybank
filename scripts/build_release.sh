@@ -27,5 +27,5 @@ flutter build apk --release --obfuscate --split-debug-info="$SYMBOLS_DIR" --dart
 
 echo
 echo "Done. Back up ${SYMBOLS_DIR} outside the repo (e.g. alongside the release keystore in"
-echo "'Piggybank - Ops/') before discarding this build directory — without it, a crash report"
+echo "'ops/') before discarding this build directory — without it, a crash report"
 echo "from this exact release build can't be symbolicated back to readable Dart source."
