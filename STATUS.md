@@ -1,6 +1,6 @@
 # Piggybank: status
 
-**As of 2026-10-13 (evening SAST); partly updated 2026-10-19 (PR merges, monetisation decisions).** This page is the one place that says where Piggybank stands. Session files and memories point here.
+**As of 2026-10-13 (evening SAST); partly updated 2026-10-19 (PR merges, monetisation decisions) and 2026-10-24 (deploy check, distribution decision, founder review update).** This page is the one place that says where Piggybank stands. Session files and memories point here.
 
 **Verified** means checked today against GitHub, the live host, or the repo. **UNVERIFIED** means it was carried over from notes.
 
@@ -10,14 +10,15 @@
 
 | What | State | How verified |
 |---|---|---|
-| App on `master` | **1.0.9+10**, `a342543` (#76) | `git show origin/master:pubspec.yaml` |
+| App on `master` | **1.0.10+11**, `1e9f57c` (#84). Since 1.0.9+10: #79 (notification capture no longer fails silently), #80 (version bump), #81 to #84 (docs, test, workspace cleanup). **UNVERIFIED:** whether a 1.0.10+11 APK has been published | `git log origin/master`, `pubspec.yaml` (2026-10-24) |
 | Published APK | `downloads/piggybank-latest.apk`, 61,956,520 bytes, last-modified 13 Oct 11:14 UTC | `curl -I http://100.121.165.7/downloads/...` |
-| Backend on `main` | `782fc53` (#30) | `git log origin/main` |
-| Backend running on host | `782fc53`, container healthy, bound on **both** `100.121.165.7:8000` and `127.0.0.1:8000` | ssh `mcp@100.121.165.7`: `git log -1`, `docker ps` |
-| Database migrations | alembic `99f23b1bebc5 (head)` | `docker exec … alembic current` |
+| Backend on `main` | `d35db82` (#35). Since #30: #31, #32, #33 (Penny error messages, Funnel deploy fix), #34, #35 | `git log origin/main` (2026-10-24) |
+| Backend running on host | **`f3112be`** (the #33 branch tip), which contains #31 and #32; its `backend/` tree is identical to `main`. Backend healthy, Caddy and Postgres up 3 days, still bound on **both** `100.121.165.7:8000` and `127.0.0.1:8000`. `/api/health` → `{"status":"ok","ai_features_enabled":true}` | `sudo -n /usr/local/sbin/piggybank-status` on fynbos-server (2026-10-24); `git merge-base --is-ancestor`, `git diff` |
+| Database migrations | alembic `99f23b1bebc5 (head)` on 2026-10-13. **UNVERIFIED since:** #32's migration `7c1e9a4b2d63` runs on container start, so the host should now read it, but `alembic current` was not re-run (the status command doesn't show it) | `docker exec … alembic current` |
 | Public HTTPS (Tailscale Funnel) | `https://tiaanbossies-h81m-ds2.tail886b94.ts.net/api/health` → 200 | curl |
 | Tailnet health | `http://100.121.165.7:8000/api/health` → `{"status":"ok","ai_features_enabled":true}` | curl |
-| Open PRs | None. Backend **#32** and app **#78** (loans anchor) were **merged 2026-10-13 ~17:35 UTC** (checked 2026-10-19). **UNVERIFIED:** whether #32 is deployed (host alembic should read `7c1e9a4b2d63`) | `gh pr view` |
+| Open PRs | None in the app. Backend **#32** and app **#78** (loans anchor) were **merged 2026-10-13 ~17:35 UTC**. **#32 is deployed** (host code checked 2026-10-24) | `gh pr view` |
+| Who gets Pro | **Every new account is created as Pro, with no end date** (deliberate promo in `subscriptions/deps.py`). `plans/founder-review-fixes.md` PR 1 adds the end date (`PRO_PROMO_UNTIL`, 28 Feb 2027); not started | `deps.py` on `main` (2026-10-24) |
 | Off-host backups | **Not installed.** No backup cron or timer on the host, and `BACKUP_*` is unset in `.env.docker`. `make restore-check` has never run | ssh: cron.d, `systemctl list-timers`, env keys |
 | Server keys (names only) | `TAVILY_API_KEY` **unset**; `OLLAMA_BASE_URL` **set**; `SMTP_HOST` **unset**; `BACKEND_BIND=100.121.165.7`; `COMPOSE_FILE` unset | ssh, grep of key names (no values read) |
 
@@ -40,7 +41,7 @@
 |---|---|---|---|
 | 1 | **Cost-cutting / "afford the rent"** (`plans/cost-cutting-plan.md`) | **Code shipped, acceptance open.** All 8 PRs are merged (backend #12–#15, app #30–#33) and live since 1.0.7 | **None of the 6 acceptance boxes is ticked.** Tiaan needs to: set the rent target; back-fill 3–6 months via CSV so detection has history; confirm the recurring list; enter his policies. Penny's sourced answer can't pass while `TAVILY_API_KEY` is unset (D1 says "keep Tavily"). |
 | 2 | **Daily driver** (sprint from 2026-09-22) | **In progress, not measured.** Auto-capture, one-tap review and the UX and visual reworks are all shipped | The 14-day streak has not been reported as started. The filter-report `would_drop_real` check has not been done. The three metrics (14 days, ≥80% auto-captured, under 1 min/day) are unmeasured. |
-| 3 | **Friends & family beta, wave 1** (~2026-11-23, 3–5 Android testers; `plans/next-goal-friends-family-beta.md`) | **Paused behind #1; infrastructure half ready** | Public HTTPS is live. Backups, the Play account, an Information Officer, and the device pass on mobile data are all open (§3). |
+| 3 | **Friends & family beta, wave 1** (~2026-11-23; `plans/next-goal-friends-family-beta.md`) | **Paused behind #1; infrastructure half ready.** Now a **Play closed test with 12 testers** (decided 2026-10-24), not 3–5 sideloaded installs: 12 for 14 days clears Play's production gate and gives a pricing signal | Public HTTPS is live. Backups, the Play account, an Information Officer, the device pass on mobile data, and the Pro promo end date (founder-review-fixes PR 1) are all open (§3). |
 
 The **visual rework epic** (#50–#65) and **QA pass 1** (#66–#76, backend #23/#27/#29/#30) are **closed**. Only device pass 2 remains for them.
 
@@ -54,19 +55,20 @@ The **visual rework epic** (#50–#65) and **QA pass 1** (#66–#76, backend #23
 | 2 | **Cost-cutting acceptance**: target, CSV back-fill, recurring list, policies | **Tiaan** (his own data) | None | `plans/cost-cutting-plan.md` §Acceptance |
 | 3 | **Tavily key** for Penny's policy research (D1) | **Tiaan** (account + host env) | Decision: keep Tavily or drop that criterion | cost-cutting D1; host env |
 | 4 | **Liability from-pattern bug**: `POST /liabilities/from-pattern` sets `outstanding_amount = monthly_amount`, which lowers net worth by one month's cost (still at `liabilities/router.py:94` on `main`) | **Fixed: backend #31 merged 2026-10-13**, CI green on `main`. **Tiaan** deploys | Deploy (no migration) | cost-cutting §Side findings |
-| 5 | **Loans source of truth**: balances froze and back-logged payments double-counted | **Decided (all recommended, D1c–D4i) and built:** backend **#32** (anchor + nightly roll-forward, migration `7c1e9a4b2d63`) and app **#78** ("Log extra payment", statement date, review banner). **Both merged 2026-10-13.** **Tiaan** deploys the backend **first**, then ships the app in the next release | Deploy, then release | `plans/loans-source-of-truth.md` |
+| 5 | **Loans source of truth**: balances froze and back-logged payments double-counted | **Decided (all recommended, D1c–D4i) and built:** backend **#32** (anchor + nightly roll-forward, migration `7c1e9a4b2d63`) and app **#78** ("Log extra payment", statement date, review banner). **Both merged 2026-10-13. Backend #32 deployed** (checked 2026-10-24); #31 too. App #78 is in 1.0.10+11 on `master` | Publish the 1.0.10+11 APK if not done | `plans/loans-source-of-truth.md` |
 | 6 | **Backups**: install the cron, the `age` key and the off-host target, then run `make restore-check` | **Tiaan** (host root/accounts) | None; **blocks beta invites** | backend #19, runbook |
 | 7 | **BACKEND_BIND flip** to `127.0.0.1` and drop the funnel override | **Tiaan** on the host | Several days of 1.0.9 on mobile data first (#1); flipping early cuts off 1.0.8 installs | prebeta memory |
 | 8 | **SMTP_\*** in `.env.docker` | **Tiaan** | Pick a provider | qa_pass1 memory |
 | 9 | **RA unit-trust questions** (#74 §5), including the RA limit bug (R36k vs 27.5% capped at R350k/R430k) | **Tiaan** answers; **Claude** builds | 3 questions | app #74 |
-| 10 | **Play developer account** (~R450 once; new personal account means 12 testers for 14 days before production) | **Tiaan** | Money/identity | pre-beta research |
+| 10 | **Play developer account** (US$25 once, about R450; government ID and a card in your name; new personal accounts need **12 testers opted in for 14 days** before production) | **Tiaan** | Money/identity. **Now on the critical path:** wave 1 runs as a Play closed test (item 17) | `reviews/2026-10-24-founder-pricing-full.md` §7 |
 | 11 | **Information Officer** registration (POPIA) | **Tiaan** | None | pre-beta research, backend #22 |
 | 12 | **Operator register Tavily row**: mark it "not configured, no data sent" (verified today) | **Claude** (docs PR) | Tiaan's go | prebeta session |
 | 13 | **Optional `COMPOSE_FILE`** in the host `.env.docker`, so a plain `docker compose up` keeps the Funnel override | **Tiaan** (host) | Offered, not answered | qa_pass1 memory |
 | 14 | **Local repo housekeeping**: see below | **Claude**, on Tiaan's yes | None | git |
 | 15 | **Ollama 5-concurrent-chat latency test; Android 15 notification-capture test** | **Tiaan** (device) / **Claude** (load script) | None | pre-beta research |
 | 16 | **Filter-report check** (`/api/detection/filter-report`, `would_drop_real`) | **Claude** can read it if Tiaan shares a token, or **Tiaan** | Auth | sprint-goal memory |
-| 17 | **Monetisation** (decided 2026-10-19): Piggybank is meant to earn money; not VAT-registered; distribution stays **sideload only**; R29/mo founding price approved. Paid Pro stays **off** until the beta proves it | **Tiaan** opens a **live PayFast merchant account** (none exists, only sandbox) before any paid launch | Merchant account | `reviews/2026-10-19-founder-pricing-full.md` §6, §11 |
+| 17 | **Monetisation and distribution.** Decided 2026-10-19: Piggybank is meant to earn money; not VAT-registered; R29/mo founding price approved (12 months, beta testers + first 50 payers). **Decided 2026-10-24 (Tiaan), replacing "sideload only":** beta wave 1 runs as a **Google Play closed test**, and the paid launch uses **Google Play Billing** (15% fee in SA, ZAR payouts). In-app PayFast goes, as `plans/founder-review-fixes.md` PR 1 already plans; a gateway (PayFast or Paystack) is kept only for a possible future web sign-up, so a live PayFast merchant account is **no longer needed** for the paid launch. Play's user choice billing was rejected: it costs more at R49. Paid Pro stays **off** until the beta proves it | **Tiaan**: Play developer account (item 10). **Claude**: founder-review-fixes PR 1 | Play account | `reviews/2026-10-24-founder-pricing-full.md` §7, §11 |
+| 18 | **Founder review update (2026-10-24) findings to act on:** (a) banks already stop/reverse debit orders in-app, so Pro sells *finding* recurring costs across banks; (b) plan on ~2% paid conversion, not 5%; (c) debit-order dispute window is now 60 days (PASA, 13 Apr 2026); (d) proposed beta additions: "where to stop it" link per bank and a new-debit-order alert with 60-day countdown; (e) Vault22 (ex-22seven) is the main competitor to watch; (f) the app requests no SMS permission, so Play's SMS policy doesn't apply, but expect a review question on notification-listener use; (g) Android developer verification goes global in 2027 | **Tiaan** decides (d); **Claude** plans and builds it on a yes | Tiaan's yes on (d) | `reviews/2026-10-24-founder-pricing-full.md` §1, §5, §6.3, §7 |
 
 **Local repo housekeeping (item 14):**
 - The app checkout is on the unpushed `fix/publish-download-url` (`9d9d429`), which is mostly redundant after backend #30.
