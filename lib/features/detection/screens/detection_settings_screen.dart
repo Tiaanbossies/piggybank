@@ -9,6 +9,7 @@ import '../../consent/data/consents_api.dart';
 import '../models/email_source.dart';
 import '../models/gmail_connection_status.dart';
 import '../models/notification_source.dart';
+import '../native/notification_listener_channel.dart';
 import '../providers/detection_provider.dart';
 import 'pending_review_screen.dart';
 
@@ -134,20 +135,26 @@ class _DetectionSettingsScreenState extends ConsumerState<DetectionSettingsScree
 
   String _senderSummary(String packageName) {
     final allowed = _senderAllowlist[packageName] ?? const [];
+    if (allowed.isEmpty && messagingPackages.contains(packageName)) return '$packageName — no senders ticked, nothing read';
     if (allowed.isEmpty) return '$packageName — all senders';
     return '$packageName — ${allowed.join(', ')}';
   }
 
   Future<void> _editSenders(NotificationSource source) async {
+    // Refreshed here: senders arrive while the screen is open.
+    final seen = await ref.read(notificationListenerChannelProvider).seenSenders();
+    if (!mounted) return;
+    setState(() => _seenSenders = seen);
     final result = await showDialog<List<String>>(
       context: context,
       builder: (context) => _SenderAllowlistDialog(
         appLabel: source.appLabel,
         seen: _seenSenders[source.appPackageName] ?? const [],
         allowed: _senderAllowlist[source.appPackageName] ?? const [],
+        messaging: messagingPackages.contains(source.appPackageName),
       ),
     );
-    if (result == null) return;
+    if (result == null || !mounted) return;
 
     final next = {..._senderAllowlist};
     if (result.isEmpty) {
@@ -177,6 +184,8 @@ class _DetectionSettingsScreenState extends ConsumerState<DetectionSettingsScree
       await _syncAllowlistToDevice(next);
       if (!mounted) return;
       setState(() => _sources = next);
+      // A messaging app reads nothing until a sender is ticked, so ask now.
+      if (messagingPackages.contains(added.appPackageName)) await _editSenders(added);
     } on ApiError catch (e) {
       if (mounted) setState(() => _error = e.message);
     }
@@ -545,7 +554,7 @@ class _AddSourceDialogState extends State<_AddSourceDialog> {
 /// recalls on demand. Senders already allowed but not seen recently are kept
 /// in the list so that saving never quietly drops one.
 ///
-/// Selecting nothing means "all senders" rather than "no senders": an empty
+/// Outside messaging apps, selecting nothing means "all senders" rather than "no senders": an empty
 /// allowlist is how the native filter says the check is off for this app,
 /// and a dialog that could silence an app entirely would be a foot-gun with
 /// no feedback — the app would simply stop producing transactions.
@@ -554,11 +563,16 @@ class _SenderAllowlistDialog extends StatefulWidget {
     required this.appLabel,
     required this.seen,
     required this.allowed,
+    this.messaging = false,
   });
 
   final String appLabel;
   final List<String> seen;
   final List<String> allowed;
+
+  /// For a messaging app an empty selection means "read nothing", not
+  /// "read everything" (the native filter's rule for those apps).
+  final bool messaging;
 
   @override
   State<_SenderAllowlistDialog> createState() => _SenderAllowlistDialogState();
@@ -567,6 +581,24 @@ class _SenderAllowlistDialog extends StatefulWidget {
 class _SenderAllowlistDialogState extends State<_SenderAllowlistDialog> {
   late final List<String> _options = {...widget.allowed, ...widget.seen}.toList()..sort();
   late final Set<String> _selected = {...widget.allowed};
+  final _typed = TextEditingController();
+
+  @override
+  void dispose() {
+    _typed.dispose();
+    super.dispose();
+  }
+
+  // A bank's short-name is often known before its first SMS arrives.
+  void _addTyped() {
+    final sender = _typed.text.trim();
+    if (sender.isEmpty) return;
+    setState(() {
+      if (!_options.contains(sender)) _options.add(sender);
+      _selected.add(sender);
+      _typed.clear();
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -574,17 +606,36 @@ class _SenderAllowlistDialogState extends State<_SenderAllowlistDialog> {
       title: Text('Senders in ${widget.appLabel}'),
       content: SizedBox(
         width: double.maxFinite,
-        child: _options.isEmpty
-            ? const Text(
-                'No senders seen from this app yet. Leave this until a few '
-                'notifications have come through, then everything it sends '
-                'will be listed here.',
-              )
-            : Column(
+        child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Leave all unticked to accept every sender.'),
+                  Text(
+                    widget.messaging
+                        ? 'Only messages from senders you tick are read.'
+                        : 'Leave all unticked to accept every sender.',
+                  ),
+                  if (_options.isEmpty) ...[
+                    const SizedBox(height: 8),
+                    const Text(
+                      "No senders seen from this app yet. Type your bank's "
+                      'sender name below, or come back after it has sent a message.',
+                    ),
+                  ],
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: _typed,
+                    decoration: InputDecoration(
+                      labelText: 'Add a sender',
+                      hintText: 'e.g. FNB',
+                      suffixIcon: IconButton(
+                        tooltip: 'Add sender',
+                        icon: const Icon(Icons.add),
+                        onPressed: _addTyped,
+                      ),
+                    ),
+                    onSubmitted: (_) => _addTyped(),
+                  ),
                   const SizedBox(height: 8),
                   Flexible(
                     child: ListView(

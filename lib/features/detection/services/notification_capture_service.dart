@@ -44,7 +44,7 @@ class NotificationCaptureService {
       if (items.isEmpty) return;
       final result = await _api.ingestNotifications(items);
       final acked = result['accepted'] as int? ?? result['processed'] as int? ?? items.length;
-      await _channel.acknowledgeQueuedItems(acked);
+      await _channel.acknowledgeQueuedItems(acked.clamp(0, items.length));
     } on ApiError {
       // Left queued natively for the next flush attempt — never dropped
       // on a network/API failure.

@@ -28,13 +28,11 @@ import java.util.TimeZone
  * warrant one), shared with MainActivity's platform-channel handler, which
  * is the only other reader/writer of these keys.
  *
- * The finer filter (sprint plan §3 Phase 3) — per-sender allowlist and a
- * currency-amount shape check — runs in SHADOW MODE: its verdict is
- * computed and attached to the queued item, but nothing is dropped on its
- * account. A filter tuned against imagined bank formats is tuned against
- * nothing, so it reports what it would have done for a while first, and
- * `GET /detection/filter-report` says whether it was ever right. The
- * package allowlist above is unaffected and still drops hard.
+ * The finer filter lives in [DetectionFilter]. Its sender checks drop hard
+ * (a messaging app reads nothing until the user ticks a sender); the
+ * currency-amount shape check still runs in SHADOW MODE, attached to the
+ * queued item as `filter_verdict` so `GET /detection/filter-report` can say
+ * whether it would ever have dropped a real transaction.
  */
 class DetectionNotificationListenerService : NotificationListenerService() {
 
@@ -58,25 +56,12 @@ class DetectionNotificationListenerService : NotificationListenerService() {
         val sender = title?.trim()?.takeIf { it.isNotEmpty() }
         val rawText = if (sender == null) body else "$sender: $body"
 
+        // Remembered even when dropped below: the settings dialog can only
+        // offer a bank's sender once the phone has seen it.
         if (sender != null) rememberSeenSender(packageName, sender)
-        enqueue(packageName, rawText, sbn.postTime, sender, verdict(packageName, sender, body))
-    }
-
-    /**
-     * What the finer filter WOULD do with this notification. Nothing acts
-     * on it yet — see the class comment.
-     *
-     * An empty sender allowlist for a package means "not configured", not
-     * "allow nothing": the user has to have listed at least one sender
-     * before absence from the list means anything.
-     */
-    private fun verdict(packageName: String, sender: String?, body: String): String {
-        val allowedSenders = senderAllowlist()[packageName].orEmpty()
-        if (allowedSenders.isNotEmpty() && (sender == null || sender !in allowedSenders)) {
-            return VERDICT_SENDER_NOT_ALLOWED
-        }
-        if (!AMOUNT_SHAPE.containsMatchIn(body)) return VERDICT_NO_AMOUNT_SHAPE
-        return VERDICT_CAPTURE
+        val verdict = DetectionFilter.verdict(packageName, sender, body, senderAllowlist()[packageName].orEmpty())
+        if (DetectionFilter.drops(verdict)) return
+        enqueue(packageName, rawText, sbn.postTime, sender, verdict)
     }
 
     private fun senderAllowlist(): Map<String, Set<String>> =
@@ -91,10 +76,11 @@ class DetectionNotificationListenerService : NotificationListenerService() {
         val seen = readPackageToNames(KEY_SEEN_SENDERS)
         val forPackage = seen[packageName].orEmpty()
         if (sender in forPackage) return
-        if (forPackage.size >= MAX_SEEN_SENDERS_PER_PACKAGE) return
 
+        // Newest kept, oldest evicted: in a messaging app the first 50 names
+        // are mostly people, and the bank's sender must still get a place.
         val updated = JSONObject(prefs().getString(KEY_SEEN_SENDERS, "{}"))
-        updated.put(packageName, JSONArray((forPackage + sender).toList()))
+        updated.put(packageName, JSONArray((forPackage + sender).toList().takeLast(MAX_SEEN_SENDERS_PER_PACKAGE)))
         prefs().edit().putString(KEY_SEEN_SENDERS, updated.toString()).apply()
     }
 
@@ -155,21 +141,5 @@ class DetectionNotificationListenerService : NotificationListenerService() {
         const val MAX_RAW_TEXT_CHARS = 4000
         const val MAX_SENDER_CHARS = 255
         const val MAX_SEEN_SENDERS_PER_PACKAGE = 50
-
-        // Must match FilterVerdict in backend detection/schemas.py — there
-        // is no codegen between the two sides.
-        const val VERDICT_CAPTURE = "capture"
-        const val VERDICT_NO_AMOUNT_SHAPE = "no_amount_shape"
-        const val VERDICT_SENDER_NOT_ALLOWED = "sender_not_allowed"
-
-        /**
-         * A deliberately permissive first cut at "this text mentions money":
-         * R or ZAR immediately before a number. Untuned, because there is no
-         * corpus of real bank SMSes to tune it against yet (plan §4) — and
-         * while it only reports, permissive is the right bias, since a shape
-         * this misses is a transaction the filter would have silently
-         * thrown away.
-         */
-        val AMOUNT_SHAPE = Regex("""(?<![A-Za-z])(?:ZAR|R)\s?\d[\d ,]*(?:\.\d{1,2})?""")
     }
 }

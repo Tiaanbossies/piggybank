@@ -71,12 +71,12 @@ class MainActivity : FlutterFragmentActivity() {
         return enabledListeners.contains(packageName)
     }
 
-    /** Non-destructive: never mutates the stored queue. See
+    /** Never removes an item that may still be uploaded. See
      * NotificationListenerChannel's doc comment for why peek/acknowledge
-     * are split — a failed upload must never lose queued items. */
+     * are split — a failed upload must never lose queued items. The one
+     * mutation is [pruneQueue], for items that must never be sent at all. */
     private fun peekQueuedItems(): List<Map<String, Any?>> {
-        val raw = detectionPrefs().getString(DetectionNotificationListenerService.KEY_QUEUE, "[]")
-        val array = JSONArray(raw)
+        val array = pruneQueue()
         val limit = minOf(array.length(), ingestBatchLimit)
         return (0 until limit).map { i ->
             val obj = array.getJSONObject(i)
@@ -93,6 +93,29 @@ class MainActivity : FlutterFragmentActivity() {
                     ?.let { put("filter_verdict", it) }
             }
         }
+    }
+
+    /**
+     * Drops queued items the sender filter now rejects: items queued before
+     * the filter dropped hard, or from a sender unticked since. Re-run on
+     * every peek so the upload and the later ack see the same queue.
+     */
+    private fun pruneQueue(): JSONArray {
+        val prefs = detectionPrefs()
+        val array = JSONArray(prefs.getString(DetectionNotificationListenerService.KEY_QUEUE, "[]"))
+        val allowlist = readPackageToNames(DetectionNotificationListenerService.KEY_SENDER_ALLOWLIST)
+        val kept = JSONArray()
+        for (i in 0 until array.length()) {
+            val obj = array.getJSONObject(i)
+            val pkg = obj.getString("source_ref")
+            val sender = obj.optString("sender").takeIf { it.isNotEmpty() }
+            val verdict = DetectionFilter.verdict(pkg, sender, obj.getString("raw_text"), allowlist[pkg].orEmpty().toSet())
+            if (!DetectionFilter.drops(verdict)) kept.put(obj)
+        }
+        if (kept.length() != array.length()) {
+            prefs.edit().putString(DetectionNotificationListenerService.KEY_QUEUE, kept.toString()).apply()
+        }
+        return kept
     }
 
     private fun readPackageToNames(key: String): Map<String, List<String>> {
