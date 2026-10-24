@@ -13,9 +13,9 @@ but **PR creation and pushing are left to the user** — a phase's "done" state 
 commit on its own branch, verified, ready for the user to push/PR when they choose.
 
 **Repos involved:**
-- `Piggybank` (this repo, Flutter) — `C:\Fynbos Creative Master\02_Clients\Piggybank`, branch
+- `Piggybank` (this repo, Flutter) — `F:\Fynbos Creative Master\02_Clients\Piggybank App\piggybank-app`, branch
   `master`.
-- `piggybank-backend` (FastAPI) — `C:\Fynbos Creative Master\02_Clients\piggybank-backend`,
+- `piggybank-backend` (FastAPI) — `F:\Fynbos Creative Master\02_Clients\Piggybank App\piggybank-backend`,
   branch `main`. **Different default branch name than this repo** — don't assume `master`.
 
 **Ordering:** all 6 phases are mutually independent (no shared files between any two) and can run

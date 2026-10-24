@@ -12,7 +12,7 @@ Session 3 of the UX rework epic, written 2026-10-09. It turns the approved spec
 - **Regression contract:** `docs/ux-rework/03-capability-inventory.md`. Every step lists
   the rows it moves. A row may move, never vanish.
 - **Principles:** `docs/ux-rework/01-principles.md` (IDs K, N, Y, T, H, P cited in the spec).
-- **Repo:** `C:\Fynbos Creative Master\02_Clients\Piggybank`, GitHub
+- **Repo:** `F:\Fynbos Creative Master\02_Clients\Piggybank App\piggybank-app`, GitHub
   `Tiaanbossies/piggybank`, default branch `master`. Flutter, flutter_riverpod 2.6,
   go_router 14. `gh` is authenticated. The repo has **no CI**, so a step's own
   `flutter analyze` + `flutter test` run is the gate.
