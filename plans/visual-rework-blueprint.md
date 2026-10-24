@@ -19,7 +19,7 @@ cold.
 - **Findings being fixed:** S1–S11 and the M1–M42 baseline in
   `docs/visual-rework/03-visual-audit.md`.
 - **Repo:**
-  - Location: `F:\Fynbos Creative Master\02_Clients\Piggybank`, GitHub
+  - Location: `F:\Fynbos Creative Master\02_Clients\Piggybank App\piggybank-app`, GitHub
     `Tiaanbossies/piggybank`.
   - Stack: Flutter, flutter_riverpod 2.6, go_router 14.
   - CI: the repo has **no CI**, so a step's own `flutter analyze` and `flutter test` are

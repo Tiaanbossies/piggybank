@@ -295,7 +295,7 @@ behaves (chatbot, lock-screen, login-shake, the recent onboarding tour).
 
 **Verification:**
 ```bash
-cd "F:\Fynbos Creative Master\02_Clients\Piggybank"
+cd "F:\Fynbos Creative Master\02_Clients\Piggybank App\piggybank-app"
 flutter analyze
 flutter test
 ```
@@ -339,7 +339,7 @@ imports any of its symbols; `chatbot_screen.dart:27`'s reference is a doc commen
 
 **Verification:**
 ```bash
-cd "F:\Fynbos Creative Master\02_Clients\Piggybank"
+cd "F:\Fynbos Creative Master\02_Clients\Piggybank App\piggybank-app"
 grep -rn "features/insights\|InsightsScreen\|insightsProvider\|InsightsApi" lib/ test/
 flutter analyze
 flutter test
@@ -383,7 +383,7 @@ work applied to the same redirect chain.
 
 **Verification:**
 ```bash
-cd "F:\Fynbos Creative Master\02_Clients\Piggybank"
+cd "F:\Fynbos Creative Master\02_Clients\Piggybank App\piggybank-app"
 flutter test test/core/router/
 ```
 Plus the live walk in step 2 above (screenshots, not an automated test).
@@ -465,7 +465,7 @@ longer exists.
 
 **Verification:**
 ```bash
-cd "F:\Fynbos Creative Master\02_Clients\Piggybank"
+cd "F:\Fynbos Creative Master\02_Clients\Piggybank App\piggybank-app"
 flutter analyze
 flutter test
 ```
@@ -549,7 +549,7 @@ section), it composes the existing single-month one N times.
 
 **Verification:**
 ```bash
-cd "F:\Fynbos Creative Master\02_Clients\Piggybank"
+cd "F:\Fynbos Creative Master\02_Clients\Piggybank App\piggybank-app"
 flutter analyze
 flutter test
 ```
@@ -641,7 +641,7 @@ only" as "doesn't need the rate limiter."
 
 **Verification:**
 ```bash
-cd "F:\Fynbos Creative Master\02_Clients\piggybank-backend\backend"
+cd "F:\Fynbos Creative Master\02_Clients\Piggybank App\piggybank-backend\backend"
 ruff check .
 pytest tests/test_updates.py -v
 pytest
@@ -719,7 +719,7 @@ comparison.
 
 **Verification:**
 ```bash
-cd "F:\Fynbos Creative Master\02_Clients\Piggybank"
+cd "F:\Fynbos Creative Master\02_Clients\Piggybank App\piggybank-app"
 flutter analyze
 flutter test
 ```

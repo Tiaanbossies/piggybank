@@ -209,7 +209,7 @@ already completed the tour) is never surprised by it, on `login()` or `restoreSe
 
 **Verification:**
 ```bash
-cd "F:\Fynbos Creative Master\02_Clients\Piggybank"
+cd "F:\Fynbos Creative Master\02_Clients\Piggybank App\piggybank-app"
 flutter analyze
 flutter test test/core/auth/ test/core/router/
 ```
@@ -269,7 +269,7 @@ same extension used by the chatbot/lock-screen/login-shake animations). No new p
 
 **Verification:**
 ```bash
-cd "F:\Fynbos Creative Master\02_Clients\Piggybank"
+cd "F:\Fynbos Creative Master\02_Clients\Piggybank App\piggybank-app"
 flutter analyze
 flutter test test/features/onboarding/ 2>NUL || echo "no tests yet for these widgets — Step 3 adds screen-level coverage"
 ```
@@ -330,7 +330,7 @@ elsewhere.
 
 **Verification:**
 ```bash
-cd "F:\Fynbos Creative Master\02_Clients\Piggybank"
+cd "F:\Fynbos Creative Master\02_Clients\Piggybank App\piggybank-app"
 flutter analyze
 flutter test
 ```
@@ -394,7 +394,7 @@ already-solved gotchas from that session rather than rediscovering them.
 
 **Verification:**
 ```bash
-cd "F:\Fynbos Creative Master\02_Clients\Piggybank"
+cd "F:\Fynbos Creative Master\02_Clients\Piggybank App\piggybank-app"
 flutter analyze
 flutter test
 ```
