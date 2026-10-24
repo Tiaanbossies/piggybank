@@ -7,29 +7,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:piggybank/core/api/api_client.dart';
 import 'package:piggybank/features/settings/data/subscription_api.dart';
+import 'package:piggybank/features/settings/models/subscription.dart';
 import 'package:piggybank/features/settings/screens/subscription_screen.dart';
-import 'package:url_launcher_platform_interface/url_launcher_platform_interface.dart';
-
-/// Fakes the platform channel `url_launcher` normally uses, so
-/// `launchUrl(...)` in `_upgrade()` succeeds in a widget test without a real
-/// browser/OS involved — mirrors the pattern url_launcher's own docs
-/// recommend for testing callers.
-class _FakeUrlLauncher extends UrlLauncherPlatform {
-  final launched = <String>[];
-
-  @override
-  // ignore: override_on_non_overriding_member
-  get linkDelegate => null;
-
-  @override
-  Future<bool> canLaunch(String url) async => true;
-
-  @override
-  Future<bool> launchUrl(String url, LaunchOptions options) async {
-    launched.add(url);
-    return true;
-  }
-}
 
 class _FakeAdapter implements HttpClientAdapter {
   _FakeAdapter(this.responses);
@@ -66,11 +45,8 @@ SubscriptionApi _apiWith(_FakeAdapter adapter) {
 
 void main() {
   group('SubscriptionScreen', () {
-    testWidgets('shows the Free tier and an Upgrade to Pro button', (tester) async {
-      final adapter = _FakeAdapter([
-        () => _json(200, {'tier': 'free', 'status': 'active', 'current_period_end': null}),
-      ]);
-
+    Future<void> pumpWith(WidgetTester tester, Map<String, dynamic> body) async {
+      final adapter = _FakeAdapter([() => _json(200, body)]);
       await tester.pumpWidget(
         ProviderScope(
           overrides: [subscriptionApiProvider.overrideWithValue(_apiWith(adapter))],
@@ -78,67 +54,54 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
+    }
 
-      expect(find.textContaining('Free', findRichText: true), findsWidgets);
-      expect(find.text('Upgrade to Pro'), findsOneWidget);
-      expect(find.text('Cancel subscription'), findsNothing);
+    testWidgets('promo Pro says it is free during the beta, until the end date', (tester) async {
+      await pumpWith(tester, {
+        'tier': 'pro',
+        'status': 'active',
+        'current_period_end': '2027-02-28T10:00:00Z',
+        'source': 'promo',
+      });
+
+      expect(find.text('Free during the beta, until 28 Feb 2027'), findsOneWidget);
+      expect(find.text('PRO'), findsOneWidget);
     });
 
-    testWidgets('shows Pro tier and a Cancel subscription button, no Upgrade button', (tester) async {
-      final adapter = _FakeAdapter([
-        () => _json(200, {
-              'tier': 'pro',
-              'status': 'active',
-              'current_period_end': '2026-09-22T00:00:00Z',
-            }),
-      ]);
+    testWidgets('Free says paid Pro is coming soon', (tester) async {
+      await pumpWith(tester, {'tier': 'free', 'status': 'active', 'current_period_end': null});
 
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [subscriptionApiProvider.overrideWithValue(_apiWith(adapter))],
-          child: const MaterialApp(home: SubscriptionScreen()),
-        ),
-      );
-      await tester.pumpAndSettle();
+      expect(find.text('Paid Pro is coming soon'), findsOneWidget);
+    });
 
-      expect(find.text('Cancel subscription'), findsOneWidget);
+    testWidgets('there is nothing to buy or cancel in the app', (tester) async {
+      await pumpWith(tester, {'tier': 'free', 'status': 'active', 'current_period_end': null});
+
       expect(find.text('Upgrade to Pro'), findsNothing);
+      expect(find.text('Cancel subscription'), findsNothing);
+      expect(find.byType(ElevatedButton), findsNothing);
+      expect(find.byType(OutlinedButton), findsNothing);
     });
 
-    testWidgets(
-      'tapping Upgrade to Pro starts a checkout, opens it, and shows the waiting state',
-      (tester) async {
-        final fakeLauncher = _FakeUrlLauncher();
-        UrlLauncherPlatform.instance = fakeLauncher;
-
-        final adapter = _FakeAdapter([
-          () => _json(200, {'tier': 'free', 'status': 'active', 'current_period_end': null}),
-          () => _json(200, {
-                'm_payment_id': 'abc-123',
-                'checkout_page_url': '/subscription/checkout/abc-123',
-              }),
-        ]);
-
-        await tester.pumpWidget(
-          ProviderScope(
-            overrides: [subscriptionApiProvider.overrideWithValue(_apiWith(adapter))],
-            child: const MaterialApp(home: SubscriptionScreen()),
+    test('planLine covers promo without an end, and non-promo Pro', () {
+      expect(
+        SubscriptionScreen.planLine(
+          const Subscription(tier: SubscriptionTier.pro, status: SubscriptionStatus.active, currentPeriodEnd: null),
+        ),
+        'Free during the beta',
+      );
+      expect(
+        SubscriptionScreen.planLine(
+          Subscription(
+            tier: SubscriptionTier.pro,
+            status: SubscriptionStatus.active,
+            currentPeriodEnd: DateTime.parse('2027-06-01T10:00:00Z'),
+            source: 'play',
           ),
-        );
-        await tester.pumpAndSettle();
-
-        await tester.tap(find.text('Upgrade to Pro'));
-        await tester.pumpAndSettle();
-
-        // Real gateway now sits in front of granting Pro — tapping Upgrade
-        // must NOT itself flip the tier; it opens PayFast's checkout and
-        // waits for the (out-of-band) ITN webhook to confirm.
-        expect(fakeLauncher.launched, hasLength(1));
-        expect(fakeLauncher.launched.single, contains('/subscription/checkout/abc-123'));
-        expect(find.text('Refresh status'), findsOneWidget);
-        expect(find.text('Cancel subscription'), findsNothing);
-      },
-    );
+        ),
+        'Active until 1 Jun 2027',
+      );
+    });
 
     testWidgets('shows an error message when the fetch fails', (tester) async {
       final adapter = _FakeAdapter([() => _json(500, {'detail': 'server error'})]);

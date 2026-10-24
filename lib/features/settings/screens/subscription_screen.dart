@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/api/api_error.dart';
+import '../../../core/format/dates.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/app_skeleton.dart';
 import '../../../shared/widgets/group_card.dart';
@@ -13,79 +13,25 @@ final _subscriptionProvider = FutureProvider.autoDispose<Subscription>((ref) {
   return ref.watch(subscriptionApiProvider).fetch();
 });
 
-/// Per `stitch-design-brief.md` §8: "plan/tier display, upgrade CTA". As of
-/// Step 6 of `piggybank-launch-readiness.md`, upgrade opens a real PayFast
-/// checkout in the system browser rather than instantly flipping the tier —
-/// Pro is granted asynchronously once PayFast's ITN webhook confirms the
-/// payment, so this screen shows a "waiting" state and lets the user
-/// manually refresh rather than assuming success on browser return.
-class SubscriptionScreen extends ConsumerStatefulWidget {
+/// Per `stitch-design-brief.md` §8: "plan/tier display". Since
+/// founder-review-fixes PR 1 there is nothing to buy or cancel in the app:
+/// Pro is a free beta grant until the backend's `PRO_PROMO_UNTIL`, and paid
+/// Pro will come through Google Play Billing. So this screen only says which
+/// plan you're on and until when.
+class SubscriptionScreen extends ConsumerWidget {
   const SubscriptionScreen({super.key});
 
-  @override
-  ConsumerState<SubscriptionScreen> createState() => _SubscriptionScreenState();
-}
-
-class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
-  bool _submitting = false;
-  String? _actionError;
-  bool _awaitingConfirmation = false;
-
-  Future<void> _upgrade() async {
-    setState(() {
-      _submitting = true;
-      _actionError = null;
-    });
-    try {
-      final url = await ref.read(subscriptionApiProvider).startCheckout();
-      final opened = await launchUrl(url, mode: LaunchMode.externalApplication);
-      if (opened && mounted) {
-        setState(() => _awaitingConfirmation = true);
-      } else if (!opened && mounted) {
-        setState(() => _actionError = 'Could not open the checkout page.');
-      }
-    } on ApiError catch (e) {
-      if (mounted) setState(() => _actionError = e.message);
-    } finally {
-      if (mounted) setState(() => _submitting = false);
+  static String planLine(Subscription sub) {
+    if (sub.tier == SubscriptionTier.free) return 'Paid Pro is coming soon';
+    final end = sub.currentPeriodEnd;
+    if (sub.source == 'promo' || sub.source == null) {
+      return end == null ? 'Free during the beta' : 'Free during the beta, until ${fullDate(end.toLocal())}';
     }
+    return end == null ? 'Active' : 'Active until ${fullDate(end.toLocal())}';
   }
-
-  Future<void> _refreshStatus() async {
-    setState(() => _awaitingConfirmation = false);
-    ref.invalidate(_subscriptionProvider);
-  }
-
-  Future<void> _cancel() => _runAction(() => ref.read(subscriptionApiProvider).cancel());
-
-  Future<void> _runAction(Future<Subscription> Function() action) async {
-    setState(() {
-      _submitting = true;
-      _actionError = null;
-    });
-    try {
-      await action();
-      ref.invalidate(_subscriptionProvider);
-    } on ApiError catch (e) {
-      if (mounted) setState(() => _actionError = e.message);
-    } finally {
-      if (mounted) setState(() => _submitting = false);
-    }
-  }
-
-  String _tierLabel(SubscriptionTier tier) => switch (tier) {
-        SubscriptionTier.free => 'Free',
-        SubscriptionTier.pro => 'Pro',
-      };
-
-  String _statusLabel(SubscriptionStatus status) => switch (status) {
-        SubscriptionStatus.active => 'Active',
-        SubscriptionStatus.cancelled => 'Cancelled',
-        SubscriptionStatus.pastDue => 'Past due',
-      };
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final subAsync = ref.watch(_subscriptionProvider);
     return Scaffold(
       appBar: AppBar(title: const Text('Subscription')),
@@ -120,10 +66,8 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
                         children: [
                           GroupRow(
                             leadingIcon: Icons.workspace_premium_outlined,
-                            title: _tierLabel(sub.tier),
-                            subtitle: sub.currentPeriodEnd != null
-                                ? '${_statusLabel(sub.status)} · renews ${sub.currentPeriodEnd!.toLocal().toString().split(' ').first}'
-                                : _statusLabel(sub.status),
+                            title: sub.tier == SubscriptionTier.pro ? 'Pro' : 'Free',
+                            subtitle: planLine(sub),
                             trailing: _TierBadge(tier: sub.tier),
                           ),
                         ],
@@ -132,55 +76,6 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
                       Text('What Pro unlocks', style: Theme.of(context).textTheme.labelMedium),
                       const SizedBox(height: 8),
                       _FeatureComparisonCard(isPro: sub.tier == SubscriptionTier.pro),
-                      const SizedBox(height: 16),
-                      if (_actionError != null) ...[
-                        Text(_actionError!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
-                        const SizedBox(height: 12),
-                      ],
-                      if (_awaitingConfirmation) ...[
-                        Text(
-                          'Waiting for PayFast to confirm your payment. Complete checkout in the '
-                          'browser, then refresh here.',
-                          style: Theme.of(context).textTheme.bodySmall,
-                        ),
-                        const SizedBox(height: 12),
-                        SizedBox(
-                          width: double.infinity,
-                          child: OutlinedButton.icon(
-                            onPressed: _refreshStatus,
-                            icon: const Icon(Icons.refresh, size: 18),
-                            label: const Text('Refresh status'),
-                          ),
-                        ),
-                      ] else if (sub.tier == SubscriptionTier.free)
-                        SizedBox(
-                          width: double.infinity,
-                          child: ElevatedButton.icon(
-                            onPressed: _submitting ? null : _upgrade,
-                            icon: _submitting ? null : const Icon(Icons.arrow_forward, size: 18),
-                            label: _submitting
-                                ? const SizedBox(
-                                    height: 20,
-                                    width: 20,
-                                    child: CircularProgressIndicator(strokeWidth: 2),
-                                  )
-                                : const Text('Upgrade to Pro'),
-                          ),
-                        )
-                      else
-                        SizedBox(
-                          width: double.infinity,
-                          child: OutlinedButton(
-                            onPressed: _submitting ? null : _cancel,
-                            child: _submitting
-                                ? const SizedBox(
-                                    height: 20,
-                                    width: 20,
-                                    child: CircularProgressIndicator(strokeWidth: 2),
-                                  )
-                                : const Text('Cancel subscription'),
-                          ),
-                        ),
                     ],
                   ),
                 ),

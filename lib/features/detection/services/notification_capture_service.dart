@@ -30,9 +30,12 @@ class NotificationCaptureService {
   bool _flushing = false;
 
   /// Uploads one batch (the backend caps ingest at 25 items per call) and
-  /// acknowledges only what the backend actually reported having
-  /// processed — if the request fails outright, nothing is acknowledged
-  /// and the same items are retried on the next flush.
+  /// acknowledges what the backend reports having `accepted`: every item it
+  /// received, allowlisted or not. `processed` counts allowlisted items
+  /// only, so acking by it left rejected items to be re-sent forever; it is
+  /// the fallback for a backend older than founder-review-fixes PR 1. If
+  /// the request fails outright, nothing is acknowledged and the same items
+  /// are retried on the next flush.
   Future<void> flush() async {
     if (_flushing) return; // one flush at a time
     _flushing = true;
@@ -40,8 +43,8 @@ class NotificationCaptureService {
       final items = await _channel.peekQueuedItems();
       if (items.isEmpty) return;
       final result = await _api.ingestNotifications(items);
-      final processed = result['processed'] as int? ?? items.length;
-      await _channel.acknowledgeQueuedItems(processed);
+      final acked = result['accepted'] as int? ?? result['processed'] as int? ?? items.length;
+      await _channel.acknowledgeQueuedItems(acked);
     } on ApiError {
       // Left queued natively for the next flush attempt — never dropped
       // on a network/API failure.

@@ -55,8 +55,8 @@ class DetectionApi {
   /// are `{source_ref, raw_text, captured_at}` maps straight from the
   /// native queue (`NotificationListenerChannel.peekQueuedItems`) — same
   /// shape the backend's `IngestNotificationItem` expects, so no reshaping
-  /// happens here. Returns the raw `IngestResult` fields; the caller only
-  /// needs `processed` to know how many items to acknowledge.
+  /// happens here. Returns the raw `IngestResult` fields; the caller acks
+  /// `accepted` items (every item received, allowlisted or not).
   Future<Map<String, dynamic>> ingestNotifications(List<Map<String, dynamic>> items) async {
     try {
       final response = await _client.dio.post('/detection/ingest/notifications', data: items);

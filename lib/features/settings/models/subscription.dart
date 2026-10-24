@@ -23,12 +23,17 @@ class Subscription {
     required this.tier,
     required this.status,
     required this.currentPeriodEnd,
+    this.source,
     this.message,
   });
 
   final SubscriptionTier tier;
   final SubscriptionStatus status;
   final DateTime? currentPeriodEnd;
+
+  /// Where Pro came from: `promo` (the free beta grant), `play` or `manual`.
+  /// Null on Free, and from a backend older than founder-review-fixes PR 1.
+  final String? source;
   final String? message;
 
   factory Subscription.fromJson(Map<String, dynamic> json) => Subscription(
@@ -36,6 +41,7 @@ class Subscription {
         status: subscriptionStatusFromJson(json['status'] as String),
         currentPeriodEnd:
             json['current_period_end'] == null ? null : DateTime.parse(json['current_period_end'] as String),
+        source: json['source'] as String?,
         message: json['message'] as String?,
       );
 }
