@@ -46,7 +46,7 @@ Steps 4/5/9 each split into lettered sub-steps per the review).
 ## Path convention
 
 `Piggybank` and `piggybank-backend` are **sibling directories** under
-`C:\Fynbos Creative Master\02_Clients\`, not nested. Every path below is given in full
+`F:\Fynbos Creative Master\02_Clients\`, not nested. Every path below is given in full
 from that root, or explicitly marked which repo it's relative to — a cold agent
 starting inside `Piggybank/` will not find `piggybank-backend/...` via a bare
 relative path.
