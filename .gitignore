@@ -51,3 +51,7 @@ app.*.map.json
 # piggybank-privacy-policy), deployed separately via GitHub Pages — not part of this repo.
 privacy-policy-site/
 test/goldens/failures/
+
+# Local-only: design critiques and the Gemini source art (originals of the Penny cutouts).
+.impeccable/
+assets/Gemini Mascot Images/

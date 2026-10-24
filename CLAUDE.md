@@ -26,7 +26,7 @@ Release: `scripts/build_release.sh`, then `scripts/publish_release.sh` (publishe
 - **Never touch `android/key.properties`, keystores or `../Piggybank - Ops/`.** Release signing and symbols live there. Do not open, print or move them.
 - Edit `pubspec.yaml` with `sed`, not PowerShell `Set-Content` (it adds a BOM and mangles em-dashes).
 - Do not hand-edit `build/`, `.dart_tool/`, `android/.gradle` or `.idea/`; they are generated and ignored.
-- Use only the four Penny cutouts in `assets/penny/` for mascot art.
+- Use only the four Penny cutouts in `assets/penny/` for mascot art. The Gemini source art in `assets/Gemini Mascot Images/` is git-ignored, so it has no git backup; keep a copy outside the repo.
 - Money is ZAR. `formatZAR` uses U+00A0 (no-break) spaces, so test literals must too.
 - Do not deploy, push, or message the host without an explicit yes. Remote writes are Tiaan's.
 
