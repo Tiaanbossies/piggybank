@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:piggybank/core/api/api_client.dart';
+import 'package:piggybank/core/api/api_config.dart';
 import 'package:piggybank/core/api/api_error.dart';
 import 'package:piggybank/features/settings/data/subscription_api.dart';
 import 'package:piggybank/features/settings/models/subscription.dart';
@@ -72,7 +73,7 @@ void main() {
 
       expect(
         result,
-        Uri.parse('http://tiaanbossies-h81m-ds2.tail886b94.ts.net:8000/api/subscription/checkout/abc-123'),
+        Uri.parse('${ApiConfig.baseUrl}/subscription/checkout/abc-123'),
       );
       expect(adapter.requestLog.single.path, '/subscription/checkout');
       expect(adapter.requestLog.single.method, 'POST');
