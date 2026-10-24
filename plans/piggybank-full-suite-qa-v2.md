@@ -260,7 +260,7 @@ Step 0's network change. The 2026-08-28 baseline (406/406 Flutter tests, 37 info
 several feature-branches stale.
 
 **Task list:**
-1. Backend: from `C:\Fynbos Creative Master\02_Clients\piggybank-backend\backend` (absolute
+1. Backend: from `F:\Fynbos Creative Master\02_Clients\piggybank-backend\backend` (absolute
    path — don't assume a shell's cwd), run tests via the project's documented runner —
    `make test-backend`, or the `backend-test` Docker Compose profile
    (`docker compose --profile test run --rm backend-test`) per `CLAUDE.md` — rather than a bare

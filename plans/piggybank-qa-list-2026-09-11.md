@@ -11,9 +11,9 @@ commit `0ea9947`, a docs-only commit made directly to master, vs. every code fix
 `fix/*` branch + PR).
 
 **Repos involved:**
-- `C:\Fynbos Creative Master\02_Clients\Piggybank` — Flutter app, remote `origin` →
+- `F:\Fynbos Creative Master\02_Clients\Piggybank` — Flutter app, remote `origin` →
   `Tiaanbossies/piggybank`, default branch `master`.
-- `C:\Fynbos Creative Master\02_Clients\piggybank-backend\backend` — FastAPI backend, remote
+- `F:\Fynbos Creative Master\02_Clients\piggybank-backend\backend` — FastAPI backend, remote
   `origin` → `Tiaanbossies/piggybank-backend`, default branch `main`.
 - Production VPS: `ssh mcp@100.121.165.7`, deploy = `cd ~/piggybank-backend && git pull &&
   docker compose --env-file .env.docker up -d --build`.

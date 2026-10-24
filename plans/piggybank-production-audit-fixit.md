@@ -125,7 +125,7 @@ performance improvement to the same list.
 
 **Verification:**
 ```bash
-cd "C:\Fynbos Creative Master\02_Clients\Piggybank"
+cd "F:\Fynbos Creative Master\02_Clients\Piggybank"
 flutter analyze
 flutter test test/features/transactions/
 ```
@@ -344,7 +344,7 @@ instead of the app's SA convention (comma decimal, "R 5 286 030,50") used everyw
 
 **Verification:**
 ```bash
-cd "C:\Fynbos Creative Master\02_Clients\piggybank-backend"
+cd "F:\Fynbos Creative Master\02_Clients\piggybank-backend"
 docker compose --profile test run --rm backend-test
 ```
 (Note: `docker-compose.yml` lives at the repo root, not under `backend/` — the first draft of
