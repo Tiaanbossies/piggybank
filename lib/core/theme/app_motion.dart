@@ -2,7 +2,7 @@ import 'package:flutter/widgets.dart';
 
 /// Shared motion tokens (durations + curves) so animated widgets across the
 /// app pull from one vocabulary instead of hand-typing values per widget.
-/// Values follow the design-engineering audit run 2026-09 (`animation-plans/`):
+/// Values follow the design-engineering audit run 2026-09 (`docs/archive/animation-plans/`):
 /// strong custom eases (Flutter's built-in `Curves.easeOut` etc. are weaker
 /// than these), UI durations kept under 300ms except where noted.
 abstract final class AppMotion {

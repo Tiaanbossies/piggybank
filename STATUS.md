@@ -71,10 +71,10 @@ The **visual rework epic** (#50–#65) and **QA pass 1** (#66–#76, backend #23
 **Local repo housekeeping (item 14):**
 - The app checkout is on the unpushed `fix/publish-download-url` (`9d9d429`), which is mostly redundant after backend #30.
 - The local `master` is stale.
-- Worktrees `02_Clients/pb-app-land`, `02_Clients/pb-backend-land` and `F:/piggybank-clock` are leftovers.
+- Worktrees `pb-app-land` and `pb-backend-land` were archived on 2026-10-24 (`../_archive/`); the branch is parked, see `docs/BRANCHES.md`. `F:/piggybank-clock` is still a leftover.
 - The backend checkout is on `fix/downloads-redirect` (`d0f15cd`, already merged as #30).
 - About 30 stale local feature branches remain.
-- `plans/device-pass-2-checklist.md` is untracked.
+- `plans/device-pass-2-checklist.md` is now tracked.
 
 ---
 
@@ -109,4 +109,4 @@ The **visual rework epic** (#50–#65) and **QA pass 1** (#66–#76, backend #23
 - **`formatZAR`** uses U+00A0 (no-break) spaces, so test literals must too.
 - **Firecrawl:** run searches one at a time (parallel calls get a 429).
 - **Stitch:** generate calls time out client-side but finish server-side, so poll with `get_project`. Say "MOBILE ONLY, 390px". Use only the 4 Penny cutouts in `assets/penny/`.
-- **Release symbols** for every version are in `02_Clients/Piggybank - Ops/symbols/`.
+- **Release symbols** for every version are in `02_Clients/Piggybank App/Piggybank - Ops/symbols/`.
