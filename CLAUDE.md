@@ -46,7 +46,7 @@ Release: `scripts/build_release.sh`, then `scripts/publish_release.sh` (publishe
 | `DESIGN.md` | Design direction |
 | `QA_FINDINGS.md` | Living QA log; many plans refer to it, so it stays at the root |
 | `docs/` | Design notes, scope docs, `qa/`, `research/`, `ux-rework/`, `visual-rework/` |
-| `docs/archive/` | Finished session reports, old plans, QA screenshots (history only) |
+| `docs/archive/` | Finished session reports and old plans (history only; old QA screenshots live in git history) |
 | `plans/` | Implementation plans, one per piece of work |
 | `reviews/` | Dated reviews and decisions |
 | `docs/BRANCHES.md` | Parked branches worth keeping, with how to resume them |
