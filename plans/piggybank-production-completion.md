@@ -775,9 +775,9 @@ point is a deliberate documented choice.
 ## Step 9a — Google Play: release signing ✅ DONE (2026-08-24 signing, 2026-08-25 build + on-device install + signing fingerprint all verified)
 
 **Outcome:** Keystore generated and gitignore-protected in an untracked 2026-08-24
-session (commit `6576332`, log at `Piggybank - Ops/keystore/keytool-output.log`) —
+session (commit `6576332`, log at `ops/keystore/keytool-output.log`) —
 backed up to Google Drive + Google Password Manager per the user's explicit choice,
-stored outside the repo at `Piggybank - Ops/keystore/piggybank-release.jks`,
+stored outside the repo at `ops/keystore/piggybank-release.jks`,
 referenced from a git-ignored `android/key.properties`.
 `android/app/build.gradle.kts`'s `signingConfigs.release` reads `keyAlias`/
 `keyPassword`/`storeFile`/`storePassword` from that file, replacing the debug

@@ -23,7 +23,7 @@ Release: `scripts/build_release.sh`, then `scripts/publish_release.sh` (publishe
 ## Do not
 
 - **Never run `dart format` on `lib/`.** The repo is not format-clean; it once rewrote 136 files.
-- **Never touch `android/key.properties`, keystores or `../Piggybank - Ops/`.** Release signing and symbols live there. Do not open, print or move them.
+- **Never touch `android/key.properties`, keystores or `../ops/`.** Release signing and symbols live there. Do not open, print or move them.
 - Edit `pubspec.yaml` with `sed`, not PowerShell `Set-Content` (it adds a BOM and mangles em-dashes).
 - Do not hand-edit `build/`, `.dart_tool/`, `android/.gradle` or `.idea/`; they are generated and ignored.
 - Use only the four Penny cutouts in `assets/penny/` for mascot art. The Gemini source art in `assets/Gemini Mascot Images/` is git-ignored, so it has no git backup; keep a copy outside the repo.
