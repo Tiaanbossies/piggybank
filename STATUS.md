@@ -4,6 +4,8 @@
 
 **Verified** means checked today against GitHub, the live host, or the repo. **UNVERIFIED** means it was carried over from notes.
 
+> **Review 2026-11-05:** see `docs/REVIEW-2026-11-05.md` (baseline, findings ledger, beta launch set, 3-evening plan). It supersedes parts of this page: backend **#36 and #37 (founder-review PR 1) are merged but not deployed** (host still on `f3112be`), and **their app half is not built**. Don't deploy them before APK 1.0.11. P0: notification ingest can create duplicate events. `fix/qa1-land-stack` is superseded by trunk: drop it.
+
 ---
 
 ## 1. Shipped state
