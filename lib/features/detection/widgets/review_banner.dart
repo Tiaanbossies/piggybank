@@ -5,6 +5,7 @@ import '../../../core/theme/app_tokens.dart';
 import '../../../shared/widgets/app_banner.dart';
 import '../models/detected_event.dart';
 import '../providers/detection_provider.dart';
+import '../screens/detection_settings_screen.dart';
 import '../screens/pending_review_screen.dart';
 import '../services/detection_setup_service.dart';
 
@@ -68,6 +69,33 @@ class NotificationAccessBanner extends ConsumerWidget {
         message: "Bank notifications aren't being captured. Open App info > ⋮ > "
             'Allow restricted settings, then turn on notification access',
         onTap: () => ref.read(notificationListenerChannelProvider).openSystemSettings(),
+      ),
+    );
+  }
+}
+
+/// "SMS isn't being read": a messaging app (Messages, WhatsApp...) is a
+/// source but no sender is ticked for it, so the sender filter drops all of
+/// its notifications. Existing users hit this on upgrading to 1.0.11, and
+/// before it only a Settings subtitle said so (founder review F11).
+class MessagingSendersBanner extends ConsumerWidget {
+  const MessagingSendersBanner({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final apps = ref.watch(messagingAppsWithoutSendersProvider).valueOrNull ?? const [];
+    if (apps.isEmpty) return const SizedBox.shrink();
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppSpace.rowGap),
+      child: AppBanner(
+        key: const Key('messaging-senders-banner'),
+        icon: Icons.sms_failed_outlined,
+        message: "${apps.join(', ')}: no bank senders ticked, so nothing is read. Tap to choose your bank's senders",
+        onTap: () async {
+          await Navigator.of(context).push(MaterialPageRoute(builder: (_) => const DetectionSettingsScreen()));
+          if (context.mounted) ref.invalidate(messagingAppsWithoutSendersProvider);
+        },
       ),
     );
   }

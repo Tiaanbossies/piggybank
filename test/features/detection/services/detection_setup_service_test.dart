@@ -24,6 +24,8 @@ final _detectionConsent = ConsentRecord(
 
 const _fnb = NotificationSource(id: 's1', appPackageName: 'za.co.fnb.connect.itest', appLabel: 'FNB', isActive: true);
 const _paused = NotificationSource(id: 's2', appPackageName: 'com.capitec.app', appLabel: 'Capitec', isActive: false);
+const _messages =
+    NotificationSource(id: 's3', appPackageName: 'com.google.android.apps.messaging', appLabel: 'Messages', isActive: true);
 
 void main() {
   late MockConsentsApi consents;
@@ -93,6 +95,29 @@ void main() {
       when(() => consents.listAccepted()).thenAnswer((_) async => [_detectionConsent]);
       when(() => api.listNotificationSources()).thenAnswer((_) async => [_paused]);
       expect(await service.needsNotificationAccess(), isFalse);
+    });
+  });
+
+  group('messagingAppsWithoutSenders (F11)', () {
+    setUp(() {
+      when(() => consents.listAccepted()).thenAnswer((_) async => [_detectionConsent]);
+      when(() => api.listNotificationSources()).thenAnswer((_) async => [_fnb, _messages]);
+    });
+
+    test('names an active messaging app with no ticked sender', () async {
+      when(() => channel.senderAllowlist()).thenAnswer((_) async => {});
+      expect(await service.messagingAppsWithoutSenders(), ['Messages']);
+    });
+
+    test('is empty once a sender is ticked', () async {
+      when(() => channel.senderAllowlist()).thenAnswer((_) async => {'com.google.android.apps.messaging': ['FNB']});
+      expect(await service.messagingAppsWithoutSenders(), isEmpty);
+    });
+
+    test('ignores bank apps and skips the device read when no messaging app is a source', () async {
+      when(() => api.listNotificationSources()).thenAnswer((_) async => [_fnb]);
+      expect(await service.messagingAppsWithoutSenders(), isEmpty);
+      verifyNever(() => channel.senderAllowlist());
     });
   });
 }

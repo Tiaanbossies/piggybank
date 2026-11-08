@@ -4,6 +4,20 @@ import 'package:flutter/services.dart';
 /// Phase D). The channel name is a constant shared only by string literal
 /// with the Kotlin side — there's no codegen here, this project has no
 /// other platform channels yet to build shared tooling around.
+/// Apps whose notifications are mostly people, not banks. The native filter
+/// reads nothing from these until the user ticks at least one sender.
+/// Must match `DetectionFilter.MESSAGING_PACKAGES` in Kotlin.
+const messagingPackages = {
+  'com.google.android.apps.messaging',
+  'com.samsung.android.messaging',
+  'com.android.mms',
+  'com.whatsapp',
+  'com.whatsapp.w4b',
+  'org.telegram.messenger',
+  'org.thoughtcrime.securesms',
+  'com.facebook.orca',
+};
+
 class NotificationListenerChannel {
   static const _channel = MethodChannel('za.co.fynboscreative.piggybank/notification_detection');
 

@@ -71,12 +71,12 @@ class MainActivity : FlutterFragmentActivity() {
         return enabledListeners.contains(packageName)
     }
 
-    /** Non-destructive: never mutates the stored queue. See
+    /** Never removes an item that may still be uploaded. See
      * NotificationListenerChannel's doc comment for why peek/acknowledge
-     * are split — a failed upload must never lose queued items. */
+     * are split — a failed upload must never lose queued items. The one
+     * mutation is [pruneQueue], for items that must never be sent at all. */
     private fun peekQueuedItems(): List<Map<String, Any?>> {
-        val raw = detectionPrefs().getString(DetectionNotificationListenerService.KEY_QUEUE, "[]")
-        val array = JSONArray(raw)
+        val array = pruneQueue()
         val limit = minOf(array.length(), ingestBatchLimit)
         return (0 until limit).map { i ->
             val obj = array.getJSONObject(i)
@@ -93,6 +93,37 @@ class MainActivity : FlutterFragmentActivity() {
                     ?.let { put("filter_verdict", it) }
             }
         }
+    }
+
+    /**
+     * Drops queued items the sender filter now rejects: items queued before
+     * the filter dropped hard, or from a sender unticked since. Re-run on
+     * every peek so the upload and the later ack see the same queue.
+     */
+    private fun pruneQueue(): JSONArray {
+        val prefs = detectionPrefs()
+        // A queue that no longer parses can't be recovered item by item; reset it rather than crash every peek.
+        val array = runCatching { JSONArray(prefs.getString(DetectionNotificationListenerService.KEY_QUEUE, "[]")) }
+            .getOrElse {
+                prefs.edit().putString(DetectionNotificationListenerService.KEY_QUEUE, "[]").apply()
+                JSONArray()
+            }
+        val allowlist = readPackageToNames(DetectionNotificationListenerService.KEY_SENDER_ALLOWLIST)
+        val kept = JSONArray()
+        for (i in 0 until array.length()) {
+            // Malformed items are dropped: the upload below needs all three fields and would throw on them.
+            val obj = array.optJSONObject(i) ?: continue
+            val pkg = obj.optString("source_ref").takeIf { it.isNotEmpty() } ?: continue
+            val rawText = obj.optString("raw_text").takeIf { it.isNotEmpty() } ?: continue
+            if (obj.optString("captured_at").isEmpty()) continue
+            val sender = obj.optString("sender").takeIf { it.isNotEmpty() }
+            val verdict = DetectionFilter.verdict(pkg, sender, rawText, allowlist[pkg].orEmpty().toSet())
+            if (!DetectionFilter.drops(verdict)) kept.put(obj)
+        }
+        if (kept.length() != array.length()) {
+            prefs.edit().putString(DetectionNotificationListenerService.KEY_QUEUE, kept.toString()).apply()
+        }
+        return kept
     }
 
     private fun readPackageToNames(key: String): Map<String, List<String>> {

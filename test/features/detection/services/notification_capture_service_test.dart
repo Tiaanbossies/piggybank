@@ -45,6 +45,22 @@ void main() {
     verify(() => mockChannel.acknowledgeQueuedItems(1)).called(1);
   });
 
+  test('acknowledges accepted items, including ones the backend rejected', () async {
+    final items = [
+      {'source_ref': 'za.co.fnb.connect.itest', 'raw_text': 'You spent R150.00', 'captured_at': '2026-09-15T10:00:00Z'},
+      {'source_ref': 'com.whatsapp', 'raw_text': 'hi', 'captured_at': '2026-09-15T10:01:00Z'},
+    ];
+    when(() => mockChannel.peekQueuedItems()).thenAnswer((_) async => items);
+    when(() => mockApi.ingestNotifications(items)).thenAnswer(
+      (_) async => {'accepted': 2, 'processed': 1, 'created': 1, 'skipped_invalid': 0, 'not_financial': 0, 'rejected_not_allowlisted': 1},
+    );
+    when(() => mockChannel.acknowledgeQueuedItems(any())).thenAnswer((_) async {});
+
+    await service.flush();
+
+    verify(() => mockChannel.acknowledgeQueuedItems(2)).called(1);
+  });
+
   test('leaves the queue untouched when the upload fails (nothing lost, retried next flush)', () async {
     final items = [
       {'source_ref': 'za.co.fnb.connect.itest', 'raw_text': 'You spent R150.00', 'captured_at': '2026-09-15T10:00:00Z'},

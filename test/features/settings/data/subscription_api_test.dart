@@ -4,7 +4,6 @@ import 'dart:typed_data';
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:piggybank/core/api/api_client.dart';
-import 'package:piggybank/core/api/api_config.dart';
 import 'package:piggybank/core/api/api_error.dart';
 import 'package:piggybank/features/settings/data/subscription_api.dart';
 import 'package:piggybank/features/settings/models/subscription.dart';
@@ -60,36 +59,19 @@ void main() {
       expect(adapter.requestLog.single.method, 'GET');
     });
 
-    test('startCheckout POSTs /subscription/checkout and resolves the absolute checkout URL', () async {
+    test('fetch parses the promo source', () async {
       final adapter = _FakeAdapter([
         () => _json(200, {
-              'm_payment_id': 'abc-123',
-              'checkout_page_url': '/subscription/checkout/abc-123',
+              'tier': 'pro',
+              'status': 'active',
+              'current_period_end': '2027-02-28T10:00:00Z',
+              'source': 'promo',
             }),
       ]);
-      final api = SubscriptionApi(_clientWith(adapter));
+      final result = await SubscriptionApi(_clientWith(adapter)).fetch();
 
-      final result = await api.startCheckout();
-
-      expect(
-        result,
-        Uri.parse('${ApiConfig.baseUrl}/subscription/checkout/abc-123'),
-      );
-      expect(adapter.requestLog.single.path, '/subscription/checkout');
-      expect(adapter.requestLog.single.method, 'POST');
-    });
-
-    test('cancel POSTs /subscription/cancel and parses the free-tier response', () async {
-      final adapter = _FakeAdapter([
-        () => _json(200, {'tier': 'free', 'status': 'active', 'current_period_end': null}),
-      ]);
-      final api = SubscriptionApi(_clientWith(adapter));
-
-      final result = await api.cancel();
-
-      expect(result.tier, SubscriptionTier.free);
-      expect(adapter.requestLog.single.path, '/subscription/cancel');
-      expect(adapter.requestLog.single.method, 'POST');
+      expect(result.source, 'promo');
+      expect(result.currentPeriodEnd, DateTime.parse('2027-02-28T10:00:00Z'));
     });
 
     test('a failed request throws ApiError, not a raw DioException', () async {
