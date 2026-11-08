@@ -17,10 +17,13 @@ final budgetsApiProvider = Provider<BudgetsApi>((ref) => BudgetsApi(ref.watch(ap
 /// 26 September "this month" is already October.
 class SelectedMonthNotifier extends StateNotifier<DateTime> {
   SelectedMonthNotifier({DateTime Function()? clock, int? salaryDay})
-      : _clock = clock ?? DateTime.now,
+      : _clock = clock ?? _now,
         _salaryDay = salaryDay,
-        _currentMonth = labelForDate((clock ?? DateTime.now)(), salaryDay),
-        super(labelForDate((clock ?? DateTime.now)(), salaryDay));
+        _currentMonth = labelForDate((clock ?? _now)(), salaryDay),
+        super(labelForDate((clock ?? _now)(), salaryDay));
+
+  // package:clock, not DateTime.now, so withClock pins it in tests.
+  static DateTime _now() => clock.now();
 
   final DateTime Function() _clock;
   final int? _salaryDay;
