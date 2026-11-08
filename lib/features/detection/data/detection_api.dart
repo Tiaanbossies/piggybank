@@ -59,7 +59,12 @@ class DetectionApi {
   /// `accepted` items (every item received, allowlisted or not).
   Future<Map<String, dynamic>> ingestNotifications(List<Map<String, dynamic>> items) async {
     try {
-      final response = await _client.dio.post('/detection/ingest/notifications', data: items);
+      // Extraction runs Ollama per chunk (up to 45 s each, backend config.py), so the 15 s default is far too short.
+      final response = await _client.dio.post(
+        '/detection/ingest/notifications',
+        data: items,
+        options: Options(receiveTimeout: const Duration(seconds: 120)),
+      );
       return response.data as Map<String, dynamic>;
     } on DioException catch (e) {
       throw ApiClient.errorFrom(e);

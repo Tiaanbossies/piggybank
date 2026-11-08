@@ -130,7 +130,9 @@ void main() {
     // Parametrized coverage of the enum-to-UI mapping: every AssetType must
     // appear as a selectable dropdown item labelled with its
     // assetTypeLabels entry, so the picker never silently drops a type.
-    for (final type in AssetType.values) {
+    // savingsAccount is the deliberate exception: the backend needs a
+    // savings_preset_id this sheet never sends (422), so new assets can't use it.
+    for (final type in AssetType.values.where((t) => t != AssetType.savingsAccount)) {
       testWidgets('offers "${assetTypeLabels[type]}" as a selectable option for $type', (tester) async {
         final mockApi = _MockAssetsApi();
         when(mockApi.list).thenAnswer((_) async => []);
@@ -153,7 +155,7 @@ void main() {
       });
     }
 
-    testWidgets('every AssetType.values entry is represented in the dropdown menu items', (tester) async {
+    testWidgets('every AssetType except savingsAccount is in the add-asset dropdown', (tester) async {
       final mockApi = _MockAssetsApi();
       when(mockApi.list).thenAnswer((_) async => []);
 
@@ -173,7 +175,7 @@ void main() {
 
       final menuItems = tester.widgetList<DropdownMenuItem<AssetType>>(find.byType(DropdownMenuItem<AssetType>));
       final itemValues = menuItems.map((item) => item.value).toSet();
-      expect(itemValues, AssetType.values.toSet());
+      expect(itemValues, AssetType.values.toSet()..remove(AssetType.savingsAccount));
     });
   });
 }

@@ -102,14 +102,22 @@ class MainActivity : FlutterFragmentActivity() {
      */
     private fun pruneQueue(): JSONArray {
         val prefs = detectionPrefs()
-        val array = JSONArray(prefs.getString(DetectionNotificationListenerService.KEY_QUEUE, "[]"))
+        // A queue that no longer parses can't be recovered item by item; reset it rather than crash every peek.
+        val array = runCatching { JSONArray(prefs.getString(DetectionNotificationListenerService.KEY_QUEUE, "[]")) }
+            .getOrElse {
+                prefs.edit().putString(DetectionNotificationListenerService.KEY_QUEUE, "[]").apply()
+                JSONArray()
+            }
         val allowlist = readPackageToNames(DetectionNotificationListenerService.KEY_SENDER_ALLOWLIST)
         val kept = JSONArray()
         for (i in 0 until array.length()) {
-            val obj = array.getJSONObject(i)
-            val pkg = obj.getString("source_ref")
+            // Malformed items are dropped: the upload below needs all three fields and would throw on them.
+            val obj = array.optJSONObject(i) ?: continue
+            val pkg = obj.optString("source_ref").takeIf { it.isNotEmpty() } ?: continue
+            val rawText = obj.optString("raw_text").takeIf { it.isNotEmpty() } ?: continue
+            if (obj.optString("captured_at").isEmpty()) continue
             val sender = obj.optString("sender").takeIf { it.isNotEmpty() }
-            val verdict = DetectionFilter.verdict(pkg, sender, obj.getString("raw_text"), allowlist[pkg].orEmpty().toSet())
+            val verdict = DetectionFilter.verdict(pkg, sender, rawText, allowlist[pkg].orEmpty().toSet())
             if (!DetectionFilter.drops(verdict)) kept.put(obj)
         }
         if (kept.length() != array.length()) {

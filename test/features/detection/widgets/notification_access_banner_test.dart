@@ -48,4 +48,26 @@ void main() {
     await pump(tester, () async => throw Exception('no channel'));
     expect(find.byKey(const Key('notification-access-banner')), findsNothing);
   });
+
+  group('MessagingSendersBanner (F11)', () {
+    Future<void> pumpSenders(WidgetTester tester, List<String> apps) async {
+      await pumpApp(
+        tester,
+        const MessagingSendersBanner(),
+        useAppTheme: true,
+        overrides: [messagingAppsWithoutSendersProvider.overrideWith((ref) async => apps)],
+      );
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('names the messaging app that reads nothing', (tester) async {
+      await pumpSenders(tester, ['Messages']);
+      expect(find.textContaining('Messages: no bank senders ticked'), findsOneWidget);
+    });
+
+    testWidgets('hidden when every messaging app has a sender', (tester) async {
+      await pumpSenders(tester, []);
+      expect(find.byKey(const Key('messaging-senders-banner')), findsNothing);
+    });
+  });
 }

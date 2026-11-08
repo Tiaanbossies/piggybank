@@ -51,6 +51,21 @@ class DetectionSetupService {
     if ((await _activePackages()).isEmpty) return false;
     return !await _channel.isEnabled();
   }
+
+  /// Labels of active messaging-app sources with no sender ticked. The
+  /// native filter reads nothing from those apps, so after upgrading to the
+  /// sender filter an SMS-only bank silently stops being captured.
+  Future<List<String>> messagingAppsWithoutSenders() async {
+    if (!await _consentAccepted()) return const [];
+    final sources = await _api.listNotificationSources();
+    final messaging = sources.where((s) => s.isActive && messagingPackages.contains(s.appPackageName)).toList();
+    if (messaging.isEmpty) return const [];
+    final allowlist = await _channel.senderAllowlist();
+    return [
+      for (final s in messaging)
+        if ((allowlist[s.appPackageName] ?? const []).isEmpty) s.appLabel,
+    ];
+  }
 }
 
 final detectionSetupServiceProvider = Provider<DetectionSetupService>(
@@ -65,4 +80,9 @@ final detectionSetupServiceProvider = Provider<DetectionSetupService>(
 /// review banner: a failed check shouldn't put an error on Home.
 final notificationAccessMissingProvider = FutureProvider.autoDispose<bool>(
   (ref) => ref.watch(detectionSetupServiceProvider).needsNotificationAccess(),
+);
+
+/// Drives Home's "no senders ticked" banner; errors hide it, as above.
+final messagingAppsWithoutSendersProvider = FutureProvider.autoDispose<List<String>>(
+  (ref) => ref.watch(detectionSetupServiceProvider).messagingAppsWithoutSenders(),
 );

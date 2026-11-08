@@ -195,7 +195,12 @@ class _AssetSheetState extends ConsumerState<_AssetSheet> {
             DropdownButtonFormField<AssetType>(
               initialValue: _assetType,
               decoration: const InputDecoration(labelText: 'Type'),
-              items: [for (final t in AssetType.values) DropdownMenuItem(value: t, child: Text(assetTypeLabels[t]!))],
+              // savings_account needs a savings_preset_id this form never sends (backend 422); only keep it for existing ones.
+              items: [
+                for (final t in AssetType.values)
+                  if (t != AssetType.savingsAccount || widget.existing?.assetType == AssetType.savingsAccount)
+                    DropdownMenuItem(value: t, child: Text(assetTypeLabels[t]!)),
+              ],
               onChanged: (value) => setState(() => _assetType = value ?? _assetType),
             ),
             const SizedBox(height: 16),

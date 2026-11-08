@@ -5,6 +5,7 @@ import 'dart:typed_data';
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:piggybank/core/api/api_client.dart';
+import 'package:piggybank/core/api/api_error.dart';
 
 /// Canned-response fake adapter — one entry per call to the same path,
 /// falling back to the last entry once exhausted.
@@ -198,6 +199,23 @@ void main() {
     });
   });
 
+  group('ApiClient refresh that cannot reach the server', () {
+    test('a 401 whose refresh fails offline surfaces the error without ending the session', () async {
+      var expired = 0;
+      final adapter = _FakeAdapter([() => _json(401, {'detail': 'expired'})]);
+      final client = ApiClient(
+        baseUrl: 'https://api.test',
+        getAccessToken: () => 'token',
+        refreshAccessToken: () async => throw const ApiError(statusCode: 0, message: 'Network error'),
+        onSessionExpired: () => expired++,
+      );
+      client.dio.httpClientAdapter = adapter;
+
+      await expectLater(client.dio.get('/x'), throwsA(isA<DioException>()));
+      expect(expired, 0);
+    });
+  });
+
   group('ApiClient connection-level fallback', () {
     test('a connection-level failure retries once against fallbackBaseUrl and succeeds', () async {
       // `RequestOptions` is mutated in place for the retry (the interceptor
@@ -263,6 +281,25 @@ void main() {
       client.dio.httpClientAdapter = adapter;
 
       await expectLater(client.dio.get('/ping'), throwsA(isA<DioException>()));
+      expect(callCount, 1);
+    });
+
+    test('a receive timeout is never re-sent to the fallback (the server may still be processing it)', () async {
+      var callCount = 0;
+      final adapter = _CallbackAdapter((options) async {
+        callCount++;
+        throw DioException(requestOptions: options, type: DioExceptionType.receiveTimeout);
+      });
+      final client = ApiClient(
+        baseUrl: 'https://api.test',
+        getAccessToken: () => 'token',
+        refreshAccessToken: () async => false,
+        onSessionExpired: () {},
+        fallbackBaseUrl: 'https://fallback.test',
+      );
+      client.dio.httpClientAdapter = adapter;
+
+      await expectLater(client.dio.post('/detection/ingest/notifications'), throwsA(isA<DioException>()));
       expect(callCount, 1);
     });
 

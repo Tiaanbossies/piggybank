@@ -63,17 +63,4 @@ class ImportsApi {
       throw ApiClient.errorFrom(e);
     }
   }
-
-  Future<Map<String, int>> normalizeCategories(String importId) async {
-    try {
-      final response = await _client.dio.post('/imports/$importId/normalize-categories');
-      final data = response.data as Map<String, dynamic>;
-      return {
-        'normalized': data['normalized'] as int,
-        'rules_added': data['rules_added'] as int,
-      };
-    } on DioException catch (e) {
-      throw ApiClient.errorFrom(e);
-    }
-  }
 }

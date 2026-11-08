@@ -35,7 +35,14 @@ class AuthController extends StateNotifier<AuthState> {
       );
       return;
     }
-    final pair = await _authApi.refresh(refreshToken);
+    final TokenPair? pair;
+    try {
+      pair = await _authApi.refresh(refreshToken);
+    } on ApiError {
+      // No signal: keep the stored token so the next open restores the session.
+      state = AuthState.unauthenticated();
+      return;
+    }
     if (pair == null) {
       await _secureStorage.clearRefreshToken();
       state = AuthState.unauthenticated();
