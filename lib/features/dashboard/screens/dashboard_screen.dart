@@ -85,6 +85,7 @@ class DashboardScreen extends ConsumerWidget {
             children: const [
               _UpdateBanner(),
               NotificationAccessBanner(),
+              MessagingSendersBanner(),
               ReviewBanner(),
               LeftToSpendHero(),
               SizedBox(height: AppSpace.sectionGap),

@@ -127,7 +127,7 @@ void main() {
       await addApp(tester, 'com.google.android.apps.messaging', 'Messages');
 
       expect(find.text('Senders in Messages'), findsOneWidget);
-      expect(find.text('Only messages from senders you tick, or that name one, are read.'), findsOneWidget);
+      expect(find.text('Only messages from senders you tick are read. In SMS, one that names a ticked sender also counts.'), findsOneWidget);
 
       await tester.tap(find.widgetWithText(CheckboxListTile, 'FNB'));
       await tester.tap(find.widgetWithText(FilledButton, 'Save'));
@@ -143,7 +143,7 @@ void main() {
       acceptConsent();
 
       await addApp(tester, 'com.whatsapp', 'WhatsApp');
-      expect(find.textContaining('Only messages from senders you tick, or that name one, are read.'), findsOneWidget);
+      expect(find.textContaining('Only messages from senders you tick are read. In SMS, one that names a ticked sender also counts.'), findsOneWidget);
       await tester.tap(find.text('Cancel'));
       await tester.pumpAndSettle();
 

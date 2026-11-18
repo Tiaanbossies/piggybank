@@ -608,25 +608,6 @@ class _ResultCard extends ConsumerStatefulWidget {
 }
 
 class _ResultCardState extends ConsumerState<_ResultCard> {
-  bool _normalizing = false;
-  String? _normalizeMsg;
-
-  Future<void> _normalize() async {
-    setState(() {
-      _normalizing = true;
-      _normalizeMsg = null;
-    });
-    try {
-      final res = await ref.read(importsApiProvider).normalizeCategories(widget.job.id);
-      setState(() =>
-          _normalizeMsg = 'AI normalized ${res['normalized']} descriptions → ${res['rules_added']} rules added.');
-    } on ApiError catch (e) {
-      setState(() => _normalizeMsg = e.message);
-    } finally {
-      if (mounted) setState(() => _normalizing = false);
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final job = widget.job;
@@ -657,15 +638,6 @@ class _ResultCardState extends ConsumerState<_ResultCard> {
                 style: TextStyle(color: Theme.of(context).extension<AppSemanticColors>()?.textMuted, fontSize: 12),
               ),
               Text(formatZAR(job.importedBalance), style: moneyTextStyle(context, fontSize: 24)),
-            ],
-            const SizedBox(height: 12),
-            OutlinedButton(
-              onPressed: _normalizing ? null : _normalize,
-              child: Text(_normalizing ? 'Normalizing...' : 'Normalize with AI'),
-            ),
-            if (_normalizeMsg != null) ...[
-              const SizedBox(height: 8),
-              Text(_normalizeMsg!),
             ],
           ],
         ),

@@ -67,22 +67,4 @@ void main() {
       await expectLater(container.read(importHistoryProvider.future), throwsException);
     });
   });
-
-  group('importsApiProvider normalize wiring (called directly by ImportsScreen)', () {
-    // uploadCsv/ocrReceipt are intentionally not exercised here — both go
-    // through `dio.MultipartFile.fromFile`, which requires a real file on
-    // disk selected via file_picker/image_picker (native platform plugins,
-    // not faked by this test harness). See docs/qa/QA_LOG.md for that gap.
-
-    test('normalizeCategories forwards the importId and returns the parsed counts', () async {
-      when(() => mockApi.normalizeCategories(any()))
-          .thenAnswer((_) async => {'normalized': 3, 'rules_added': 1});
-
-      final api = container.read(importsApiProvider);
-      final result = await api.normalizeCategories('j1');
-
-      expect(result, {'normalized': 3, 'rules_added': 1});
-      verify(() => mockApi.normalizeCategories('j1')).called(1);
-    });
-  });
 }

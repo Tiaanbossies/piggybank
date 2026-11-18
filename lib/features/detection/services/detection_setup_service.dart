@@ -52,6 +52,21 @@ class DetectionSetupService {
     if (!await _channel.isEnabled()) return CaptureProblem.accessOff;
     return await _channel.isConnected() ? CaptureProblem.none : CaptureProblem.notConnected;
   }
+
+  /// Labels of active messaging-app sources with no sender ticked. The
+  /// native filter reads nothing from those apps, so after upgrading to the
+  /// sender filter an SMS-only bank silently stops being captured.
+  Future<List<String>> messagingAppsWithoutSenders() async {
+    if (!await _consentAccepted()) return const [];
+    final sources = await _api.listNotificationSources();
+    final messaging = sources.where((s) => s.isActive && messagingPackages.contains(s.appPackageName)).toList();
+    if (messaging.isEmpty) return const [];
+    final allowlist = await _channel.senderAllowlist();
+    return [
+      for (final s in messaging)
+        if ((allowlist[s.appPackageName] ?? const []).isEmpty) s.appLabel,
+    ];
+  }
 }
 
 /// Why bank notifications aren't reaching Piggybank, if they aren't.
@@ -69,4 +84,9 @@ final detectionSetupServiceProvider = Provider<DetectionSetupService>(
 /// review banner: a failed check shouldn't put an error on Home.
 final captureProblemProvider = FutureProvider.autoDispose<CaptureProblem>(
   (ref) => ref.watch(detectionSetupServiceProvider).captureProblem(),
+);
+
+/// Drives Home's "no senders ticked" banner; errors hide it, as above.
+final messagingAppsWithoutSendersProvider = FutureProvider.autoDispose<List<String>>(
+  (ref) => ref.watch(detectionSetupServiceProvider).messagingAppsWithoutSenders(),
 );

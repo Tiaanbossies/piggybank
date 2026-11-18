@@ -58,13 +58,15 @@ class AuthApi {
     return TokenPair(accessToken: data['access_token'] as String, refreshToken: data['refresh_token'] as String);
   }
 
-  /// Returns null (rather than throwing) on any failure — refresh failure is
-  /// an expected, routine case (expired/revoked token), not exceptional.
+  /// Returns null when the server rejects the token (expired/revoked) — a
+  /// routine case. Throws [ApiError] (statusCode 0) when no response arrived
+  /// at all, so callers keep the stored token instead of logging out offline.
   Future<TokenPair?> refresh(String refreshToken) async {
     try {
       final data = await _post('/auth/refresh', {'refresh_token': refreshToken});
       return TokenPair(accessToken: data['access_token'] as String, refreshToken: data['refresh_token'] as String);
-    } on DioException {
+    } on DioException catch (e) {
+      if (e.response == null) throw ApiClient.errorFrom(e);
       return null;
     }
   }

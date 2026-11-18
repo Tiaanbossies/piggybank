@@ -678,7 +678,7 @@ class _SenderAllowlistDialogState extends State<_SenderAllowlistDialog> {
                 children: [
                   Text(
                     widget.messaging
-                        ? 'Only messages from senders you tick, or that name one, are read.'
+                        ? 'Only messages from senders you tick are read. In SMS, one that names a ticked sender also counts.'
                         : 'Leave all unticked to accept every sender.',
                   ),
                   if (_options.isEmpty) ...[

@@ -212,6 +212,24 @@ void main() {
         expect(controller.state.locked, true);
       });
 
+      test('restoreSession with no signal keeps the stored refresh token (F9)', () async {
+        when(() => mockSecureStorage.readRefreshToken()).thenAnswer((_) async => 'valid_refresh_token');
+        when(() => mockAuthApi.refresh('valid_refresh_token'))
+            .thenThrow(const ApiError(statusCode: 0, message: 'Network error'));
+
+        final controller = AuthController(
+          authApi: mockAuthApi,
+          secureStorage: mockSecureStorage,
+          localAuth: mockLocalAuth,
+          onboardingStore: mockOnboardingStore,
+        );
+
+        await Future.delayed(const Duration(milliseconds: 100));
+
+        expect(controller.state.isAuthenticated, false);
+        verifyNever(() => mockSecureStorage.clearRefreshToken());
+      });
+
       test('restoreSession with no refresh token remains unauthenticated', () async {
         when(() => mockSecureStorage.readRefreshToken())
             .thenAnswer((_) async => null);

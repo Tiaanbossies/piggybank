@@ -21,6 +21,10 @@ Future<bool> tryConnectionFallback(
   if (fallbackBaseUrl == null || err.response != null || err.requestOptions.extra['_fallbackTried'] == true) {
     return false;
   }
+  // The request reached the server and may still be running: re-sending would duplicate it.
+  if (err.type == DioExceptionType.sendTimeout || err.type == DioExceptionType.receiveTimeout) {
+    return false;
+  }
   try {
     final retryOptions = err.requestOptions;
     retryOptions.baseUrl = fallbackBaseUrl;
@@ -111,7 +115,13 @@ class ApiClient {
     }
 
     _refreshInFlight ??= _refreshAccessToken().whenComplete(() => _refreshInFlight = null);
-    final refreshed = await _refreshInFlight!;
+    final bool refreshed;
+    try {
+      refreshed = await _refreshInFlight!;
+    } on ApiError {
+      // Refresh couldn't reach the server: surface the 401, don't end the session.
+      return handler.next(err);
+    }
 
     if (!refreshed) {
       _onSessionExpired();

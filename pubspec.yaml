@@ -16,7 +16,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 1.0.10+11
+version: 1.0.11+12
 
 environment:
   sdk: ^3.13.0
@@ -64,10 +64,11 @@ dev_dependencies:
   flutter_launcher_icons: ^0.14.4
   url_launcher_platform_interface: ^2.3.2
 
-# flutter_launcher_icons config. The source art is the welcoming Penny cutout
-# (assets/penny/welcoming.png) on the hero green #DCEBDD, matching the visual
-# rework spec (docs/visual-rework/04-visual-spec.md section 2). The adaptive
-# foreground keeps Penny inside the 66/108 safe zone.
+# flutter_launcher_icons config. The source art is assets/icon/app_icon.jpg
+# (1.0.11: the piggy bank with a coin, on a flat green that matches #DCEBDD).
+# app_icon.png is that JPG at 1024 px; app_icon_foreground.png is the art keyed
+# off its background, with face, ears, coin and paw inside the 66/108 safe zone
+# and the cropped body edge at ~95 dp, below every launcher mask.
 flutter_launcher_icons:
   android: true
   ios: false # no ios/ platform folder in this project — Android/Google Play only
