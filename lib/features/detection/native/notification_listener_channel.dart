@@ -29,6 +29,18 @@ class NotificationListenerChannel {
     return result ?? false;
   }
 
+  /// Whether the system has actually bound the listener. Access can be
+  /// granted while nothing is delivered (app update, OEM battery kill);
+  /// a `false` here also asks Android to rebind it.
+  Future<bool> isConnected() async {
+    final result = await _channel.invokeMethod<bool>('isNotificationListenerConnected');
+    return result ?? false;
+  }
+
+  /// Opens Android's battery-optimisation list, where the user sets
+  /// Piggybank to "Unrestricted"/"Don't optimise". No permission needed.
+  Future<void> openBatteryOptimizationSettings() => _channel.invokeMethod<void>('openBatteryOptimizationSettings');
+
   /// Opens the system "Notification access" settings page
   /// (`Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS`) — a manual toggle,
   /// not a runtime permission dialog, so this only navigates there.

@@ -205,7 +205,7 @@ void main() {
         detectionApiProvider.overrideWithValue(mockDetectionApi),
         accountsApiProvider.overrideWithValue(mockAccountsApi),
         savingsApiProvider.overrideWithValue(mockSavingsApi),
-        notificationAccessMissingProvider.overrideWith((ref) async => accessMissing),
+        captureProblemProvider.overrideWith((ref) async => accessMissing ? CaptureProblem.accessOff : CaptureProblem.none),
       ];
 
   /// Home inside a router, for taps that now switch tabs (UX rework Step 1).

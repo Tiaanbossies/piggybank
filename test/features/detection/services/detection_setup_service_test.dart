@@ -67,32 +67,44 @@ void main() {
     });
   });
 
-  group('needsNotificationAccess', () {
-    test('true when set up but access is off', () async {
+  group('captureProblem', () {
+    void setUpActive() {
       when(() => consents.listAccepted()).thenAnswer((_) async => [_detectionConsent]);
       when(() => api.listNotificationSources()).thenAnswer((_) async => [_fnb]);
+    }
+
+    test('accessOff when set up but access is off', () async {
+      setUpActive();
       when(() => channel.isEnabled()).thenAnswer((_) async => false);
 
-      expect(await service.needsNotificationAccess(), isTrue);
+      expect(await service.captureProblem(), CaptureProblem.accessOff);
     });
 
-    test('false when access is on', () async {
-      when(() => consents.listAccepted()).thenAnswer((_) async => [_detectionConsent]);
-      when(() => api.listNotificationSources()).thenAnswer((_) async => [_fnb]);
+    test('notConnected when access is on but the listener is not bound', () async {
+      setUpActive();
       when(() => channel.isEnabled()).thenAnswer((_) async => true);
+      when(() => channel.isConnected()).thenAnswer((_) async => false);
 
-      expect(await service.needsNotificationAccess(), isFalse);
+      expect(await service.captureProblem(), CaptureProblem.notConnected);
     });
 
-    test('false without consent, or with no active source', () async {
+    test('none when access is on and the listener is connected', () async {
+      setUpActive();
+      when(() => channel.isEnabled()).thenAnswer((_) async => true);
+      when(() => channel.isConnected()).thenAnswer((_) async => true);
+
+      expect(await service.captureProblem(), CaptureProblem.none);
+    });
+
+    test('none without consent, or with no active source', () async {
       when(() => channel.isEnabled()).thenAnswer((_) async => false);
 
       when(() => consents.listAccepted()).thenAnswer((_) async => []);
-      expect(await service.needsNotificationAccess(), isFalse);
+      expect(await service.captureProblem(), CaptureProblem.none);
 
       when(() => consents.listAccepted()).thenAnswer((_) async => [_detectionConsent]);
       when(() => api.listNotificationSources()).thenAnswer((_) async => [_paused]);
-      expect(await service.needsNotificationAccess(), isFalse);
+      expect(await service.captureProblem(), CaptureProblem.none);
     });
   });
 }

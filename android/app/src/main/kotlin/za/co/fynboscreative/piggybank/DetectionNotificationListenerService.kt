@@ -1,7 +1,9 @@
 package za.co.fynboscreative.piggybank
 
 import android.app.Notification
+import android.content.ComponentName
 import android.content.Context
+import android.os.Build
 import android.content.SharedPreferences
 import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
@@ -37,6 +39,21 @@ import java.util.TimeZone
 class DetectionNotificationListenerService : NotificationListenerService() {
 
     private fun prefs(): SharedPreferences = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+
+    override fun onListenerConnected() {
+        super.onListenerConnected()
+        connectedAt = System.currentTimeMillis()
+    }
+
+    // Access can stay granted while the system has unbound us (app update,
+    // OEM battery kill); ask to be bound again instead of going quiet.
+    override fun onListenerDisconnected() {
+        super.onListenerDisconnected()
+        connectedAt = null
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            requestRebind(ComponentName(this, DetectionNotificationListenerService::class.java))
+        }
+    }
 
     override fun onNotificationPosted(sbn: StatusBarNotification) {
         val packageName = sbn.packageName
@@ -141,5 +158,10 @@ class DetectionNotificationListenerService : NotificationListenerService() {
         const val MAX_RAW_TEXT_CHARS = 4000
         const val MAX_SENDER_CHARS = 255
         const val MAX_SEEN_SENDERS_PER_PACKAGE = 50
+
+        // shortcut: in-memory, so a cold app start reads null until the system
+        // binds us (usually within a second); the banner re-checks on resume.
+        @Volatile
+        var connectedAt: Long? = null
     }
 }

@@ -36,6 +36,28 @@ class DetectionFilterTest {
     }
 
     @Test
+    fun tickedNameInSmsBodyCapturesFromAnyNumber() {
+        // Investec sends from a different long number every time (2026-10-27).
+        val investec = "A payment/transfer from Investec account ending in 0000 for R100.00 was made"
+        assertEquals(VERDICT_CAPTURE, verdict(sms, "+27000000000001", investec, setOf("Investec")))
+        assertEquals(VERDICT_CAPTURE, verdict(sms, null, investec, setOf("investec")))
+    }
+
+    @Test
+    fun bodyMatchNeedsTheWholeWordAndOnlyAppliesToMessagingApps() {
+        assertEquals(VERDICT_SENDER_NOT_ALLOWED, verdict(sms, "Mom", "R50 for the FNBX shirt", setOf("FNB")))
+        assertEquals(VERDICT_SENDER_NOT_ALLOWED, verdict(bankApp, "Promo", "FNB says R50 off", setOf("FNB")))
+    }
+
+    @Test
+    fun tickedNameInChatAppBodyIsStillDropped() {
+        // F2: a person's WhatsApp/Telegram message naming the bank must not be uploaded.
+        for (chat in listOf("com.whatsapp", "com.whatsapp.w4b", "org.telegram.messenger", "org.thoughtcrime.securesms", "com.facebook.orca")) {
+            assertEquals(VERDICT_SENDER_NOT_ALLOWED, verdict(chat, "Mom", "paid you R50 from FNB", setOf("FNB")))
+        }
+    }
+
+    @Test
     fun bankAppWithNoSenderAllowlistIsNotFiltered() {
         assertEquals(VERDICT_CAPTURE, verdict(bankApp, null, spend, emptySet()))
     }

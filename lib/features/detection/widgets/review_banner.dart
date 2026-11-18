@@ -48,25 +48,31 @@ class ReviewBanner extends ConsumerWidget {
   }
 }
 
-/// "Capture is off": detection is set up but Android has notification
-/// access turned off, so bank notifications go nowhere. A sideloaded
-/// reinstall does this, and Android 13 then blocks the toggle as a
-/// restricted setting, so the message names that unlock step too. Not
-/// dismissible: a silent capture gap is what this exists to stop.
+/// "Capture is off": detection is set up but bank notifications go nowhere.
+/// Either access is off (a sideloaded reinstall does this, and Android 13
+/// only offers "Allow restricted settings" after one blocked attempt, so the
+/// message says to try first), or access is on but Android has unbound the
+/// listener. Not dismissible: a silent capture gap is what this exists to stop.
 class NotificationAccessBanner extends ConsumerWidget {
   const NotificationAccessBanner({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    if (ref.watch(notificationAccessMissingProvider).valueOrNull != true) return const SizedBox.shrink();
+    final message = switch (ref.watch(captureProblemProvider).valueOrNull) {
+      CaptureProblem.accessOff => "Bank notifications aren't being captured. Turn on notification access. "
+          'If it says Restricted, open App info > ⋮ > Allow restricted settings, then try again',
+      CaptureProblem.notConnected => "Notification access is on, but capture isn't running. "
+          'Turn Piggybank off and on again in notification access',
+      _ => null,
+    };
+    if (message == null) return const SizedBox.shrink();
 
     return Padding(
       padding: const EdgeInsets.only(bottom: AppSpace.rowGap),
       child: AppBanner(
         key: const Key('notification-access-banner'),
         icon: Icons.notifications_off_outlined,
-        message: "Bank notifications aren't being captured. Open App info > ⋮ > "
-            'Allow restricted settings, then turn on notification access',
+        message: message,
         onTap: () => ref.read(notificationListenerChannelProvider).openSystemSettings(),
       ),
     );

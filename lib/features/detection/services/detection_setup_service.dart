@@ -46,12 +46,16 @@ class DetectionSetupService {
   /// True when detection is set up (consent given, at least one active
   /// source) but the system has notification access turned off, so
   /// nothing is being captured.
-  Future<bool> needsNotificationAccess() async {
-    if (!await _consentAccepted()) return false;
-    if ((await _activePackages()).isEmpty) return false;
-    return !await _channel.isEnabled();
+  Future<CaptureProblem> captureProblem() async {
+    if (!await _consentAccepted()) return CaptureProblem.none;
+    if ((await _activePackages()).isEmpty) return CaptureProblem.none;
+    if (!await _channel.isEnabled()) return CaptureProblem.accessOff;
+    return await _channel.isConnected() ? CaptureProblem.none : CaptureProblem.notConnected;
   }
 }
+
+/// Why bank notifications aren't reaching Piggybank, if they aren't.
+enum CaptureProblem { none, accessOff, notConnected }
 
 final detectionSetupServiceProvider = Provider<DetectionSetupService>(
   (ref) => DetectionSetupService(
@@ -63,6 +67,6 @@ final detectionSetupServiceProvider = Provider<DetectionSetupService>(
 
 /// Drives Home's "capture is off" banner. Errors hide the banner, like the
 /// review banner: a failed check shouldn't put an error on Home.
-final notificationAccessMissingProvider = FutureProvider.autoDispose<bool>(
-  (ref) => ref.watch(detectionSetupServiceProvider).needsNotificationAccess(),
+final captureProblemProvider = FutureProvider.autoDispose<CaptureProblem>(
+  (ref) => ref.watch(detectionSetupServiceProvider).captureProblem(),
 );

@@ -48,7 +48,7 @@ class _PiggybankAppState extends ConsumerState<PiggybankApp> with WidgetsBinding
       _flushDetectionQueue();
       _syncDetectionAllowlist();
       // Access is granted in system settings, so re-check Home's banner on return.
-      ref.invalidate(notificationAccessMissingProvider);
+      ref.invalidate(captureProblemProvider);
       if (_backgroundLockTimer.onResumed()) {
         ref.read(authControllerProvider.notifier).lockApp();
       }
