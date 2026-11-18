@@ -1,8 +1,14 @@
 package za.co.fynboscreative.piggybank
 
+import android.app.NotificationManager
+import android.content.ActivityNotFoundException
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
+import android.os.Build
 import android.provider.Settings
+import android.service.notification.NotificationListenerService
 import io.flutter.embedding.android.FlutterFragmentActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
@@ -28,8 +34,20 @@ class MainActivity : FlutterFragmentActivity() {
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, channelName).setMethodCallHandler { call, result ->
             when (call.method) {
                 "isNotificationListenerEnabled" -> result.success(isNotificationListenerEnabled())
+                "isNotificationListenerConnected" -> result.success(isNotificationListenerConnected())
                 "openNotificationListenerSettings" -> {
                     startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
+                    result.success(null)
+                }
+                // The list screen, not REQUEST_IGNORE_BATTERY_OPTIMIZATIONS:
+                // it needs no permission and Play restricts the request one.
+                "openBatteryOptimizationSettings" -> {
+                    try {
+                        startActivity(Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS))
+                    } catch (e: ActivityNotFoundException) {
+                        // Some OEM builds drop that screen; App info still reaches Battery.
+                        startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:$packageName")))
+                    }
                     result.success(null)
                 }
                 "updateAllowlist" -> {
@@ -66,9 +84,25 @@ class MainActivity : FlutterFragmentActivity() {
     private fun detectionPrefs() =
         getSharedPreferences(DetectionNotificationListenerService.PREFS_NAME, Context.MODE_PRIVATE)
 
+    private fun listenerComponent() = ComponentName(this, DetectionNotificationListenerService::class.java)
+
+    /** Exact component match, so a future `.dev` flavour can't read as granted (G9). */
     private fun isNotificationListenerEnabled(): Boolean {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
+            return getSystemService(NotificationManager::class.java).isNotificationListenerAccessGranted(listenerComponent())
+        }
         val enabledListeners = Settings.Secure.getString(contentResolver, "enabled_notification_listeners") ?: ""
-        return enabledListeners.contains(packageName)
+        return enabledListeners.split(':').mapNotNull(ComponentName::unflattenFromString).contains(listenerComponent())
+    }
+
+    /** Granted is not the same as delivering: the system may have unbound
+     * the listener. Asks for a rebind when it has, so a later check can pass. */
+    private fun isNotificationListenerConnected(): Boolean {
+        if (DetectionNotificationListenerService.connectedAt != null) return true
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            NotificationListenerService.requestRebind(listenerComponent())
+        }
+        return false
     }
 
     /** Never removes an item that may still be uploaded. See

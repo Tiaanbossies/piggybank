@@ -18,29 +18,39 @@ void main() {
     when(() => channel.openSystemSettings()).thenAnswer((_) async {});
   });
 
-  Future<void> pump(WidgetTester tester, Future<bool> Function() missing) async {
+  Future<void> pump(WidgetTester tester, Future<CaptureProblem> Function() problem) async {
     await pumpApp(
       tester,
       const NotificationAccessBanner(),
       useAppTheme: true,
       overrides: [
-        notificationAccessMissingProvider.overrideWith((ref) => missing()),
+        captureProblemProvider.overrideWith((ref) => problem()),
         notificationListenerChannelProvider.overrideWithValue(channel),
       ],
     );
     await tester.pumpAndSettle();
   }
 
-  testWidgets('names the restricted-settings fix and opens notification access on tap', (tester) async {
-    await pump(tester, () async => true);
+  testWidgets('access off: says to try first, then names the restricted-settings fix', (tester) async {
+    await pump(tester, () async => CaptureProblem.accessOff);
 
+    expect(find.textContaining('Turn on notification access'), findsOneWidget);
     expect(find.textContaining('Allow restricted settings'), findsOneWidget);
     await tester.tap(find.byKey(const Key('notification-access-banner')));
     verify(() => channel.openSystemSettings()).called(1);
   });
 
-  testWidgets('hidden when access is on', (tester) async {
-    await pump(tester, () async => false);
+  testWidgets('granted but not connected: says capture is not running and opens access on tap', (tester) async {
+    await pump(tester, () async => CaptureProblem.notConnected);
+
+    expect(find.textContaining("isn't running"), findsOneWidget);
+    expect(find.textContaining('Allow restricted settings'), findsNothing);
+    await tester.tap(find.byKey(const Key('notification-access-banner')));
+    verify(() => channel.openSystemSettings()).called(1);
+  });
+
+  testWidgets('hidden when capture is fine', (tester) async {
+    await pump(tester, () async => CaptureProblem.none);
     expect(find.byKey(const Key('notification-access-banner')), findsNothing);
   });
 

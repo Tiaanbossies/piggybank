@@ -186,9 +186,28 @@ class _DetectionSettingsScreenState extends ConsumerState<DetectionSettingsScree
       setState(() => _sources = next);
       // A messaging app reads nothing until a sender is ticked, so ask now.
       if (messagingPackages.contains(added.appPackageName)) await _editSenders(added);
+      final smsName = _bankSmsNames[added.appPackageName];
+      if (smsName != null) await _allowSmsName(smsName, next);
     } on ApiError catch (e) {
       if (mounted) setState(() => _error = e.message);
     }
+  }
+
+  /// Adds [name] to every active messaging source's sender list.
+  // shortcut: does nothing if no messaging app is added yet, upgrade if users add Investec before Messages.
+  Future<void> _allowSmsName(String name, List<NotificationSource> sources) async {
+    final next = {..._senderAllowlist};
+    var changed = false;
+    for (final s in sources.where((s) => s.isActive && messagingPackages.contains(s.appPackageName))) {
+      final allowed = next[s.appPackageName] ?? const [];
+      if (allowed.contains(name)) continue;
+      next[s.appPackageName] = [...allowed, name];
+      changed = true;
+    }
+    if (!changed) return;
+    await ref.read(notificationListenerChannelProvider).updateSenderAllowlist(next);
+    if (!mounted) return;
+    setState(() => _senderAllowlist = next);
   }
 
   Future<void> _removeSource(NotificationSource source) async {
@@ -326,7 +345,9 @@ class _DetectionSettingsScreenState extends ConsumerState<DetectionSettingsScree
               subtitle: Text(
                 _listenerEnabled
                     ? 'Granted'
-                    : 'Not granted — required so Piggybank can read allowlisted app notifications',
+                    : 'Not granted — required so Piggybank can read allowlisted app notifications. '
+                        'Tap Grant once; if it says Restricted, open App info > ⋮ > '
+                        'Allow restricted settings, then try again',
               ),
               trailing: _listenerEnabled
                   ? null
@@ -377,6 +398,22 @@ class _DetectionSettingsScreenState extends ConsumerState<DetectionSettingsScree
                 ],
               ),
             ),
+          const SizedBox(height: 12),
+          Card(
+            child: ListTile(
+              leading: const Icon(Icons.battery_alert_outlined),
+              title: const Text('Battery optimisation'),
+              subtitle: const Text(
+                'Some phones stop Piggybank in the background and miss bank notifications. '
+                'Set Piggybank to Unrestricted (on Xiaomi, also turn on Autostart)',
+              ),
+              trailing: TextButton(
+                key: const Key('battery-settings-button'),
+                onPressed: () => ref.read(notificationListenerChannelProvider).openBatteryOptimizationSettings(),
+                child: const Text('Open'),
+              ),
+            ),
+          ),
           const SizedBox(height: 24),
           Text('Gmail', style: Theme.of(context).textTheme.titleMedium),
           const SizedBox(height: 8),
@@ -492,6 +529,20 @@ class _AddEmailSourceDialogState extends State<_AddEmailSourceDialog> {
   }
 }
 
+/// Bank apps whose package IDs were read off a real phone (2026-10-27), so
+/// nobody has to dig a package name out of App info.
+const _bankApps = {
+  'Nedbank': 'za.co.nedbank',
+  'Investec': 'com.investec.app',
+  'Capitec': 'capitec.acuity.mobile.prod',
+  'Standard Bank': 'com.sbg.mobile.phone',
+};
+
+/// Banks whose SMS come from rotating numbers but name the bank in the body,
+/// so adding the app also allows that name in Messages (people mistake the
+/// app row for the SMS sender).
+const _bankSmsNames = {'com.investec.app': 'Investec'};
+
 class _AddSourceDialog extends StatefulWidget {
   const _AddSourceDialog();
 
@@ -517,11 +568,26 @@ class _AddSourceDialogState extends State<_AddSourceDialog> {
       content: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              for (final MapEntry(key: label, value: package) in _bankApps.entries)
+                ActionChip(
+                  label: Text(label),
+                  onPressed: () {
+                    _packageController.text = package;
+                    _labelController.text = label;
+                  },
+                ),
+            ],
+          ),
+          const SizedBox(height: 12),
           TextField(
             controller: _packageController,
             decoration: const InputDecoration(
               labelText: 'Package name',
-              hintText: 'e.g. za.co.fnb.connect.itest',
+              hintText: 'e.g. za.co.nedbank',
             ),
           ),
           const SizedBox(height: 12),
@@ -612,7 +678,7 @@ class _SenderAllowlistDialogState extends State<_SenderAllowlistDialog> {
                 children: [
                   Text(
                     widget.messaging
-                        ? 'Only messages from senders you tick are read.'
+                        ? 'Only messages from senders you tick are read. In SMS, one that names a ticked sender also counts.'
                         : 'Leave all unticked to accept every sender.',
                   ),
                   if (_options.isEmpty) ...[
@@ -627,7 +693,7 @@ class _SenderAllowlistDialogState extends State<_SenderAllowlistDialog> {
                     controller: _typed,
                     decoration: InputDecoration(
                       labelText: 'Add a sender',
-                      hintText: 'e.g. FNB',
+                      hintText: 'e.g. FNB or Investec',
                       suffixIcon: IconButton(
                         tooltip: 'Add sender',
                         icon: const Icon(Icons.add),
@@ -662,7 +728,10 @@ class _SenderAllowlistDialogState extends State<_SenderAllowlistDialog> {
       actions: [
         TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
         FilledButton(
-          onPressed: () => Navigator.pop(context, _selected.toList()..sort()),
+          onPressed: () {
+            _addTyped(); // a name typed but not added with + would otherwise be lost
+            Navigator.pop(context, _selected.toList()..sort());
+          },
           child: const Text('Save'),
         ),
       ],

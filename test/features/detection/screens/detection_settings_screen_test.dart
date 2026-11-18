@@ -78,6 +78,13 @@ void main() {
     expect(tester.takeException(), isNull);
     expect(find.text('Accepted'), findsOneWidget);
     expect(find.widgetWithText(ElevatedButton, 'Review & enable'), findsNothing);
+    expect(find.textContaining('Allow restricted settings'), findsOneWidget);
+
+    when(() => mockChannel.openBatteryOptimizationSettings()).thenAnswer((_) async {});
+    final battery = find.byKey(const Key('battery-settings-button'));
+    await tester.scrollUntilVisible(battery, 200);
+    await tester.tap(battery);
+    verify(() => mockChannel.openBatteryOptimizationSettings()).called(1);
   });
 
   group('messaging app sender allowlist', () {
@@ -120,7 +127,7 @@ void main() {
       await addApp(tester, 'com.google.android.apps.messaging', 'Messages');
 
       expect(find.text('Senders in Messages'), findsOneWidget);
-      expect(find.text('Only messages from senders you tick are read.'), findsOneWidget);
+      expect(find.text('Only messages from senders you tick are read. In SMS, one that names a ticked sender also counts.'), findsOneWidget);
 
       await tester.tap(find.widgetWithText(CheckboxListTile, 'FNB'));
       await tester.tap(find.widgetWithText(FilledButton, 'Save'));
@@ -136,7 +143,7 @@ void main() {
       acceptConsent();
 
       await addApp(tester, 'com.whatsapp', 'WhatsApp');
-      expect(find.textContaining('Only messages from senders you tick are read.'), findsOneWidget);
+      expect(find.textContaining('Only messages from senders you tick are read. In SMS, one that names a ticked sender also counts.'), findsOneWidget);
       await tester.tap(find.text('Cancel'));
       await tester.pumpAndSettle();
 
@@ -158,6 +165,20 @@ void main() {
           })).called(1);
     });
 
+    testWidgets('Save keeps a typed sender even without tapping +', (tester) async {
+      // Seen on a real phone (2026-10-27): "Investec" typed, Save tapped, nothing kept.
+      acceptConsent();
+
+      await addApp(tester, 'com.google.android.apps.messaging', 'Messages');
+      await tester.enterText(find.widgetWithText(TextField, 'Add a sender'), 'Investec');
+      await tester.tap(find.widgetWithText(FilledButton, 'Save'));
+      await tester.pumpAndSettle();
+
+      verify(() => mockChannel.updateSenderAllowlist({
+            'com.google.android.apps.messaging': ['Investec'],
+          })).called(1);
+    });
+
     test('messagingPackages matches DetectionFilter.MESSAGING_PACKAGES in Kotlin', () {
       final kt = File('android/app/src/main/kotlin/za/co/fynboscreative/piggybank/DetectionFilter.kt')
           .readAsStringSync();
@@ -169,10 +190,51 @@ void main() {
     testWidgets('adding a bank app does not open the sender dialog', (tester) async {
       acceptConsent();
 
-      await addApp(tester, 'za.co.fnb.connect.itest', 'FNB');
+      await addApp(tester, 'za.co.nedbank', 'Nedbank');
 
       expect(find.textContaining('Senders in'), findsNothing);
-      expect(find.text('za.co.fnb.connect.itest — all senders'), findsOneWidget);
+      expect(find.text('za.co.nedbank — all senders'), findsOneWidget);
+    });
+
+    testWidgets('adding the Investec app also names Investec as a Messages sender', (tester) async {
+      // Seen on a real phone (2026-10-27): the app row was mistaken for the SMS sender.
+      acceptConsent();
+      when(() => mockDetectionApi.listNotificationSources()).thenAnswer((_) async => const [
+            NotificationSource(
+                id: 'm1', appPackageName: 'com.google.android.apps.messaging', appLabel: 'Messages', isActive: true),
+          ]);
+      when(() => mockChannel.senderAllowlist()).thenAnswer((_) async => {
+            'com.google.android.apps.messaging': ['FNB'],
+          });
+
+      await addApp(tester, 'com.investec.app', 'Investec');
+
+      verify(() => mockChannel.updateSenderAllowlist({
+            'com.google.android.apps.messaging': ['FNB', 'Investec'],
+          })).called(1);
+      expect(find.textContaining('— FNB, Investec'), findsOneWidget);
+    });
+
+    testWidgets('a bank chip fills in its package and label', (tester) async {
+      acceptConsent();
+      when(() => mockDetectionApi.addNotificationSource(appPackageName: 'capitec.acuity.mobile.prod', appLabel: 'Capitec'))
+          .thenAnswer((_) async => const NotificationSource(
+              id: 's1', appPackageName: 'capitec.acuity.mobile.prod', appLabel: 'Capitec', isActive: true));
+      await pumpApp(tester, const DetectionSettingsScreen(), overrides: overrides());
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(TextButton, 'Add').first);
+      await tester.pumpAndSettle();
+
+      for (final bank in ['Nedbank', 'Investec', 'Capitec', 'Standard Bank']) {
+        expect(find.widgetWithText(ActionChip, bank), findsOneWidget);
+      }
+      await tester.tap(find.widgetWithText(ActionChip, 'Capitec'));
+      await tester.pump();
+      await tester.tap(find.widgetWithText(ElevatedButton, 'Add'));
+      await tester.pumpAndSettle();
+
+      verify(() => mockDetectionApi.addNotificationSource(appPackageName: 'capitec.acuity.mobile.prod', appLabel: 'Capitec'))
+          .called(1);
     });
   });
 }

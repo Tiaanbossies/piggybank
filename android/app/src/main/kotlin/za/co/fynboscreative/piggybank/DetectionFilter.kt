@@ -30,6 +30,15 @@ object DetectionFilter {
         "com.facebook.orca", // Messenger
     )
 
+    // The SMS apps among MESSAGING_PACKAGES. Only here may a ticked bank name
+    // in the text stand in for the sender: in a chat app anyone can type
+    // "FNB", so a person's message would be uploaded (F2).
+    val SMS_PACKAGES = setOf(
+        "com.google.android.apps.messaging",
+        "com.samsung.android.messaging",
+        "com.android.mms",
+    )
+
     /**
      * A deliberately permissive first cut at "this text mentions money":
      * R or ZAR immediately before a number. Untuned, because there is no
@@ -47,11 +56,19 @@ object DetectionFilter {
      */
     fun verdict(packageName: String, sender: String?, body: String, allowedSenders: Set<String>): String {
         if (allowedSenders.isEmpty() && packageName in MESSAGING_PACKAGES) return VERDICT_MESSAGING_NO_SENDERS
-        if (allowedSenders.isNotEmpty() && (sender == null || sender !in allowedSenders)) {
+        if (allowedSenders.isNotEmpty() && (sender == null || sender !in allowedSenders) &&
+            !(packageName in SMS_PACKAGES && namesInBody(body, allowedSenders))
+        ) {
             return VERDICT_SENDER_NOT_ALLOWED
         }
         if (!AMOUNT_SHAPE.containsMatchIn(body)) return VERDICT_NO_AMOUNT_SHAPE
         return VERDICT_CAPTURE
+    }
+
+    // Some banks (Investec) send SMS from a new number every time, so a
+    // ticked name also counts when it appears as a whole word in the text.
+    private fun namesInBody(body: String, names: Set<String>): Boolean = names.any {
+        Regex("""(?<![A-Za-z0-9])${Regex.escape(it)}(?![A-Za-z0-9])""", RegexOption.IGNORE_CASE).containsMatchIn(body)
     }
 
     fun drops(verdict: String): Boolean =
