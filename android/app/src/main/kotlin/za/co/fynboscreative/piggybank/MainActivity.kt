@@ -109,8 +109,13 @@ class MainActivity : FlutterFragmentActivity() {
      * NotificationListenerChannel's doc comment for why peek/acknowledge
      * are split — a failed upload must never lose queued items. The one
      * mutation is [pruneQueue], for items that must never be sent at all. */
+    // Service and channel both run on the main thread, so queue writes never interleave;
+    // the risk is the size cap trimming between peek and acknowledge (F14).
+    private var trimmedAtPeek = 0L
+
     private fun peekQueuedItems(): List<Map<String, Any?>> {
         val array = pruneQueue()
+        trimmedAtPeek = detectionPrefs().getLong(DetectionNotificationListenerService.KEY_TRIMMED_TOTAL, 0)
         val limit = minOf(array.length(), ingestBatchLimit)
         return (0 until limit).map { i ->
             val obj = array.getJSONObject(i)
@@ -183,10 +188,13 @@ class MainActivity : FlutterFragmentActivity() {
      * queue — call only after the backend has confirmed receipt. */
     private fun acknowledgeQueuedItems(count: Int) {
         val prefs = detectionPrefs()
-        val raw = prefs.getString(DetectionNotificationListenerService.KEY_QUEUE, "[]")
-        val array = JSONArray(raw)
+        val array = runCatching { JSONArray(prefs.getString(DetectionNotificationListenerService.KEY_QUEUE, "[]")) }
+            .getOrElse { JSONArray() }
+        val trimmedSincePeek =
+            prefs.getLong(DetectionNotificationListenerService.KEY_TRIMMED_TOTAL, 0) - trimmedAtPeek
+        val remove = DetectionNotificationListenerService.ackRemoveCount(count, trimmedSincePeek)
         val remaining = JSONArray()
-        for (i in count until array.length()) {
+        for (i in remove until array.length()) {
             remaining.put(array.get(i))
         }
         prefs.edit().putString(DetectionNotificationListenerService.KEY_QUEUE, remaining.toString()).apply()

@@ -117,7 +117,8 @@ class DetectionNotificationListenerService : NotificationListenerService() {
         filterVerdict: String,
     ) {
         val sharedPrefs = prefs()
-        val queue = JSONArray(sharedPrefs.getString(KEY_QUEUE, "[]"))
+        // A corrupt queue would otherwise throw here on every notification; start a fresh one (F14).
+        val queue = runCatching { JSONArray(sharedPrefs.getString(KEY_QUEUE, "[]")) }.getOrElse { JSONArray() }
         val item = JSONObject().apply {
             put("source_ref", packageName)
             put("raw_text", rawText.take(MAX_RAW_TEXT_CHARS))
@@ -139,7 +140,13 @@ class DetectionNotificationListenerService : NotificationListenerService() {
         } else {
             queue
         }
-        sharedPrefs.edit().putString(KEY_QUEUE, trimmed.toString()).apply()
+        // The trim count lets an in-flight upload's acknowledge skip items the cap already removed,
+        // instead of deleting newer unsent ones from the front (F14).
+        val dropped = queue.length() - trimmed.length()
+        sharedPrefs.edit()
+            .putString(KEY_QUEUE, trimmed.toString())
+            .putLong(KEY_TRIMMED_TOTAL, sharedPrefs.getLong(KEY_TRIMMED_TOTAL, 0) + dropped)
+            .apply()
     }
 
     private fun isoTimestamp(millis: Long): String {
@@ -152,6 +159,12 @@ class DetectionNotificationListenerService : NotificationListenerService() {
         const val PREFS_NAME = "detection_notification_queue"
         const val KEY_ALLOWLIST = "allowlist_packages"
         const val KEY_QUEUE = "queued_items"
+        const val KEY_TRIMMED_TOTAL = "queued_items_trimmed_total"
+
+        /** How many of the [count] peeked items are still at the front of the queue to remove,
+         * given that the size cap dropped [trimmedSincePeek] items from the front since the peek. */
+        fun ackRemoveCount(count: Int, trimmedSincePeek: Long): Int =
+            (count.toLong() - trimmedSincePeek).coerceIn(0L, count.coerceAtLeast(0).toLong()).toInt()
         const val KEY_SENDER_ALLOWLIST = "allowlist_senders"
         const val KEY_SEEN_SENDERS = "seen_senders"
         const val MAX_QUEUE_SIZE = 200
