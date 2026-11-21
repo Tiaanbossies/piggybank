@@ -28,9 +28,12 @@ import '../../budgets/models/budget.dart';
 import '../../budgets/providers/budgets_provider.dart';
 import '../../calculators/screens/calculators_screen.dart';
 import '../../detection/providers/detection_provider.dart';
+import '../../detection/screens/detection_settings_screen.dart';
 import '../../detection/widgets/review_banner.dart';
 import '../../goals/models/goal.dart';
 import '../../goals/providers/goals_provider.dart';
+import '../../imports/providers/imports_provider.dart';
+import '../../imports/screens/imports_screen.dart';
 import '../../networth/screens/net_worth_screen.dart';
 import '../../notifications/screens/notifications_inbox_screen.dart';
 import '../../plan/screens/plan_screen.dart';
@@ -83,6 +86,7 @@ class DashboardScreen extends ConsumerWidget {
             primary: true,
             padding: const EdgeInsets.fromLTRB(AppSpace.gutter, AppSpace.s8, AppSpace.gutter, AppSpace.fabInset),
             children: const [
+              _FirstRunCard(),
               _UpdateBanner(),
               NotificationAccessBanner(),
               MessagingSendersBanner(),
@@ -108,6 +112,50 @@ class DashboardScreen extends ConsumerWidget {
           label: 'Add',
           onPressed: () => showTransactionSheet(context),
         ),
+      ),
+    );
+  }
+}
+
+/// First-run card (EMU-1): shown only while the account has no transactions
+/// and no imports. Hidden while either is loading or failed, so an error
+/// never puts a set-up prompt in front of an existing user.
+class _FirstRunCard extends ConsumerWidget {
+  const _FirstRunCard();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final noTransactions = ref.watch(recentTransactionsProvider).valueOrNull?.items.isEmpty ?? false;
+    final noImports = ref.watch(importHistoryProvider).valueOrNull?.isEmpty ?? false;
+    if (!noTransactions || !noImports) return const SizedBox.shrink();
+
+    final text = Theme.of(context).textTheme;
+    return AppCard(
+      key: const Key('home-first-run'),
+      margin: const EdgeInsets.only(bottom: AppSpace.sectionGap),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Get started', style: text.titleMedium),
+          const SizedBox(height: AppSpace.s4),
+          Text('Bring in your transactions, or let Penny pick them up as they happen.', style: text.bodyMedium),
+          const SizedBox(height: AppSpace.s12),
+          Wrap(
+            spacing: AppSpace.s8,
+            runSpacing: AppSpace.s8,
+            children: [
+              FilledButton(
+                onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ImportsScreen())),
+                child: const Text('Import a statement'),
+              ),
+              OutlinedButton(
+                onPressed: () =>
+                    Navigator.of(context).push(MaterialPageRoute(builder: (_) => const DetectionSettingsScreen())),
+                child: const Text('Switch on bank notifications'),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }
