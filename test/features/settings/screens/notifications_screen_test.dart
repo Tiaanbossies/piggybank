@@ -104,9 +104,9 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Budget alerts'), findsOneWidget);
-      expect(find.text('Weekly summary'), findsOneWidget);
+      expect(find.text('Weekly summary'), findsNothing);
       final switches = tester.widgetList<Switch>(find.byType(Switch)).toList();
-      expect(switches, hasLength(4));
+      expect(switches, hasLength(3));
       expect(find.text('Transactions to review'), findsOneWidget);
       expect(find.text('Goal milestones'), findsOneWidget);
       expect(switches.every((s) => s.value), isTrue);
@@ -116,7 +116,7 @@ void main() {
       authController.state = authController.state.copyWith(
         user: const User(
           id: 'u1', email: 'a@b.com', fullName: 'A B', role: 'user', isActive: true,
-          notificationPreferences: {'budget_alerts': false, 'weekly_summary': true},
+          notificationPreferences: {'budget_alerts': false},
         ),
       );
       await tester.pumpWidget(buildScreen(adapter: _FakeAdapter([])));
@@ -125,20 +125,19 @@ void main() {
       final switches = tester.widgetList<Switch>(find.byType(Switch)).toList();
       expect(switches[0].value, isTrue); // review_reminders (never saved)
       expect(switches[1].value, isFalse); // budget_alerts
-      expect(switches[3].value, isTrue); // weekly_summary
     });
 
     testWidgets('toggling a switch PATCHes the full dict and refreshes the user', (tester) async {
       final adapter = _FakeAdapter([
         () => _json(200, {
               'id': 'u1', 'email': 'a@b.com', 'full_name': 'A B', 'role': 'user', 'is_active': true,
-              'notification_preferences': {'budget_alerts': false, 'weekly_summary': true},
+              'notification_preferences': {'budget_alerts': false},
               'created_at': '2026-01-01T00:00:00Z', 'updated_at': '2026-01-01T00:00:00Z',
             }), // PATCH /auth/me
       ]);
       when(() => mockAuthApi.me('token')).thenAnswer((_) async => const User(
             id: 'u1', email: 'a@b.com', fullName: 'A B', role: 'user', isActive: true,
-            notificationPreferences: {'budget_alerts': false, 'weekly_summary': true},
+            notificationPreferences: {'budget_alerts': false},
           ));
 
       await tester.pumpWidget(buildScreen(adapter: adapter));
@@ -154,7 +153,6 @@ void main() {
           'review_reminders': true,
           'budget_alerts': false,
           'goal_milestones': true,
-          'weekly_summary': true,
         },
       });
       expect(tester.widgetList<Switch>(find.byType(Switch)).elementAt(1).value, isFalse);

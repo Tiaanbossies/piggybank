@@ -73,7 +73,7 @@ const termsOfServiceDocument = ConsentDocument(
   documentType: 'terms_of_service',
   documentVersion: '1.0',
   label: 'Terms of Service',
-  summary: 'The rules and conditions for using Finance App.',
+  summary: 'The rules and conditions for using Piggybank.',
   body: '''
 Draft — version 1.0. Not yet reviewed by legal counsel. Describes the rules for using the app as it exists today.
 
