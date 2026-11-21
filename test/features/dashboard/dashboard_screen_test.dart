@@ -21,11 +21,15 @@ import 'package:piggybank/features/dashboard/widgets/left_to_spend_hero.dart';
 import 'package:piggybank/features/detection/data/detection_api.dart';
 import 'package:piggybank/features/detection/models/detected_event.dart';
 import 'package:piggybank/features/detection/providers/detection_provider.dart';
+import 'package:piggybank/features/detection/screens/detection_settings_screen.dart';
 import 'package:piggybank/features/detection/screens/pending_review_screen.dart';
 import 'package:piggybank/features/detection/services/detection_setup_service.dart';
 import 'package:piggybank/features/goals/data/goals_api.dart';
 import 'package:piggybank/features/goals/models/goal.dart';
 import 'package:piggybank/features/goals/providers/goals_provider.dart';
+import 'package:piggybank/features/imports/models/import_job.dart';
+import 'package:piggybank/features/imports/providers/imports_provider.dart';
+import 'package:piggybank/features/imports/screens/imports_screen.dart';
 import 'package:piggybank/features/networth/screens/net_worth_screen.dart';
 import 'package:piggybank/features/plan/screens/plan_screen.dart';
 import 'package:piggybank/features/savings/data/savings_api.dart';
@@ -836,6 +840,82 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.byKey(const Key('notification-access-banner')), findsNothing);
+    });
+  });
+
+  group('First-run card (EMU-1)', () {
+    List<Override> firstRunOverrides({List<ImportJob> imports = const []}) => [
+          ...overrides(),
+          importHistoryProvider.overrideWith((ref) async => imports),
+        ];
+
+    testWidgets('shows on an account with no transactions and no imports', (tester) async {
+      stubDefaults(recentTransactions: const []);
+      await pumpApp(tester, const DashboardScreen(), overrides: firstRunOverrides(), useAppTheme: true);
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('home-first-run')), findsOneWidget);
+      expect(find.text('Import a statement'), findsOneWidget);
+      expect(find.text('Switch on bank notifications'), findsOneWidget);
+    });
+
+    testWidgets('hidden once the account has a transaction', (tester) async {
+      stubDefaults(recentTransactions: [_transaction(id: 't1', category: 'Coffee')]);
+      await pumpApp(tester, const DashboardScreen(), overrides: firstRunOverrides(), useAppTheme: true);
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('home-first-run')), findsNothing);
+    });
+
+    testWidgets('hidden once the account has an import, even with no transactions', (tester) async {
+      stubDefaults(recentTransactions: const []);
+      final job = ImportJob(
+        id: 'j1',
+        filename: 'statement.csv',
+        status: ImportStatus.completed,
+        totalRows: 10,
+        importedRows: 10,
+        failedRows: 0,
+        autoCategorizedRows: 0,
+        duplicateRows: 0,
+        errorMessage: null,
+        importedBalance: null,
+        createdAt: DateTime(2026, 11, 1),
+      );
+      await pumpApp(tester, const DashboardScreen(), overrides: firstRunOverrides(imports: [job]), useAppTheme: true);
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('home-first-run')), findsNothing);
+    });
+
+    testWidgets('hidden while the import history has not loaded', (tester) async {
+      stubDefaults(recentTransactions: const []);
+      await pumpApp(tester, const DashboardScreen(), overrides: overrides(), useAppTheme: true);
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('home-first-run')), findsNothing);
+    });
+
+    testWidgets('Import a statement opens the imports screen', (tester) async {
+      stubDefaults(recentTransactions: const []);
+      await pumpApp(tester, const DashboardScreen(), overrides: firstRunOverrides(), useAppTheme: true);
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.widgetWithText(FilledButton, 'Import a statement'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(ImportsScreen), findsOneWidget);
+    });
+
+    testWidgets('Switch on bank notifications opens bank notification settings', (tester) async {
+      stubDefaults(recentTransactions: const []);
+      await pumpApp(tester, const DashboardScreen(), overrides: firstRunOverrides(), useAppTheme: true);
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.widgetWithText(OutlinedButton, 'Switch on bank notifications'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(DetectionSettingsScreen), findsOneWidget);
     });
   });
 
