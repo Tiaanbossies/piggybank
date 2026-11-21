@@ -867,6 +867,27 @@ void main() {
       expect(find.byKey(const Key('home-first-run')), findsNothing);
     });
 
+    testWidgets('hidden once the account has an import, even with no transactions', (tester) async {
+      stubDefaults(recentTransactions: const []);
+      final job = ImportJob(
+        id: 'j1',
+        filename: 'statement.csv',
+        status: ImportStatus.completed,
+        totalRows: 10,
+        importedRows: 10,
+        failedRows: 0,
+        autoCategorizedRows: 0,
+        duplicateRows: 0,
+        errorMessage: null,
+        importedBalance: null,
+        createdAt: DateTime(2026, 11, 1),
+      );
+      await pumpApp(tester, const DashboardScreen(), overrides: firstRunOverrides(imports: [job]), useAppTheme: true);
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('home-first-run')), findsNothing);
+    });
+
     testWidgets('hidden while the import history has not loaded', (tester) async {
       stubDefaults(recentTransactions: const []);
       await pumpApp(tester, const DashboardScreen(), overrides: overrides(), useAppTheme: true);
